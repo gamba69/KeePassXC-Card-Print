@@ -1,0 +1,95 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <RuntimeIdentifier>win-x64</RuntimeIdentifier>
+    <SelfContained>true</SelfContained>
+    <PublishAot>true</PublishAot>
+    <IsAotCompatible>true</IsAotCompatible>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <AvaloniaUseCompiledBindingsByDefault>true</AvaloniaUseCompiledBindingsByDefault>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <ApplicationIcon>assets\CardPrint_white.ico</ApplicationIcon>
+    <AssemblyName>KeePassXCCardPrint</AssemblyName>
+    <RootNamespace>KeePassXCCardPrint</RootNamespace>
+    <Version>6.0.7</Version>
+    <WarningsAsErrors>$(WarningsAsErrors);CA1416;IL2026;IL2070;IL2072;IL2075;IL3050;IL3053;AVLN5001</WarningsAsErrors>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Avalonia" Version="12.1.5" />
+    <PackageReference Include="Avalonia.Desktop" Version="12.1.5" />
+    <!-- Explicit renderer/shaper: both selected in Program.cs; NuGet 4 wins over Avalonia's minimum 3.x. -->
+    <PackageReference Include="Avalonia.Skia" Version="12.1.5" />
+    <PackageReference Include="Avalonia.HarfBuzz" Version="12.1.5" />
+    <PackageReference Include="Avalonia.Themes.Fluent" Version="12.1.5" />
+    <PackageReference Include="FluentIcons.Avalonia" Version="2.1.345" />
+    <PackageReference Include="DgNet.Keepass" Version="0.2.0" />
+    <PackageReference Include="Yubico.YubiKey" Version="1.18.0" />
+    <PackageReference Include="SkiaSharp" Version="4.154.0" />
+    <PackageReference Include="SkiaSharp.HarfBuzz" Version="4.154.0" />
+    <!-- Version 4 of SkiaSharp.HarfBuzz requires HarfBuzz 14; do not leave Avalonia's older minimum in charge. -->
+    <PackageReference Include="HarfBuzzSharp" Version="14.2.1.400" />
+    <PackageReference Include="QRCoder" Version="1.8.1" />
+    <!-- Application branding: each ICO contains native sizes from 16 to 256 px. -->
+    <AvaloniaResource Include="assets/CardPrint_black.ico" />
+    <AvaloniaResource Include="assets/CardPrint_white.ico" />
+    <!-- Original unscaled ICO frame pixels for client-area artwork (chosen by theme and DPI). -->
+    <AvaloniaResource Include="assets/CardPrint_black_*.png" />
+    <AvaloniaResource Include="assets/CardPrint_white_*.png" />
+    <AvaloniaResource Include="assets/icons/*.png" />
+  </ItemGroup>
+  <!-- Compile-time NuGet manifest. No reflection/Assembly.Load (Native AOT safe).
+       Every version is read from the actual PackageReference, never copied by hand. -->
+  <Target Name="GenerateAboutDependencyVersions" BeforeTargets="CoreCompile">
+    <PropertyGroup>
+      <_AboutVerAvalonia>@(PackageReference->WithMetadataValue('Identity','Avalonia')->'%(Version)')</_AboutVerAvalonia>
+      <_AboutVerAvaloniaWin32>@(PackageReference->WithMetadataValue('Identity','Avalonia.Win32')->'%(Version)')</_AboutVerAvaloniaWin32>
+      <_AboutVerAvaloniaDesktop>@(PackageReference->WithMetadataValue('Identity','Avalonia.Desktop')->'%(Version)')</_AboutVerAvaloniaDesktop>
+      <_AboutVerAvaloniaSkia>@(PackageReference->WithMetadataValue('Identity','Avalonia.Skia')->'%(Version)')</_AboutVerAvaloniaSkia>
+      <_AboutVerAvaloniaThemes>@(PackageReference->WithMetadataValue('Identity','Avalonia.Themes.Fluent')->'%(Version)')</_AboutVerAvaloniaThemes>
+      <_AboutVerAvaloniaHarfBuzz>@(PackageReference->WithMetadataValue('Identity','Avalonia.HarfBuzz')->'%(Version)')</_AboutVerAvaloniaHarfBuzz>
+      <_AboutVerSkiaAssets>@(PackageReference->WithMetadataValue('Identity','SkiaSharp.NativeAssets.Win32')->'%(Version)')</_AboutVerSkiaAssets>
+      <_AboutVerSkiaSharpHarfBuzz>@(PackageReference->WithMetadataValue('Identity','SkiaSharp.HarfBuzz')->'%(Version)')</_AboutVerSkiaSharpHarfBuzz>
+      <_AboutVerSkiaSharp>@(PackageReference->WithMetadataValue('Identity','SkiaSharp')->'%(Version)')</_AboutVerSkiaSharp>
+      <_AboutVerHarfBuzzAssets>@(PackageReference->WithMetadataValue('Identity','HarfBuzzSharp.NativeAssets.Win32')->'%(Version)')</_AboutVerHarfBuzzAssets>
+      <_AboutVerHarfBuzzSharp>@(PackageReference->WithMetadataValue('Identity','HarfBuzzSharp')->'%(Version)')</_AboutVerHarfBuzzSharp>
+      <_AboutVerFluentIcons>@(PackageReference->WithMetadataValue('Identity','FluentIcons.Avalonia')->'%(Version)')</_AboutVerFluentIcons>
+      <_AboutVerKeePass>@(PackageReference->WithMetadataValue('Identity','DgNet.Keepass')->'%(Version)')</_AboutVerKeePass>
+      <_AboutVerYubiKey>@(PackageReference->WithMetadataValue('Identity','Yubico.YubiKey')->'%(Version)')</_AboutVerYubiKey>
+      <_AboutVerQRCoder>@(PackageReference->WithMetadataValue('Identity','QRCoder')->'%(Version)')</_AboutVerQRCoder>
+    </PropertyGroup>
+    <Error Condition="'$(_AboutVerAvalonia)' == ''" Text="Missing Avalonia package version for the About manifest." />
+    <Error Condition="'$(_AboutVerAvaloniaSkia)' == ''" Text="Missing AvaloniaSkia package version for the About manifest." />
+    <Error Condition="'$(_AboutVerAvaloniaHarfBuzz)' == ''" Text="Missing AvaloniaHarfBuzz package version for the About manifest." />
+    <Error Condition="'$(_AboutVerSkiaSharp)' == ''" Text="Missing SkiaSharp package version for the About manifest." />
+    <Error Condition="'$(_AboutVerHarfBuzzSharp)' == ''" Text="Missing HarfBuzzSharp package version for the About manifest." />
+    <Error Condition="'$(_AboutVerFluentIcons)' == ''" Text="Missing FluentIcons package version for the About manifest." />
+    <Error Condition="'$(_AboutVerKeePass)' == ''" Text="Missing KeePass package version for the About manifest." />
+    <Error Condition="'$(_AboutVerYubiKey)' == ''" Text="Missing YubiKey package version for the About manifest." />
+    <Error Condition="'$(_AboutVerQRCoder)' == ''" Text="Missing QRCoder package version for the About manifest." />
+    <Error Condition="'$(_AboutVerAvaloniaDesktop)' == ''" Text="Missing AvaloniaDesktop package version for the About manifest." />
+    <Error Condition="'$(_AboutVerAvaloniaWin32)' == ''" Text="Missing AvaloniaWin32 package version for the About manifest." />
+    <Error Condition="'$(_AboutVerAvaloniaThemes)' == ''" Text="Missing AvaloniaThemes package version for the About manifest." />
+    <Error Condition="'$(_AboutVerSkiaSharpHarfBuzz)' == ''" Text="Missing SkiaSharpHarfBuzz package version for the About manifest." />
+    <Error Condition="'$(_AboutVerSkiaAssets)' == ''" Text="Missing SkiaAssets package version for the About manifest." />
+    <Error Condition="'$(_AboutVerHarfBuzzAssets)' == ''" Text="Missing HarfBuzzAssets package version for the About manifest." />
+    <WriteLinesToFile File="$(IntermediateOutputPath)AboutDependencyVersions.g.cs"
+      Lines="namespace KeePassXCCardPrint.Services { internal static class AboutDependencyVersions { public const string Avalonia = &quot;$(_AboutVerAvalonia)&quot;%3B public const string AvaloniaWin32 = &quot;$(_AboutVerAvaloniaWin32)&quot;%3B public const string AvaloniaDesktop = &quot;$(_AboutVerAvaloniaDesktop)&quot;%3B public const string AvaloniaSkia = &quot;$(_AboutVerAvaloniaSkia)&quot;%3B public const string AvaloniaThemes = &quot;$(_AboutVerAvaloniaThemes)&quot;%3B public const string AvaloniaHarfBuzz = &quot;$(_AboutVerAvaloniaHarfBuzz)&quot;%3B public const string SkiaAssets = &quot;$(_AboutVerSkiaAssets)&quot;%3B public const string SkiaSharpHarfBuzz = &quot;$(_AboutVerSkiaSharpHarfBuzz)&quot;%3B public const string SkiaSharp = &quot;$(_AboutVerSkiaSharp)&quot;%3B public const string HarfBuzzAssets = &quot;$(_AboutVerHarfBuzzAssets)&quot;%3B public const string HarfBuzzSharp = &quot;$(_AboutVerHarfBuzzSharp)&quot;%3B public const string FluentIcons = &quot;$(_AboutVerFluentIcons)&quot;%3B public const string KeePass = &quot;$(_AboutVerKeePass)&quot;%3B public const string YubiKey = &quot;$(_AboutVerYubiKey)&quot;%3B public const string QRCoder = &quot;$(_AboutVerQRCoder)&quot;%3B } }"
+      Overwrite="true" WriteOnlyWhenDifferent="true" />
+    <ItemGroup>
+      <Compile Include="$(IntermediateOutputPath)AboutDependencyVersions.g.cs" />
+    </ItemGroup>
+  </Target>
+  <!-- Windows-only packages are declared in the active Windows host layer. -->
+  <Import Project="platforms/windows/windows-packages.props" />
+  <!-- Single version source of truth for the executable and the entire UI. -->
+  <Target Name="GenerateAppBuildInfo" BeforeTargets="CoreCompile">
+    <WriteLinesToFile File="$(IntermediateOutputPath)AppBuildInfo.g.cs"
+      Lines="namespace KeePassXCCardPrint { internal static class AppBuildInfo { internal const string Version = &quot;$(Version)&quot;%3B } }"
+      Overwrite="true" WriteOnlyWhenDifferent="true" />
+    <ItemGroup>
+      <Compile Include="$(IntermediateOutputPath)AppBuildInfo.g.cs" />
+    </ItemGroup>
+  </Target>
+</Project>

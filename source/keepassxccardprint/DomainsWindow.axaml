@@ -1,0 +1,49 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:fi="using:FluentIcons.Avalonia"
+        x:Class="KeePassXCCardPrint.DomainsWindow"
+        Title="Служебные поддомены — умный домен"
+        WindowStartupLocation="CenterOwner" WindowDecorations="Full" ShowInTaskbar="False"
+        Width="525" Height="470" MinWidth="450" MinHeight="370"
+        Background="{DynamicResource KpWindowBrush}">
+  <DockPanel LastChildFill="True">
+    <Border DockPanel.Dock="Bottom" Classes="app-footer">
+      <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Spacing="7">
+        <Button x:Name="SaveButton" Height="26" MinWidth="0" Padding="8,2" Click="OnSave">
+          <StackPanel Orientation="Horizontal" Spacing="6">
+            <fi:FluentIcon Icon="Save" IconVariant="Regular" IconSize="Size20" Width="14" Height="14" FontSize="14" Foreground="{DynamicResource KpTextBrush}"/>
+            <TextBlock x:Name="SaveText" VerticalAlignment="Center"/>
+          </StackPanel>
+        </Button>
+        <Button x:Name="CancelButton" Height="26" MinWidth="0" Padding="8,2" Click="OnCancel">
+          <StackPanel Orientation="Horizontal" Spacing="6">
+            <PathIcon Data="{StaticResource KpCancelIconGeometry}" Width="14" Height="14" Foreground="{DynamicResource KpTextBrush}"/>
+            <TextBlock x:Name="CancelText" VerticalAlignment="Center"/>
+          </StackPanel>
+        </Button>
+      </StackPanel>
+    </Border>
+    <Border Classes="settings-card" Margin="12">
+      <Grid RowDefinitions="Auto,Auto,*,Auto,Auto" RowSpacing="9" MinHeight="0">
+        <TextBlock Grid.Row="0" x:Name="DomainLead" Classes="section-heading" Text="Удаляются только начальные служебные поддомены."/>
+        <TextBlock Grid.Row="1" x:Name="DomainHint" Classes="hint" TextWrapping="Wrap"
+                   Text="Правило применяется ко всем URL, но не изменяет данные KDBX."/>
+        <ListBox Grid.Row="2" x:Name="PrefixList" SelectionMode="Multiple"
+                 BorderThickness="1" BorderBrush="{DynamicResource KpBorderBrush}"/>
+        <Grid Grid.Row="3" ColumnDefinitions="*,Auto,Auto,Auto" ColumnSpacing="6">
+          <TextBox Grid.Column="0" x:Name="PrefixInput" KeyDown="OnInputKeyDown" PlaceholderText="Поддомен без точки"/>
+          <Button Grid.Column="1" Click="OnAdd" x:Name="AddButton" Height="26" MinWidth="0" Padding="8,2">
+            <StackPanel Orientation="Horizontal" Spacing="5"><fi:FluentIcon Icon="DocumentCopy" IconVariant="Regular" IconSize="Size20" Width="14" Height="14" FontSize="14" Foreground="{DynamicResource KpTextBrush}"/><TextBlock x:Name="AddText" VerticalAlignment="Center"/></StackPanel>
+          </Button>
+          <Button Grid.Column="2" Click="OnRemove" x:Name="RemoveButton" Height="26" MinWidth="0" Padding="8,2">
+            <StackPanel Orientation="Horizontal" Spacing="5"><fi:FluentIcon Icon="Dismiss" IconVariant="Regular" IconSize="Size20" Width="14" Height="14" FontSize="14" Foreground="{DynamicResource KpTextBrush}"/><TextBlock x:Name="RemoveText" VerticalAlignment="Center"/></StackPanel>
+          </Button>
+          <Button Grid.Column="3" Click="OnDefaults" x:Name="DefaultsButton" Height="26" MinWidth="0" Padding="8,2">
+            <StackPanel Orientation="Horizontal" Spacing="5"><fi:FluentIcon Icon="ArrowSync" IconVariant="Regular" IconSize="Size20" Width="14" Height="14" FontSize="14" Foreground="{DynamicResource KpTextBrush}"/><TextBlock x:Name="DefaultsText" VerticalAlignment="Center"/></StackPanel>
+          </Button>
+        </Grid>
+        <TextBlock Grid.Row="4" x:Name="DomainStatus" Classes="hint" TextWrapping="Wrap"/>
+      </Grid>
+    </Border>
+  </DockPanel>
+</Window>

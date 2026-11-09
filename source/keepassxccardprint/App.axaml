@@ -1,0 +1,112 @@
+<Application xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             x:Class="KeePassXCCardPrint.App">
+  <!-- Custom application palette, distinct from the default Fluent colors. -->
+  <Application.Resources>
+    <ResourceDictionary>
+      <ResourceDictionary.ThemeDictionaries>
+      <ResourceDictionary x:Key="Light">
+        <SolidColorBrush x:Key="KpWindowBrush" Color="#f3f4f7" />
+        <SolidColorBrush x:Key="KpSurfaceBrush" Color="#ffffff" />
+        <SolidColorBrush x:Key="KpTextBrush" Color="#1c2730" />
+        <SolidColorBrush x:Key="KpSubtleBrush" Color="#637280" />
+        <SolidColorBrush x:Key="KpBorderBrush" Color="#ced4dc" />
+        <!-- Dedicated, deliberately visible window frame: not a form-field separator. -->
+        <SolidColorBrush x:Key="KpFrameBrush" Color="#697f98" />
+        <SolidColorBrush x:Key="KpSelectedBrush" Color="#dbeafe" />
+        <SolidColorBrush x:Key="KpSelectedTextBrush" Color="#172b45" />
+        <SolidColorBrush x:Key="KpButtonBrush" Color="#e8edf4" />
+        <SolidColorBrush x:Key="KpInputBrush" Color="#ffffff" />
+        <SolidColorBrush x:Key="KpCanvasBrush" Color="#c8cdd3" />
+        <SolidColorBrush x:Key="KpAccentBrush" Color="#2b68b6" />
+        <SolidColorBrush x:Key="KpErrorBrush" Color="#ba3232" />
+        <SolidColorBrush x:Key="KpDangerButtonBrush" Color="#b42318" />
+        <SolidColorBrush x:Key="KpDangerButtonHoverBrush" Color="#cf3026" />
+        <SolidColorBrush x:Key="KpDangerButtonPressedBrush" Color="#922016" />
+        <SolidColorBrush x:Key="KpDangerButtonTextBrush" Color="#ffffff" />
+        <SolidColorBrush x:Key="KpRowHoverBrush" Color="#e6f0fc" />
+        <SolidColorBrush x:Key="KpStripeBrush" Color="#f3f7fc" />
+        <SolidColorBrush x:Key="KpRowMarkedBrush" Color="#cce1f8" />
+        <SolidColorBrush x:Key="KpRowMarkedHoverBrush" Color="#b6d6f8" />
+        <SolidColorBrush x:Key="KpHeaderBrush" Color="#ffffff" />
+        <SolidColorBrush x:Key="KpHeaderBorderBrush" Color="#d7dde5" />
+        <SolidColorBrush x:Key="KpHeaderTextBrush" Color="#1f2a34" />
+        <SolidColorBrush x:Key="KpHeaderSubtleBrush" Color="#5f6b78" />
+        <SolidColorBrush x:Key="KpHeaderIconBrush" Color="#252f39" />
+        <SolidColorBrush x:Key="KpFooterBrush" Color="#eef2f6" />
+        <SolidColorBrush x:Key="KpFooterTextBrush" Color="#304050" />
+        <SolidColorBrush x:Key="KpFooterMetaBrush" Color="#65788a" />
+        <!-- A PopupBorder in the Fluent template uses LOCAL DynamicResource values.
+             Override those resource keys; a Border style setter cannot win. -->
+        <SolidColorBrush x:Key="FlyoutPresenterBackground" Color="#ffffff" />
+        <SolidColorBrush x:Key="FlyoutBorderThemeBrush" Color="#ced4dc" />
+        <SolidColorBrush x:Key="MenuFlyoutPresenterBackground" Color="#ffffff" />
+        <SolidColorBrush x:Key="MenuFlyoutPresenterBorderBrush" Color="#ced4dc" />
+        <SolidColorBrush x:Key="ComboBoxDropDownBackground" Color="#ffffff" />
+        <SolidColorBrush x:Key="ComboBoxDropDownBorderBrush" Color="#ced4dc" />
+      </ResourceDictionary>
+      <ResourceDictionary x:Key="Dark">
+        <SolidColorBrush x:Key="KpWindowBrush" Color="#081524" />
+        <SolidColorBrush x:Key="KpSurfaceBrush" Color="#182b3f" />
+        <SolidColorBrush x:Key="KpTextBrush" Color="#eef4fb" />
+        <SolidColorBrush x:Key="KpSubtleBrush" Color="#b2c0cf" />
+        <SolidColorBrush x:Key="KpBorderBrush" Color="#31475f" />
+        <SolidColorBrush x:Key="KpFrameBrush" Color="#6689a8" />
+        <SolidColorBrush x:Key="KpSelectedBrush" Color="#243b56" />
+        <SolidColorBrush x:Key="KpSelectedTextBrush" Color="#ffffff" />
+        <SolidColorBrush x:Key="KpButtonBrush" Color="#20384e" />
+        <SolidColorBrush x:Key="KpInputBrush" Color="#13273b" />
+        <SolidColorBrush x:Key="KpCanvasBrush" Color="#06111c" />
+        <SolidColorBrush x:Key="KpAccentBrush" Color="#6ea8ff" />
+        <SolidColorBrush x:Key="KpErrorBrush" Color="#ff8585" />
+        <SolidColorBrush x:Key="KpDangerButtonBrush" Color="#b42318" />
+        <SolidColorBrush x:Key="KpDangerButtonHoverBrush" Color="#cd3329" />
+        <SolidColorBrush x:Key="KpDangerButtonPressedBrush" Color="#961f17" />
+        <SolidColorBrush x:Key="KpDangerButtonTextBrush" Color="#ffffff" />
+        <SolidColorBrush x:Key="KpRowHoverBrush" Color="#29445d" />
+        <SolidColorBrush x:Key="KpStripeBrush" Color="#1f3448" />
+        <SolidColorBrush x:Key="KpRowMarkedBrush" Color="#2a5075" />
+        <SolidColorBrush x:Key="KpRowMarkedHoverBrush" Color="#37638d" />
+        <SolidColorBrush x:Key="KpHeaderBrush" Color="#102133" />
+        <SolidColorBrush x:Key="KpHeaderBorderBrush" Color="#27425d" />
+        <SolidColorBrush x:Key="KpHeaderTextBrush" Color="#ffffff" />
+        <SolidColorBrush x:Key="KpHeaderSubtleBrush" Color="#b9c7d4" />
+        <SolidColorBrush x:Key="KpHeaderIconBrush" Color="#ffffff" />
+        <SolidColorBrush x:Key="KpFooterBrush" Color="#102133" />
+        <SolidColorBrush x:Key="KpFooterTextBrush" Color="#d9e5f0" />
+        <SolidColorBrush x:Key="KpFooterMetaBrush" Color="#b4c3d1" />
+        <SolidColorBrush x:Key="FlyoutPresenterBackground" Color="#13273b" />
+        <SolidColorBrush x:Key="FlyoutBorderThemeBrush" Color="#31475f" />
+        <SolidColorBrush x:Key="MenuFlyoutPresenterBackground" Color="#13273b" />
+        <SolidColorBrush x:Key="MenuFlyoutPresenterBorderBrush" Color="#31475f" />
+        <SolidColorBrush x:Key="ComboBoxDropDownBackground" Color="#13273b" />
+        <SolidColorBrush x:Key="ComboBoxDropDownBorderBrush" Color="#31475f" />
+      </ResourceDictionary>
+      </ResourceDictionary.ThemeDictionaries>
+      <!-- Avalonia 12 Fluent ComboBox.xaml uses 0,4,0,4 for this exact key.
+           Remove BOTH bands at the resource level, not via /template/ Styles:
+           ItemsPresenter.Margin is a local DynamicResource set by Fluent. -->
+      <!-- Fluent System Icons Filter Dismiss Regular 20 (MIT); vector, no font dependency. -->
+      <StreamGeometry x:Key="KpFilterDismissGeometry">M12.5 15C12.7761 15 13 15.2239 13 15.5C13 15.7455 12.8231 15.9499 12.5898 15.9922L12.5 16H7.5C7.22386 16 7 15.7761 7 15.5C7 15.2545 7.17691 15.0501 7.41016 15.0078L7.5 15H12.5ZM14.5 11C14.7761 11 15 11.2239 15 11.5C15 11.7455 14.8231 11.9499 14.5898 11.9922L14.5 12H5.5C5.22386 12 5 11.7761 5 11.5C5 11.2545 5.17691 11.0501 5.41016 11.0078L5.5 11H14.5ZM14.5 1C16.9853 1 19 3.01472 19 5.5C19 7.98528 16.9853 10 14.5 10C12.0147 10 10 7.98528 10 5.5C10 3.01472 12.0147 1 14.5 1ZM9.20703 7C9.30563 7.34863 9.43768 7.68322 9.59961 8H3.5C3.22386 8 3 7.77614 3 7.5C3 7.25454 3.17691 7.05015 3.41016 7.00781L3.5 7H9.20703ZM16.3535 3.64648C16.1583 3.45122 15.8417 3.45122 15.6465 3.64648L14.5 4.79297L13.3535 3.64648C13.1583 3.45122 12.8417 3.45122 12.6465 3.64648C12.4512 3.84175 12.4512 4.15825 12.6465 4.35352L13.793 5.5L12.6465 6.64648C12.4512 6.84175 12.4512 7.15825 12.6465 7.35352C12.8417 7.54878 13.1583 7.54878 13.3535 7.35352L14.5 6.20703L15.6465 7.35352C15.8417 7.54878 16.1583 7.54878 16.3535 7.35352C16.5488 7.15825 16.5488 6.84175 16.3535 6.64648L15.207 5.5L16.3535 4.35352C16.5488 4.15825 16.5488 3.84175 16.3535 3.64648Z</StreamGeometry>
+      <!-- Identical outlined Cancel action icon for modal AXAML and programmatic dialogs. -->
+      <StreamGeometry x:Key="KpCancelIconGeometry">M10 2C14.4183 2 18 5.58172 18 10C18 14.4183 14.4183 18 10 18C5.58172 18 2 14.4183 2 10C2 5.58172 5.58172 2 10 2ZM10 3C6.13401 3 3 6.13401 3 10C3 13.866 6.13401 17 10 17C13.866 17 17 13.866 17 10C17 6.13401 13.866 3 10 3ZM7.80943 7.11372L7.87868 7.17157L10 9.29289L12.1213 7.17157C12.2949 6.99801 12.5643 6.97872 12.7592 7.11372L12.8284 7.17157C13.002 7.34514 13.0213 7.61456 12.8863 7.80943L12.8284 7.87868L10.7071 10L12.8284 12.1213C13.002 12.2949 13.0213 12.5643 12.8863 12.7592L12.8284 12.8284C12.6549 13.002 12.3854 13.0213 12.1906 12.8863L12.1213 12.8284L10 10.7071L7.87868 12.8284C7.70511 13.002 7.43569 13.0213 7.24082 12.8863L7.17157 12.8284C6.99801 12.6549 6.97872 12.3854 7.11372 12.1906L7.17157 12.1213L9.29289 10L7.17157 7.87868C6.99801 7.70511 6.97872 7.43569 7.11372 7.24082L7.17157 7.17157C7.34514 6.99801 7.61456 6.97872 7.80943 7.11372Z</StreamGeometry>
+      <Thickness x:Key="ComboBoxDropdownContentMargin">0</Thickness>
+      <Thickness x:Key="ComboBoxDropdownBorderPadding">0</Thickness>
+      <Thickness x:Key="ComboBoxDropdownBorderThickness">1</Thickness>
+    </ResourceDictionary>
+  </Application.Resources>
+  <Application.Styles>
+    <!-- Fluent's template/popup colors must be configured as well as our app brushes. -->
+    <FluentTheme DensityStyle="Compact">
+      <FluentTheme.Palettes>
+        <ColorPaletteResources x:Key="Light" Accent="#2b68b6" RegionColor="#f3f4f7"
+                               BaseHigh="#1c2730" BaseMedium="#637280"
+                               ChromeLow="#e8edf4" ChromeMedium="#ced4dc" />
+        <ColorPaletteResources x:Key="Dark" Accent="#6ea8ff" RegionColor="#081524"
+                               BaseHigh="#eef4fb" BaseMedium="#b2c0cf"
+                               ChromeLow="#20384e" ChromeMedium="#31475f" />
+      </FluentTheme.Palettes>
+    </FluentTheme>
+    <StyleInclude Source="avares://KeePassXCCardPrint/styles/Compact.axaml" />
+  </Application.Styles>
+</Application>

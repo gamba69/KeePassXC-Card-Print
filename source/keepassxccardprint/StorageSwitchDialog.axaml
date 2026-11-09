@@ -1,0 +1,30 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:fi="using:FluentIcons.Avalonia"
+        x:Class="KeePassXCCardPrint.StorageSwitchDialog"
+        WindowDecorations="Full" CanResize="False" ShowInTaskbar="False"
+        WindowStartupLocation="CenterOwner" Width="468"
+        SizeToContent="Height" MinHeight="185" MaxHeight="360"
+        Background="{DynamicResource KpWindowBrush}">
+  <!-- Same native frame, theme card and button footer as print confirmations. -->
+  <DockPanel LastChildFill="True">
+    <Border Classes="app-footer" DockPanel.Dock="Bottom">
+      <StackPanel Orientation="Horizontal" Spacing="8" HorizontalAlignment="Right">
+        <Button x:Name="YesButton" Click="OnYes" Height="26" MinWidth="0" Padding="8,2"><StackPanel Orientation="Horizontal" Spacing="6"><fi:FluentIcon Icon="DocumentCopy" IconVariant="Regular" IconSize="Size20" Width="14" Height="14" FontSize="14" Foreground="{DynamicResource KpTextBrush}"/><TextBlock x:Name="YesText" VerticalAlignment="Center"/></StackPanel></Button>
+        <Button x:Name="NoButton" Click="OnNo" Height="26" MinWidth="0" Padding="8,2"><StackPanel Orientation="Horizontal" Spacing="6"><fi:FluentIcon Icon="ArrowSync" IconVariant="Regular" IconSize="Size20" Width="14" Height="14" FontSize="14" Foreground="{DynamicResource KpTextBrush}"/><TextBlock x:Name="NoText" VerticalAlignment="Center"/></StackPanel></Button>
+        <Button x:Name="CancelButton" Click="OnCancel" Height="26" MinWidth="0" Padding="8,2"><StackPanel Orientation="Horizontal" Spacing="6"><PathIcon Data="{StaticResource KpCancelIconGeometry}" Width="14" Height="14" Foreground="{DynamicResource KpTextBrush}"/><TextBlock x:Name="CancelText" VerticalAlignment="Center"/></StackPanel></Button>
+      </StackPanel>
+    </Border>
+    <Border Classes="settings-card" Margin="12" Padding="12">
+      <StackPanel Spacing="10">
+        <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+          <fi:FluentIcon Icon="QuestionCircle" IconSize="Size20" IconVariant="Regular"
+                         Width="20" Height="20" FontSize="20" Foreground="{DynamicResource KpAccentBrush}"/>
+          <TextBlock x:Name="DialogHeading" Classes="section-heading" VerticalAlignment="Center"/>
+        </StackPanel>
+        <Border Height="1" Background="{DynamicResource KpBorderBrush}"/>
+        <TextBlock x:Name="DialogQuestion" TextWrapping="Wrap" FontSize="13"/>
+      </StackPanel>
+    </Border>
+  </DockPanel>
+</Window>

@@ -1,0 +1,8 @@
+AtkinsonHyperlegibleMono-Variable.ttf
+AtkinsonHyperlegibleNext-Variable.ttf
+JetBrainsMono-Variable.ttf
+Recursive-Variable.ttf
+IBMPlexMono-Variable.ttf
+SourceCodePro-Variable.ttf
+GeistMono-Variable.ttf
+CascadiaMono-Variable.ttf

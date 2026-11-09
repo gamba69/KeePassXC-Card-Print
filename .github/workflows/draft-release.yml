@@ -1,0 +1,166 @@
+name: Build Windows package for existing draft release
+
+# Release stages are intentionally manual: tag -> draft -> build -> review -> publish.
+# No push, tag, or release-created event triggers a build or publishes a release.
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Existing tag: v6.0.7 or 6.0.7'
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: draft-release-${{ inputs.tag }}
+  cancel-in-progress: false
+
+jobs:
+  preflight:
+    name: Verify existing tag and draft release
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.validate.outputs.version }}
+    steps:
+      - name: Require an existing tag and an unpublished draft with no conflicting assets
+        id: validate
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ inputs.tag }}
+        run: |
+          set -euo pipefail
+          if [[ ! "$RELEASE_TAG" =~ ^v?[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo '[FAIL] Tag must be N.N.N or vN.N.N.' >&2
+            exit 1
+          fi
+          gh api "repos/$GITHUB_REPOSITORY/git/ref/tags/$RELEASE_TAG" --jq '.ref' > /dev/null || {
+            echo '[FAIL] The exact Git tag does not exist.' >&2
+            exit 1
+          }
+          release_json="$(gh release view "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" --json tagName,isDraft,assets)" || {
+            echo '[FAIL] Create a draft release for the exact tag before running this workflow.' >&2
+            exit 1
+          }
+          echo "$release_json" | jq -e --arg tag "$RELEASE_TAG" \
+            '.tagName == $tag and .isDraft == true' >/dev/null || {
+            echo '[FAIL] The release is missing or has already been published.' >&2
+            exit 1
+          }
+          version="${RELEASE_TAG#v}"
+          archive="KeePassXCCardPrint-${version}-win-x64.zip"
+          checksum="${archive}.sha256"
+          if echo "$release_json" | jq -e --arg zip "$archive" --arg sha "$checksum" \
+            'any(.assets[]?; .name == $zip or .name == $sha)' >/dev/null; then
+            echo '[FAIL] This draft already contains a package or checksum asset; review/remove it manually first.' >&2
+            exit 1
+          fi
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo '[PASS] Existing tag and unpublished draft validated.'
+
+  build:
+    name: Build, test and package Windows Native AOT
+    needs: preflight
+    runs-on: windows-2025
+    timeout-minutes: 60
+    permissions:
+      contents: read
+    steps:
+      - name: Check out the exact release tag
+        uses: actions/checkout@v4
+        with:
+          ref: refs/tags/${{ inputs.tag }}
+          persist-credentials: false
+      - name: Reject private files and embedded credentials before compilation
+        shell: powershell
+        run: |
+          & ./tools/verify_repository_privacy.ps1
+          if ($LASTEXITCODE -ne 0) { throw '[FAIL] Repository privacy check failed.' }
+      - name: Verify the tag matches the project's only version
+        shell: powershell
+        env:
+          RELEASE_VERSION: ${{ needs.preflight.outputs.version }}
+        run: |
+          [xml]$project = Get-Content -LiteralPath 'source/keepassxccardprint/KeePassXCCardPrint.csproj' -Raw -Encoding UTF8
+          $version = [string]$project.Project.PropertyGroup.Version
+          if ($version -cne $env:RELEASE_VERSION) {
+            throw "[FAIL] Tag version $env:RELEASE_VERSION != project version $version. Fix the tag/source rather than rebuilding an unrelated commit."
+          }
+          Write-Host '[PASS] Tag version matches the source version.'
+      - name: Install patched .NET 10 SDK
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+      - name: Build, run all tests, create ZIP and SHA-256 (no pause)
+        shell: cmd
+        run: build.bat --no-pause
+      - name: Verify archive, SHA-256 and privacy-sensitive exclusions
+        shell: powershell
+        env:
+          RELEASE_VERSION: ${{ needs.preflight.outputs.version }}
+        run: |
+          $zip = "dist/KeePassXCCardPrint-$env:RELEASE_VERSION-win-x64.zip"
+          & ./tools/verify_release_package.ps1 -ArchivePath $zip -ChecksumPath "$zip.sha256"
+          if ($LASTEXITCODE -ne 0) { throw '[FAIL] Release files failed verification.' }
+      - name: Preserve both release files for review
+        uses: actions/upload-artifact@v4
+        with:
+          name: KeePassXCCardPrint-${{ needs.preflight.outputs.version }}-win-x64-release-files
+          path: |
+            dist/KeePassXCCardPrint-${{ needs.preflight.outputs.version }}-win-x64.zip
+            dist/KeePassXCCardPrint-${{ needs.preflight.outputs.version }}-win-x64.zip.sha256
+          if-no-files-found: error
+          retention-days: 30
+
+  attach:
+    name: Attach verified files to draft (never publish)
+    needs: [preflight, build]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Retrieve tested release files
+        uses: actions/download-artifact@v4
+        with:
+          name: KeePassXCCardPrint-${{ needs.preflight.outputs.version }}-win-x64-release-files
+          path: release-files
+      - name: Check checksum, draft status and upload without overwrite
+        shell: bash
+        working-directory: release-files
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ inputs.tag }}
+          RELEASE_VERSION: ${{ needs.preflight.outputs.version }}
+        run: |
+          set -euo pipefail
+          zip="KeePassXCCardPrint-${RELEASE_VERSION}-win-x64.zip"
+          checksum="${zip}.sha256"
+          test -f "$zip" && test -f "$checksum" || {
+            echo '[FAIL] Missing ZIP or SHA-256 file.' >&2
+            exit 1
+          }
+          sha256sum -c "$checksum"
+          echo '[PASS] Release checksum verified before upload.'
+          release_json="$(gh release view "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" --json tagName,isDraft,assets)"
+          echo "$release_json" | jq -e --arg tag "$RELEASE_TAG" \
+            '.tagName == $tag and .isDraft == true' >/dev/null || {
+            echo '[FAIL] The target release is no longer an unpublished draft.' >&2
+            exit 1
+          }
+          if echo "$release_json" | jq -e --arg zip "$zip" --arg sha "$checksum" \
+            'any(.assets[]?; .name == $zip or .name == $sha)' >/dev/null; then
+            echo '[FAIL] An asset already exists. No files were overwritten.' >&2
+            exit 1
+          fi
+          # Deliberately no --clobber and no gh release edit/create calls.
+          gh release upload "$RELEASE_TAG" "$zip" "$checksum" --repo "$GITHUB_REPOSITORY"
+          result="$(gh release view "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" --json tagName,isDraft,assets)"
+          echo "$result" | jq -e --arg tag "$RELEASE_TAG" --arg zip "$zip" --arg sha "$checksum" \
+            '.tagName == $tag and .isDraft == true and any(.assets[]?; .name == $zip) and any(.assets[]?; .name == $sha)' >/dev/null || {
+            echo '[FAIL] The final draft/asset verification failed. Review the release manually.' >&2
+            exit 1
+          }
+          echo '[PASS] Both assets are attached; release remains a draft.'
+          echo 'Publication is intentionally a separate manual action.'

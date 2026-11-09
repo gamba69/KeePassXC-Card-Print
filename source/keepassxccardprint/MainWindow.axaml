@@ -1,0 +1,990 @@
+<Window xmlns="https://github.com/avaloniaui" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" xmlns:vm="using:KeePassXCCardPrint.ViewModels" xmlns:models="using:KeePassXCCardPrint.Models" xmlns:svc="using:KeePassXCCardPrint.Services" xmlns:controls="using:KeePassXCCardPrint.Controls" xmlns:views="using:KeePassXCCardPrint" xmlns:fi="using:FluentIcons.Avalonia" x:Class="KeePassXCCardPrint.MainWindow" x:DataType="vm:ShellViewModel" Title="KeePassXC Card Print" Width="1024" Height="660" MinWidth="960" MinHeight="480" WindowStartupLocation="Manual" WindowDecorations="Full" ExtendClientAreaToDecorationsHint="False" CanResize="True" CanMinimize="True" CanMaximize="True" ShowInTaskbar="True" Background="{DynamicResource KpWindowBrush}" Icon="avares://KeePassXCCardPrint/assets/CardPrint_white.ico">
+  <!-- The host keeps the native titlebar outside the client area, including while maximized. -->
+  <Grid Margin="0" RowDefinitions="Auto,*,Auto" RowSpacing="0">
+    <Border Grid.Row="0" Classes="app-header">
+      <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="12" HorizontalAlignment="Stretch" MinHeight="54">
+        <!-- Theme-adaptive client-area icon: original ICO frame, no resizing or backdrop. -->
+        <Image Grid.Column="0" x:Name="AppHeaderIcon" Width="40" Height="40"
+               Stretch="Fill" VerticalAlignment="Center" HorizontalAlignment="Center"
+               Source="avares://KeePassXCCardPrint/assets/CardPrint_black_40.png"/>
+        <StackPanel Grid.Column="1" VerticalAlignment="Center" Spacing="1">
+          <TextBlock Classes="app-title" Text="{Binding AppDisplayName}"/>
+          <TextBlock Classes="app-subtitle" Text="{Binding AppTagline}"/>
+        </StackPanel>
+        <Grid Grid.Column="2" ColumnDefinitions="Auto,86,Auto,112,Auto,112" ColumnSpacing="7" VerticalAlignment="Center" HorizontalAlignment="Right" Margin="0">
+          <TextBlock Grid.Column="0" Classes="chrome-label" VerticalAlignment="Center" Text="{Binding Theme}"/>
+          <ComboBox Grid.Column="1" Classes="header-select" x:Name="ThemeCombo" ItemsSource="{Binding ThemeOptions}" SelectedItem="{Binding SelectedTheme, Mode=TwoWay}" HorizontalAlignment="Stretch">
+            <ComboBox.ItemTemplate>
+              <DataTemplate x:DataType="vm:OptionItem"><TextBlock Text="{Binding Label}"/></DataTemplate>
+            </ComboBox.ItemTemplate>
+          </ComboBox>
+          <TextBlock Grid.Column="2" Classes="chrome-label" VerticalAlignment="Center" Text="{Binding Language}"/>
+          <ComboBox Grid.Column="3" Classes="header-select" ItemsSource="{Binding LanguageOptions}" SelectedItem="{Binding SelectedLanguage, Mode=TwoWay}" HorizontalAlignment="Stretch">
+            <ComboBox.ItemTemplate>
+              <DataTemplate x:DataType="vm:OptionItem"><TextBlock Text="{Binding Label}"/></DataTemplate>
+            </ComboBox.ItemTemplate>
+          </ComboBox>
+          <TextBlock Grid.Column="4" Classes="chrome-label" VerticalAlignment="Center" Text="{Binding Storage}"/>
+          <ComboBox Grid.Column="5" Classes="header-select" x:Name="StorageCombo" ItemsSource="{Binding StorageOptions}" SelectedItem="{Binding SelectedStorage, Mode=OneWay}" SelectionChanged="OnStorageSelectionChanged">
+            <ComboBox.ItemTemplate>
+              <DataTemplate x:DataType="vm:OptionItem"><TextBlock Text="{Binding Label}"/></DataTemplate>
+            </ComboBox.ItemTemplate>
+          </ComboBox>
+        </Grid>
+      </Grid>
+    </Border>
+
+    <!-- The splitter must leave both the editing pane and A4 preview usable. -->
+    <Grid Grid.Row="1" x:Name="MainPanels" Margin="8,8,8,8" MinHeight="0">
+      <Grid.ColumnDefinitions>
+        <ColumnDefinition Width="1.4*" MinWidth="490"/>
+        <ColumnDefinition Width="6"/>
+        <ColumnDefinition Width="*" MinWidth="420"/>
+      </Grid.ColumnDefinitions>
+      <Border Grid.Column="0" BorderBrush="{DynamicResource KpBorderBrush}" BorderThickness="1" Background="{DynamicResource KpSurfaceBrush}" MinHeight="0">
+      <TabControl SelectedIndex="{Binding ActiveTab, Mode=TwoWay}" x:Name="MainTabs" SizeChanged="OnMainTabsSizeChanged">
+        <TabControl.ItemsPanel>
+          <ItemsPanelTemplate>
+            <controls:RightAnchoredTabHeaderPanel/>
+          </ItemsPanelTemplate>
+        </TabControl.ItemsPanel>
+        <TabItem ClipToBounds="True" ToolTip.Tip="{Binding TabSource}">
+          <!-- Strongly typed against the window ShellViewModel: no reflection-bound header template (Native AOT). -->
+          <TabItem.Header>
+            <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+              <fi:FluentIcon Icon="Database" IconVariant="Regular" IconSize="Size20" Width="16" Height="16" FontSize="16"/>
+              <TextBlock Text="{Binding TabSource}" IsVisible="{Binding ShowMainTabCaptions}" VerticalAlignment="Center"/>
+            </StackPanel>
+          </TabItem.Header>
+          <Grid Margin="9" RowDefinitions="Auto,*" RowSpacing="8" MinHeight="0">
+            <Border Grid.Row="0" Classes="settings-card" MinHeight="0">
+              <Grid RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto" RowSpacing="5" MinHeight="0">
+                <TextBlock Grid.Row="0" Classes="section-heading" Text="{Binding SourceTitle}" Margin="0,0,0,3"/>
+                <StackPanel Grid.Row="1" Spacing="2">
+                  <TextBlock Text="{Binding Database}"/>
+                  <Grid ColumnDefinitions="*,30" ColumnSpacing="4">
+                    <TextBox x:Name="DatabaseBox" Grid.Column="0" Text="{Binding DatabasePath, Mode=TwoWay}" PlaceholderText="*.kdbx"/>
+                    <Button Grid.Column="1" Click="OnBrowseDatabase" ToolTip.Tip="Выбрать файл базы KeePassXC"><fi:FluentIcon Icon="FolderOpen" IconSize="Size20" Width="17" Height="17" FontSize="17" HorizontalAlignment="Center" VerticalAlignment="Center" Foreground="{DynamicResource KpTextBrush}"/></Button>
+                  </Grid>
+                </StackPanel>
+                <StackPanel Grid.Row="2" Spacing="2">
+                  <TextBlock Text="{Binding KeyFile}"/>
+                  <Grid ColumnDefinitions="*,30" ColumnSpacing="4">
+                    <TextBox x:Name="KeyFileBox" Grid.Column="0" Text="{Binding KeyFilePath, Mode=TwoWay}" PlaceholderText="*.keyx"/>
+                    <Button Grid.Column="1" Click="OnBrowseKeyFile" ToolTip.Tip="Выбрать ключевой файл"><fi:FluentIcon Icon="FolderOpen" IconSize="Size20" Width="17" Height="17" FontSize="17" HorizontalAlignment="Center" VerticalAlignment="Center" Foreground="{DynamicResource KpTextBrush}"/></Button>
+                  </Grid>
+                </StackPanel>
+                <StackPanel Grid.Row="3" Spacing="2">
+                  <Grid ColumnDefinitions="*,Auto">
+                    <TextBlock Text="{Binding Password}"/>
+                    <CheckBox Grid.Column="1" x:Name="AutoEnglishPasswordToggle" Content="EN"
+                              IsChecked="{Binding AutoEnglishPasswordLayout, Mode=TwoWay}"
+                              ToolTip.Tip="{Binding PasswordLayoutHelp}" Click="OnPasswordLayoutToggleClick"
+                              VerticalAlignment="Center"/>
+                  </Grid>
+                  <Grid ColumnDefinitions="*,Auto" ColumnSpacing="7">
+                    <TextBox x:Name="PasswordBox" PasswordChar="●" Text="{Binding PasswordInput, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                             KeyDown="OnPasswordKeyDown" GotFocus="OnPasswordGotFocus" LostFocus="OnPasswordLostFocus"/>
+                    <CheckBox x:Name="ShowPasswordToggle" Grid.Column="1" Content="{Binding Show}" Click="OnTogglePassword"/>
+                  </Grid>
+                </StackPanel>
+                <!-- YubiKey is an optional component of the database key, not a login shortcut. -->
+                <Border Grid.Row="4" BorderBrush="{DynamicResource KpBorderBrush}" BorderThickness="1" Background="{DynamicResource KpWindowBrush}" CornerRadius="4" Padding="7,4">
+                  <Grid RowDefinitions="Auto,Auto" RowSpacing="4">
+                    <Grid Grid.Row="0" ColumnDefinitions="Auto,*,Auto" ColumnSpacing="7">
+                      <CheckBox Grid.Column="0" Content="{Binding YubiEnabledCaption}" VerticalAlignment="Center" IsChecked="{Binding UseYubiKey, Mode=TwoWay}" ToolTip.Tip="{Binding YubiKeyHelp}"/>
+                      <ComboBox Grid.Column="1" HorizontalAlignment="Stretch" MinWidth="75" ItemsSource="{Binding YubiDevices}" SelectedItem="{Binding YubiSerial, Mode=TwoWay}" IsEnabled="{Binding UseYubiKey}" ToolTip.Tip="{Binding YubiDeviceHelp}"/>
+                      <Button Grid.Column="2" Width="28" Height="26" MinHeight="26" Padding="0" HorizontalAlignment="Center" VerticalAlignment="Center" HorizontalContentAlignment="Center" VerticalContentAlignment="Center" Click="OnRefreshYubi" IsEnabled="{Binding UseYubiKey}" ToolTip.Tip="{Binding YubiRefreshHelp}">
+                        <fi:FluentIcon Icon="ArrowSync" IconVariant="Regular" IconSize="Size20" Width="18" Height="18" FontSize="18" Foreground="{DynamicResource KpTextBrush}" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                      </Button>
+                    </Grid>
+                    <StackPanel Grid.Row="1" Orientation="Horizontal" Spacing="9" IsEnabled="{Binding UseYubiKey}" VerticalAlignment="Center">
+                      <TextBlock Text="{Binding YubiSlotCaption}" VerticalAlignment="Center"/>
+                      <RadioButton GroupName="YubiOtpSlot" Content="1" VerticalAlignment="Center" IsChecked="{Binding YubiSlotOne, Mode=TwoWay}"/>
+                      <RadioButton GroupName="YubiOtpSlot" Content="2" VerticalAlignment="Center" IsChecked="{Binding YubiSlotTwo, Mode=TwoWay}"/>
+                      <CheckBox Content="{Binding YubiShortCaption}" VerticalAlignment="Center" IsChecked="{Binding YubiShortChallenge, Mode=TwoWay}" ToolTip.Tip="{Binding YubiShortHelp}"/>
+                    </StackPanel>
+                  </Grid>
+                </Border>
+                <!-- Wrap actions at narrower pane widths instead of clipping the last options. -->
+                <WrapPanel Grid.Row="5" Orientation="Horizontal" HorizontalAlignment="Stretch" Margin="0,2,0,0">
+                  <Button  Click="OnOpenDatabase" IsEnabled="{Binding CanOpen}" Margin="0,0,5,5">
+                    <StackPanel Orientation="Horizontal" Spacing="5" VerticalAlignment="Center">
+                      <PathIcon Width="14" Height="14" VerticalAlignment="Center" Foreground="{DynamicResource KpTextBrush}" Data="M3.00026 5.5V12.1041L4.50091 9.50488C5.03681 8.57668 6.02719 8.00488 7.09898 8.00488L15.0003 8.00488V7.5C15.0003 6.67157 14.3287 6 13.5003 6H9.50026C9.36765 6 9.24047 5.94732 9.1467 5.85355L7.4396 4.14645C7.34583 4.05268 7.21865 4 7.08604 4H4.50026C3.67183 4 3.00026 4.67157 3.00026 5.5ZM4.28361 15.9845C4.35498 15.9947 4.42844 16 4.50373 16H13.9012C14.6157 16 15.276 15.6188 15.6332 15L17.7955 11.2549C18.3728 10.2549 17.6511 9.00488 16.4964 9.00488L7.09898 9.00488C6.38445 9.00488 5.7242 9.38608 5.36694 10.0049L3.20469 13.75C2.78223 14.4817 3.0553 15.3473 3.68462 15.7591C3.86197 15.8742 4.06517 15.9529 4.28361 15.9845ZM2.00026 14.4607V5.5C2.00026 4.11929 3.11955 3 4.50026 3H7.08604C7.48387 3 7.8654 3.15804 8.1467 3.43934L9.70736 5H13.5003C14.881 5 16.0003 6.11929 16.0003 7.5V8.00488H16.4964C18.4209 8.00488 19.6237 10.0882 18.6615 11.7549L16.4992 15.5C15.9633 16.4282 14.973 17 13.9012 17H4.50026C4.4378 17 4.37588 16.9977 4.31457 16.9932C3.75344 16.9527 3.26124 16.7329 2.87665 16.4011C2.36561 15.9642 2.03283 15.3249 2.00252 14.6073C2.00031 14.5586 1.99955 14.5097 2.00026 14.4607Z"/>
+                      <TextBlock Text="{Binding Open}" VerticalAlignment="Center"/>
+                    </StackPanel>
+                  </Button>
+                  <Button  Click="OnCloseDatabase" Margin="0,0,8,5">
+                    <StackPanel Orientation="Horizontal" Spacing="5" VerticalAlignment="Center">
+                      <PathIcon Width="14" Height="14" VerticalAlignment="Center" Foreground="{DynamicResource KpTextBrush}" Data="M17.9099 2.1816C18.1052 2.37687 18.1052 2.69345 17.9099 2.88871L12.5872 8.21144C14.0023 9.97829 13.8909 12.5646 12.2531 14.2024L11.5895 14.866L9.49982 18.3488C9.4206 18.4808 9.28498 18.569 9.13216 18.5878C8.97935 18.6066 8.82639 18.554 8.71752 18.4451L1.64645 11.374C1.53758 11.2651 1.48494 11.1122 1.50375 10.9594C1.52256 10.8066 1.61073 10.6709 1.74276 10.5917L5.2255 8.50207L5.88909 7.83847C7.52695 6.20062 10.1132 6.08924 11.8801 7.50433L17.2028 2.1816C17.3981 1.98634 17.7146 1.98634 17.9099 2.1816ZM6.24265 8.89913L11.1924 13.8489L11.5459 13.4953C12.9128 12.1285 12.9128 9.91242 11.5459 8.54558C10.1791 7.17875 7.96303 7.17875 6.5962 8.54558L6.24265 8.89913ZM5.45803 9.52874L2.80638 11.1197L8.9718 17.2852L10.5628 14.6335L5.45803 9.52874Z"/>
+                      <TextBlock Text="{Binding Clear}" VerticalAlignment="Center"/>
+                    </StackPanel>
+                  </Button>
+                  <CheckBox Content="{Binding RememberPathsCaption}" IsChecked="{Binding RememberPaths, Mode=TwoWay}" Margin="0,0,10,5"/>
+                  <CheckBox Content="{Binding RememberSelectionCaption}" IsChecked="{Binding RememberSelection, Mode=TwoWay}" Margin="0,0,0,5"/>
+                </WrapPanel>
+              </Grid>
+            </Border>
+            <Border Grid.Row="1" Classes="settings-card" MinHeight="0">
+              <Grid RowDefinitions="Auto,Auto,27,*,Auto" RowSpacing="5" MinHeight="0">
+                <TextBlock Grid.Row="0" Classes="section-heading" Text="{Binding Records}" Margin="0,3,0,0"/>
+                <!-- Quick presets: exactly one toggle at a time; text search is an AND filter. -->
+                <Grid Grid.Row="1" ColumnDefinitions="*,Auto,Auto,Auto,8,Auto,Auto" ColumnSpacing="4">
+                  <TextBox Grid.Column="0" PlaceholderText="{Binding Filter}" Text="{Binding FilterText, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
+                  <ToggleButton Grid.Column="1" Classes="record-quick-filter" IsChecked="{Binding FilterSelectedActive, Mode=OneWay}" IsEnabled="{Binding CanRefreshRecords}" Click="OnFilterSelected" ToolTip.Tip="{Binding FilterSelectedTip}">
+                    <fi:FluentIcon Icon="CheckmarkSquare" IconVariant="Regular" IconSize="Size20" Width="17" Height="17" FontSize="17" Foreground="{DynamicResource KpTextBrush}"/>
+                  </ToggleButton>
+                  <ToggleButton Grid.Column="2" Classes="record-quick-filter" IsChecked="{Binding FilterRemainingActive, Mode=OneWay}" IsEnabled="{Binding CanRefreshRecords}" Click="OnFilterRemaining" ToolTip.Tip="{Binding FilterRemainingTip}">
+                    <fi:FluentIcon Icon="Print" IconVariant="Regular" IconSize="Size20" Width="17" Height="17" FontSize="17" Foreground="{DynamicResource KpTextBrush}"/>
+                  </ToggleButton>
+                  <ToggleButton Grid.Column="3" Classes="record-quick-filter" IsChecked="{Binding FilterReprintActive, Mode=OneWay}" IsEnabled="{Binding CanRefreshRecords}" Click="OnFilterReprint" ToolTip.Tip="{Binding FilterReprintTip}">
+                    <fi:FluentIcon Icon="History" IconVariant="Regular" IconSize="Size20" Width="17" Height="17" FontSize="17" Foreground="{DynamicResource KpTextBrush}"/>
+                  </ToggleButton>
+                  <Border Grid.Column="4" Width="1" Height="17" Background="{DynamicResource KpBorderBrush}" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                  <Button Grid.Column="5" Classes="record-quick-action" IsEnabled="{Binding CanRefreshRecords}" Click="OnRefreshRecords" ToolTip.Tip="{Binding RefreshRecordsTip}">
+                    <fi:FluentIcon Icon="ArrowSync" IconVariant="Regular" IconSize="Size20" Width="17" Height="17" FontSize="17" Foreground="{DynamicResource KpTextBrush}"/>
+                  </Button>
+                  <Button Grid.Column="6" Classes="record-quick-action" Click="OnClearRecordFilters" ToolTip.Tip="{Binding ResetRecordFiltersTip}">
+                    <PathIcon Width="17" Height="17" Foreground="{DynamicResource KpTextBrush}" Data="{StaticResource KpFilterDismissGeometry}"/>
+                  </Button>
+                </Grid>
+                <Border Grid.Row="2" Classes="table-header">
+                  <Grid ColumnDefinitions="175,*,112,56" Margin="5,0">
+                    <TextBlock VerticalAlignment="Center" Text="{Binding Group}"/>
+                    <TextBlock Grid.Column="1" VerticalAlignment="Center" Text="{Binding Title}"/>
+                    <TextBlock Grid.Column="2" VerticalAlignment="Center" Text="Статус печати"/>
+                    <TextBlock Grid.Column="3" VerticalAlignment="Center" Text="{Binding Print}"/>
+                  </Grid>
+                </Border>
+                <Border Grid.Row="3" BorderThickness="1,0,1,1" BorderBrush="{DynamicResource KpBorderBrush}" Background="{DynamicResource KpSurfaceBrush}" MinHeight="65">
+                  <ScrollViewer VerticalScrollBarVisibility="Auto">
+                    <ItemsControl ItemsSource="{Binding VaultRecords}">
+                      <ItemsControl.ItemTemplate>
+                        <DataTemplate x:DataType="models:VaultRecord">
+                          <!-- Full-row click/Space toggles print; current-row focus and mouse hover are distinct. -->
+                          <Border Classes="vault-row" Classes.print-selected="{Binding Selected}" Height="26" Padding="5,0" IsVisible="{Binding Visible}" Focusable="True" Cursor="Hand" PointerPressed="OnRecordRowPressed" KeyDown="OnRecordRowKeyDown">
+                            <Border.ContextMenu>
+                              <ContextMenu>
+                                <MenuItem Header="Считать напечатанной" CommandParameter="{Binding}" Click="OnRecordMarkPrinted"/>
+                                <MenuItem Header="Считать не напечатанной" CommandParameter="{Binding}" Click="OnRecordMarkUnprinted"/>
+                                <MenuItem Header="Не отслеживать" CommandParameter="{Binding}" Click="OnRecordExcludeTracking"/>
+                              </ContextMenu>
+                            </Border.ContextMenu>
+                            <Grid ColumnDefinitions="175,*,112,56" ColumnSpacing="0">
+                              <Border Width="3" HorizontalAlignment="Left" Background="{DynamicResource KpAccentBrush}" IsVisible="{Binding Selected}"/>
+                              <Grid Grid.Column="0" ColumnDefinitions="24,*" Margin="4,0,0,0">
+                                <Image Grid.Column="0" Width="16" Height="16" HorizontalAlignment="Left" VerticalAlignment="Center" Source="{Binding GroupIconImage}"/>
+                                <TextBlock Grid.Column="1" VerticalAlignment="Center" Text="{Binding Group}" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding Group}"/>
+                              </Grid>
+                              <Grid Grid.Column="1" ColumnDefinitions="23,*">
+                                <Image Grid.Column="0" Width="16" Height="16" HorizontalAlignment="Left" VerticalAlignment="Center" Source="{Binding IconImage}"/>
+                                <TextBlock Grid.Column="1" VerticalAlignment="Center" Text="{Binding Title}" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding Title}"/>
+                              </Grid>
+                              <TextBlock Grid.Column="2" VerticalAlignment="Center" Text="{Binding PrintStatus}" FontSize="10" TextTrimming="CharacterEllipsis" ToolTip.Tip="Правый клик: контроль напечатанного"/>
+                              <CheckBox Grid.Column="3" HorizontalAlignment="Center" VerticalAlignment="Center" IsChecked="{Binding Selected, Mode=TwoWay}" ToolTip.Tip="Отметить для печати"/>
+                            </Grid>
+                          </Border>
+                        </DataTemplate>
+                      </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                  </ScrollViewer>
+                </Border>
+                <Grid Grid.Row="4" ColumnDefinitions="Auto,Auto,*,Auto" ColumnSpacing="5" Margin="0,2,0,0">
+                  <Button Grid.Column="0"  Click="OnSelectAll">
+                    <StackPanel Orientation="Horizontal" Spacing="5" VerticalAlignment="Center">
+                      <fi:FluentIcon Icon="CheckmarkSquare" IconVariant="Regular" IconSize="Size20" Width="14" Height="14" FontSize="14" Foreground="{DynamicResource KpTextBrush}"/>
+                      <TextBlock Text="{Binding SelectAll}" VerticalAlignment="Center"/>
+                    </StackPanel>
+                  </Button>
+                  <Button Grid.Column="1"  Click="OnSelectNone">
+                    <StackPanel Orientation="Horizontal" Spacing="5" VerticalAlignment="Center">
+                      <fi:FluentIcon Icon="SelectAllOff" IconVariant="Regular" IconSize="Size20" Width="14" Height="14" FontSize="14" Foreground="{DynamicResource KpTextBrush}"/>
+                      <TextBlock Text="{Binding SelectNone}" VerticalAlignment="Center"/>
+                    </StackPanel>
+                  </Button>
+                  <TextBlock Grid.Column="3" Text="{Binding SelectedCountText}" VerticalAlignment="Center" HorizontalAlignment="Right"/>
+                </Grid>
+              </Grid>
+            </Border>
+          </Grid>
+        </TabItem>
+
+        <TabItem ClipToBounds="True" ToolTip.Tip="{Binding TabMapping}">
+          <!-- Strongly typed against the window ShellViewModel: no reflection-bound header template (Native AOT). -->
+          <TabItem.Header>
+            <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+              <fi:FluentIcon Icon="Table" IconVariant="Regular" IconSize="Size20" Width="16" Height="16" FontSize="16"/>
+              <TextBlock Text="{Binding TabMapping}" IsVisible="{Binding ShowMainTabCaptions}" VerticalAlignment="Center"/>
+            </StackPanel>
+          </TabItem.Header>
+          <Grid Margin="9" RowDefinitions="Auto,*,Auto" RowSpacing="8" MinHeight="0" SizeChanged="OnMappingTabSizeChanged">
+            <Border Grid.Row="0" Classes="settings-card" MinHeight="0">
+              <Grid RowDefinitions="Auto,Auto,Auto" RowSpacing="5">
+                <!-- Same explicit-save pattern as Appearance/Two sides: actions above the editor. -->
+                <Grid Grid.Row="0" ColumnDefinitions="*,145,Auto" ColumnSpacing="8" MinHeight="30">
+                  <TextBlock VerticalAlignment="Center" Classes="section-heading" Text="{Binding MappingToolbarTitle}"/>
+                  <TextBlock Grid.Column="1" Classes="hint" VerticalAlignment="Center" Text="{Binding MappingMessage}" ToolTip.Tip="{Binding MappingMessage}" TextTrimming="CharacterEllipsis"/>
+                  <Button Grid.Column="2" Classes="mapping-save"  IsEnabled="{Binding MappingCanSave}" Click="OnSaveMapping">
+                    <StackPanel Orientation="Horizontal" Spacing="5" VerticalAlignment="Center">
+                      <fi:FluentIcon Icon="Save" IconVariant="Regular" IconSize="Size20" Width="14" Height="14" FontSize="14" Foreground="{DynamicResource KpTextBrush}"/>
+                      <TextBlock Text="{Binding MappingSaveText}" VerticalAlignment="Center"/>
+                    </StackPanel>
+                  </Button>
+                </Grid>
+                <WrapPanel Grid.Row="1" Orientation="Horizontal" HorizontalAlignment="Stretch">
+                  <CheckBox Content="{Binding Scope}" IsChecked="{Binding MappingScopeCurrent, Mode=TwoWay}" Margin="0,0,14,4"/>
+                  <CheckBox Content="{Binding AllColumns}" IsChecked="{Binding MappingAllColumns, Mode=TwoWay}" Margin="0,0,14,4"/>
+                  <Button  Click="OnEditDomains" Padding="6,2" Margin="0,0,0,4">
+                    <StackPanel Orientation="Horizontal" Spacing="5" VerticalAlignment="Center">
+                      <fi:FluentIcon Icon="Settings" IconVariant="Regular" IconSize="Size20" Width="14" Height="14" FontSize="14" Foreground="{DynamicResource KpTextBrush}"/>
+                      <TextBlock Text="{Binding MappingDomainsText}" VerticalAlignment="Center"/>
+                    </StackPanel>
+                  </Button>
+                </WrapPanel>
+                <TextBlock Grid.Row="2" Classes="hint" Text="{Binding MappingScopeDescription}" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding MappingScopeDescription}"/>
+              </Grid>
+            </Border>
+            <Border Grid.Row="1" Classes="settings-card" MinHeight="0">
+              <Grid RowDefinitions="Auto,*" RowSpacing="6" MinHeight="0">
+                <TextBlock Grid.Row="0" Classes="section-heading" Text="{Binding MappingFieldsHeading}"/>
+                <Grid Grid.Row="1" RowDefinitions="*" MinHeight="125">
+                  <Border Grid.Row="0" BorderThickness="0" BorderBrush="{DynamicResource KpBorderBrush}" Background="Transparent" IsVisible="{Binding MappingCompactVisible}">
+                    <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Disabled">
+                      <Grid MinWidth="668" RowDefinitions="27,*">
+                        <Border Grid.Row="0" Classes="table-header" Padding="5,0">
+                          <Grid ColumnDefinitions="38,167,123,75,126,118">
+                            <TextBlock VerticalAlignment="Center" Text="№"/>
+                            <TextBlock Grid.Column="1" VerticalAlignment="Center" Text="{Binding Field}"/>
+                            <TextBlock Grid.Column="2" VerticalAlignment="Center" Text="{Binding Section}"/>
+                            <TextBlock Grid.Column="3" VerticalAlignment="Center" Text="{Binding Priority}"/>
+                            <TextBlock Grid.Column="4" VerticalAlignment="Center" Text="{Binding OutputGroup}"/>
+                            <TextBlock Grid.Column="5" VerticalAlignment="Center" Text="{Binding Visibility}"/>
+                          </Grid>
+                        </Border>
+                        <ListBox Grid.Row="1" Classes="mapping-list" ItemsSource="{Binding FieldRows}" SelectedItem="{Binding SelectedMappingRow, Mode=TwoWay}" BorderThickness="0" Background="{DynamicResource KpSurfaceBrush}">
+                          <ListBox.ItemTemplate>
+                            <DataTemplate x:DataType="vm:FieldMappingRow">
+                              <Grid ColumnDefinitions="38,167,123,75,126,118" Height="25" Margin="5,0">
+                                <TextBlock VerticalAlignment="Center" Text="{Binding PositionText}" ToolTip.Tip="! — проверьте параметры поля"/>
+                                <TextBlock Grid.Column="1" VerticalAlignment="Center" Text="{Binding Field}" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding Field}"/>
+                                <TextBlock Grid.Column="2" VerticalAlignment="Center" Text="{Binding Section}" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding Section}"/>
+                                <TextBlock Grid.Column="3" VerticalAlignment="Center" Text="{Binding Order}"/>
+                                <TextBlock Grid.Column="4" VerticalAlignment="Center" Text="{Binding DisplayGroup}" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding DisplayGroup}"/>
+                                <TextBlock Grid.Column="5" VerticalAlignment="Center" Text="{Binding Visibility}" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding Visibility}"/>
+                              </Grid>
+                            </DataTemplate>
+                          </ListBox.ItemTemplate>
+                        </ListBox>
+                      </Grid>
+                    </ScrollViewer>
+                  </Border>
+                  <Border Grid.Row="0" BorderThickness="0" BorderBrush="{DynamicResource KpBorderBrush}" Background="Transparent" IsVisible="{Binding MappingDetailedVisible}">
+                    <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Disabled">
+                      <Grid MinWidth="1335" RowDefinitions="27,*">
+                        <Border Grid.Row="0" Classes="table-header" Padding="5,0">
+                          <Grid ColumnDefinitions="38,167,130,75,118,141,128,135,190,130">
+                            <TextBlock VerticalAlignment="Center" Text="№"/>
+                            <TextBlock Grid.Column="1" VerticalAlignment="Center" Text="{Binding Field}"/>
+                            <TextBlock Grid.Column="2" VerticalAlignment="Center" Text="{Binding Section}"/>
+                            <TextBlock Grid.Column="3" VerticalAlignment="Center" Text="{Binding Priority}"/>
+                            <TextBlock Grid.Column="4" VerticalAlignment="Center" Text="{Binding OutputGroup}"/>
+                            <TextBlock Grid.Column="5" VerticalAlignment="Center" Text="{Binding Format}"/>
+                            <TextBlock Grid.Column="6" VerticalAlignment="Center" Text="{Binding Visibility}"/>
+                            <TextBlock Grid.Column="7" VerticalAlignment="Center" Text="{Binding Label}"/>
+                            <TextBlock Grid.Column="8" VerticalAlignment="Center" Text="{Binding LongValue}"/>
+                            <TextBlock Grid.Column="9" VerticalAlignment="Center" Text="{Binding Grouping}"/>
+                          </Grid>
+                        </Border>
+                        <ListBox Grid.Row="1" Classes="mapping-list" ItemsSource="{Binding FieldRows}" SelectedItem="{Binding SelectedMappingRow, Mode=TwoWay}" BorderThickness="0" Background="{DynamicResource KpSurfaceBrush}">
+                          <ListBox.ItemTemplate>
+                            <DataTemplate x:DataType="vm:FieldMappingRow">
+                              <Grid ColumnDefinitions="38,167,130,75,118,141,128,135,190,130" Height="25" Margin="5,0">
+                                <TextBlock VerticalAlignment="Center" Text="{Binding PositionText}" ToolTip.Tip="! — проверьте параметры поля"/>
+                                <TextBlock Grid.Column="1" VerticalAlignment="Center" Text="{Binding Field}" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding Field}"/>
+                                <TextBlock Grid.Column="2" VerticalAlignment="Center" Text="{Binding Section}" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding Section}"/>
+                                <TextBlock Grid.Column="3" VerticalAlignment="Center" Text="{Binding Order}"/>
+                                <TextBlock Grid.Column="4" VerticalAlignment="Center" Text="{Binding DisplayGroup}" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding DisplayGroup}"/>
+                                <TextBlock Grid.Column="5" VerticalAlignment="Center" Text="{Binding Role}" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding Role}"/>
+                                <TextBlock Grid.Column="6" VerticalAlignment="Center" Text="{Binding Visibility}" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding Visibility}"/>
+                                <TextBlock Grid.Column="7" VerticalAlignment="Center" Text="{Binding Heading}" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding Heading}"/>
+                                <TextBlock Grid.Column="8" VerticalAlignment="Center" Text="{Binding Fit}" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding Fit}"/>
+                                <TextBlock Grid.Column="9" VerticalAlignment="Center" Text="{Binding Grouping}" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding Grouping}"/>
+                              </Grid>
+                            </DataTemplate>
+                          </ListBox.ItemTemplate>
+                        </ListBox>
+                      </Grid>
+                    </ScrollViewer>
+                  </Border>
+                </Grid>
+              </Grid>
+            </Border>
+            <Border Grid.Row="2" MaxHeight="305" MinHeight="0" Classes="settings-card">
+              <Grid RowDefinitions="Auto,Auto,*" RowSpacing="4">
+                <Grid Grid.Row="0" ColumnDefinitions="*,Auto" ColumnSpacing="10">
+                  <TextBlock Classes="section-heading" VerticalAlignment="Center" Text="{Binding MappingFieldHeading}" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding MappingFieldHeading}"/>
+                  <Button Grid.Column="1"  IsEnabled="{Binding MappingCanEdit}" Click="OnResetMapping" Padding="8,3">
+                    <StackPanel Orientation="Horizontal" Spacing="5" VerticalAlignment="Center">
+                      <fi:FluentIcon Icon="ArrowSync" IconVariant="Regular" IconSize="Size20" Width="14" Height="14" FontSize="14" Foreground="{DynamicResource KpTextBrush}"/>
+                      <TextBlock Text="{Binding MappingResetText}" VerticalAlignment="Center"/>
+                    </StackPanel>
+                  </Button>
+                </Grid>
+                <TextBlock Grid.Row="1" Classes="mapping-error" Text="{Binding MappingEditor.ValidationMessage}" IsVisible="{Binding MappingEditor.HasValidationError}" TextWrapping="Wrap"/>
+                <ScrollViewer Grid.Row="2" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" MinHeight="0">
+                  <Border DataContext="{Binding MappingEditor}">
+                    <WrapPanel x:DataType="vm:MappingEditor" IsEnabled="{Binding Enabled}" Orientation="Horizontal" HorizontalAlignment="Stretch">
+                      <Grid Width="350" Margin="0,0,9,4" ColumnDefinitions="140,*" ColumnSpacing="6" MinHeight="27">
+                        <TextBlock VerticalAlignment="Center" Text="{Binding DisplayTitle}" TextTrimming="CharacterEllipsis">
+                          <ToolTip.Tip>
+                            <TextBlock Text="{Binding DisplayHelp}" TextWrapping="Wrap" MaxWidth="340"/>
+                          </ToolTip.Tip>
+                        </TextBlock>
+                        <ComboBox Grid.Column="1" ItemsSource="{Binding Roles}" SelectedItem="{Binding Role, Mode=TwoWay}">
+                          <ComboBox.ItemTemplate>
+                            <DataTemplate x:DataType="vm:MappingOption">
+                              <TextBlock Text="{Binding Label}"/>
+                            </DataTemplate>
+                          </ComboBox.ItemTemplate>
+                        </ComboBox>
+                      </Grid>
+                      <Grid Width="350" Margin="0,0,9,4" ColumnDefinitions="140,*" ColumnSpacing="6" MinHeight="27">
+                        <TextBlock VerticalAlignment="Center" Text="{Binding GroupTitleTitle}" TextTrimming="CharacterEllipsis">
+                          <ToolTip.Tip>
+                            <TextBlock Text="{Binding GroupTitleHelp}" TextWrapping="Wrap" MaxWidth="340"/>
+                          </ToolTip.Tip>
+                        </TextBlock>
+                        <ComboBox Grid.Column="1" ItemsSource="{Binding Sections}" SelectedItem="{Binding Section, Mode=TwoWay}">
+                          <ComboBox.ItemTemplate>
+                            <DataTemplate x:DataType="vm:MappingOption">
+                              <TextBlock Text="{Binding Label}"/>
+                            </DataTemplate>
+                          </ComboBox.ItemTemplate>
+                        </ComboBox>
+                      </Grid>
+                      <Grid Width="350" Margin="0,0,9,4" ColumnDefinitions="140,*" ColumnSpacing="6" MinHeight="27">
+                        <TextBlock VerticalAlignment="Center" Text="{Binding LabelTitle}" TextTrimming="CharacterEllipsis">
+                          <ToolTip.Tip>
+                            <TextBlock Text="{Binding LabelHelp}" TextWrapping="Wrap" MaxWidth="340"/>
+                          </ToolTip.Tip>
+                        </TextBlock>
+                        <TextBox Grid.Column="1" Text="{Binding Label, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
+                      </Grid>
+                      <Grid Width="350" Margin="0,0,9,4" ColumnDefinitions="140,*" ColumnSpacing="6" MinHeight="27">
+                        <TextBlock VerticalAlignment="Center" Text="{Binding PriorityTitle}" TextTrimming="CharacterEllipsis">
+                          <ToolTip.Tip>
+                            <TextBlock Text="{Binding PriorityHelp}" TextWrapping="Wrap" MaxWidth="340"/>
+                          </ToolTip.Tip>
+                        </TextBlock>
+                        <Grid Grid.Column="1" ColumnDefinitions="68,16" ColumnSpacing="2" Height="26" Width="86" HorizontalAlignment="Left" VerticalAlignment="Center">
+                          <TextBox Grid.Column="0" Width="68" Height="26" Text="{Binding Order, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" Classes.invalid="{Binding OrderInvalid}" Tag="Order" KeyDown="OnMappingNumericKeyDown"/>
+                          <Grid Grid.Column="1" RowDefinitions="13,13" Height="26" Width="16">
+                            <RepeatButton Grid.Row="0" Classes="spinner-arrow" Width="16" Height="13" MinWidth="0" MinHeight="0" ClickMode="Press" Focusable="False" Delay="520" Interval="300" Click="OnMappingNumericSpin" Tag="Order:+1" ToolTip.Tip="Увеличить">
+                              <fi:FluentIcon Icon="ChevronUp" IconSize="Size20" Width="11" Height="11" FontSize="11" Foreground="{DynamicResource KpTextBrush}"/>
+                            </RepeatButton>
+                            <RepeatButton Grid.Row="1" Classes="spinner-arrow" Width="16" Height="13" MinWidth="0" MinHeight="0" ClickMode="Press" Focusable="False" Delay="520" Interval="300" Click="OnMappingNumericSpin" Tag="Order:-1" ToolTip.Tip="Уменьшить">
+                              <fi:FluentIcon Icon="ChevronDown" IconSize="Size20" Width="11" Height="11" FontSize="11" Foreground="{DynamicResource KpTextBrush}"/>
+                            </RepeatButton>
+                          </Grid>
+                        </Grid>
+                      </Grid>
+                      <Grid Width="350" Margin="0,0,9,4" ColumnDefinitions="140,*" ColumnSpacing="6" MinHeight="27">
+                        <TextBlock VerticalAlignment="Center" Text="{Binding VisibleTitle}" TextTrimming="CharacterEllipsis">
+                          <ToolTip.Tip>
+                            <TextBlock Text="{Binding VisibleHelp}" TextWrapping="Wrap" MaxWidth="340"/>
+                          </ToolTip.Tip>
+                        </TextBlock>
+                        <ComboBox Grid.Column="1" ItemsSource="{Binding Visibilities}" SelectedItem="{Binding Visibility, Mode=TwoWay}">
+                          <ComboBox.ItemTemplate>
+                            <DataTemplate x:DataType="vm:MappingOption">
+                              <TextBlock Text="{Binding Label}"/>
+                            </DataTemplate>
+                          </ComboBox.ItemTemplate>
+                        </ComboBox>
+                      </Grid>
+                      <Grid Width="350" Margin="0,0,9,4" ColumnDefinitions="140,*" ColumnSpacing="6" MinHeight="27">
+                        <TextBlock VerticalAlignment="Center" Text="{Binding ShowHeadingTitle}" TextTrimming="CharacterEllipsis">
+                          <ToolTip.Tip>
+                            <TextBlock Text="{Binding ShowHeadingHelp}" TextWrapping="Wrap" MaxWidth="340"/>
+                          </ToolTip.Tip>
+                        </TextBlock>
+                        <ComboBox Grid.Column="1" ItemsSource="{Binding Headings}" SelectedItem="{Binding Heading, Mode=TwoWay}">
+                          <ComboBox.ItemTemplate>
+                            <DataTemplate x:DataType="vm:MappingOption">
+                              <TextBlock Text="{Binding Label}"/>
+                            </DataTemplate>
+                          </ComboBox.ItemTemplate>
+                        </ComboBox>
+                      </Grid>
+                      <Grid Width="350" Margin="0,0,9,4" ColumnDefinitions="140,*" ColumnSpacing="6" MinHeight="27">
+                        <TextBlock VerticalAlignment="Center" Text="{Binding UrlTitle}" TextTrimming="CharacterEllipsis">
+                          <ToolTip.Tip>
+                            <TextBlock Text="{Binding UrlHelp}" TextWrapping="Wrap" MaxWidth="340"/>
+                          </ToolTip.Tip>
+                        </TextBlock>
+                        <ComboBox Grid.Column="1" ItemsSource="{Binding UrlModes}" SelectedItem="{Binding UrlMode, Mode=TwoWay}">
+                          <ComboBox.ItemTemplate>
+                            <DataTemplate x:DataType="vm:MappingOption">
+                              <TextBlock Text="{Binding Label}"/>
+                            </DataTemplate>
+                          </ComboBox.ItemTemplate>
+                        </ComboBox>
+                      </Grid>
+                      <Grid Width="350" Margin="0,0,9,4" ColumnDefinitions="140,*" ColumnSpacing="6" MinHeight="27" IsVisible="{Binding IsUrlField}">
+                        <TextBlock VerticalAlignment="Center" Text="{Binding UrlSourceTitle}"/>
+                        <ComboBox Grid.Column="1" ItemsSource="{Binding UrlSources}" SelectedItem="{Binding UrlSource, Mode=TwoWay}">
+                          <ComboBox.ItemTemplate>
+                            <DataTemplate x:DataType="vm:MappingOption"><TextBlock Text="{Binding Label}"/></DataTemplate>
+                          </ComboBox.ItemTemplate>
+                        </ComboBox>
+                      </Grid>
+                      <TextBlock Width="350" Margin="0,0,9,6" FontSize="11"
+                                 TextWrapping="Wrap" IsVisible="{Binding IsUrlField}"
+                                 Text="{Binding UrlPreviewStatus}"/>
+                      <Grid Width="350" Margin="0,0,9,4" ColumnDefinitions="140,*" ColumnSpacing="6" MinHeight="27" IsVisible="{Binding IsUsernameField}">
+                        <TextBlock VerticalAlignment="Center" Text="Логин — телефон" ToolTip.Tip="Только отображение, без изменения данных базы. Поддерживаются явные номера +380 и +1."/>
+                        <CheckBox Grid.Column="1" Content="Форматировать номер" VerticalAlignment="Center" IsChecked="{Binding PhoneFormat, Mode=TwoWay}"/>
+                      </Grid>
+                      <Grid Width="350" Margin="0,0,9,4" ColumnDefinitions="140,*" ColumnSpacing="6" MinHeight="27">
+                        <TextBlock VerticalAlignment="Center" Text="{Binding FitTitle}" TextTrimming="CharacterEllipsis">
+                          <ToolTip.Tip>
+                            <TextBlock Text="{Binding FitHelp}" TextWrapping="Wrap" MaxWidth="340"/>
+                          </ToolTip.Tip>
+                        </TextBlock>
+                        <ComboBox Grid.Column="1" ItemsSource="{Binding Fits}" SelectedItem="{Binding Fit, Mode=TwoWay}">
+                          <ComboBox.ItemTemplate>
+                            <DataTemplate x:DataType="vm:MappingOption">
+                              <TextBlock Text="{Binding Label}"/>
+                            </DataTemplate>
+                          </ComboBox.ItemTemplate>
+                        </ComboBox>
+                      </Grid>
+                      <Grid Width="350" Margin="0,0,9,4" ColumnDefinitions="140,*" ColumnSpacing="6" MinHeight="27">
+                        <TextBlock VerticalAlignment="Center" Text="{Binding WeightTitle}" TextTrimming="CharacterEllipsis">
+                          <ToolTip.Tip>
+                            <TextBlock Text="{Binding WeightHelp}" TextWrapping="Wrap" MaxWidth="340"/>
+                          </ToolTip.Tip>
+                        </TextBlock>
+                        <ComboBox Grid.Column="1" ItemsSource="{Binding Weights}" SelectedItem="{Binding Weight, Mode=TwoWay}">
+                          <ComboBox.ItemTemplate>
+                            <DataTemplate x:DataType="vm:MappingOption">
+                              <TextBlock Text="{Binding Label}"/>
+                            </DataTemplate>
+                          </ComboBox.ItemTemplate>
+                        </ComboBox>
+                      </Grid>
+                      <Grid Width="350" Margin="0,0,9,4" ColumnDefinitions="140,*" ColumnSpacing="6" MinHeight="27">
+                        <TextBlock VerticalAlignment="Center" Text="{Binding SizeTitle}" TextTrimming="CharacterEllipsis">
+                          <ToolTip.Tip>
+                            <TextBlock Text="{Binding SizeHelp}" TextWrapping="Wrap" MaxWidth="340"/>
+                          </ToolTip.Tip>
+                        </TextBlock>
+                        <Grid Grid.Column="1" ColumnDefinitions="68,16" ColumnSpacing="2" Height="26" Width="86" HorizontalAlignment="Left" VerticalAlignment="Center">
+                          <TextBox Grid.Column="0" Width="68" Height="26" Text="{Binding SizePct, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" Classes.invalid="{Binding SizePctInvalid}" Tag="SizePct" KeyDown="OnMappingNumericKeyDown"/>
+                          <Grid Grid.Column="1" RowDefinitions="13,13" Height="26" Width="16">
+                            <RepeatButton Grid.Row="0" Classes="spinner-arrow" Width="16" Height="13" MinWidth="0" MinHeight="0" ClickMode="Press" Focusable="False" Delay="520" Interval="300" Click="OnMappingNumericSpin" Tag="SizePct:+1" ToolTip.Tip="Увеличить">
+                              <fi:FluentIcon Icon="ChevronUp" IconSize="Size20" Width="11" Height="11" FontSize="11" Foreground="{DynamicResource KpTextBrush}"/>
+                            </RepeatButton>
+                            <RepeatButton Grid.Row="1" Classes="spinner-arrow" Width="16" Height="13" MinWidth="0" MinHeight="0" ClickMode="Press" Focusable="False" Delay="520" Interval="300" Click="OnMappingNumericSpin" Tag="SizePct:-1" ToolTip.Tip="Уменьшить">
+                              <fi:FluentIcon Icon="ChevronDown" IconSize="Size20" Width="11" Height="11" FontSize="11" Foreground="{DynamicResource KpTextBrush}"/>
+                            </RepeatButton>
+                          </Grid>
+                        </Grid>
+                      </Grid>
+                      <Grid Width="350" Margin="0,0,9,4" ColumnDefinitions="140,*" ColumnSpacing="6" MinHeight="27">
+                        <TextBlock VerticalAlignment="Center" Text="{Binding TrackingTitle}" TextTrimming="CharacterEllipsis">
+                          <ToolTip.Tip>
+                            <TextBlock Text="{Binding TrackingHelp}" TextWrapping="Wrap" MaxWidth="340"/>
+                          </ToolTip.Tip>
+                        </TextBlock>
+                        <Grid Grid.Column="1" ColumnDefinitions="68,16" ColumnSpacing="2" Height="26" Width="86" HorizontalAlignment="Left" VerticalAlignment="Center">
+                          <TextBox Grid.Column="0" Width="68" Height="26" Text="{Binding TrackingPt, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" Classes.invalid="{Binding TrackingPtInvalid}" Tag="TrackingPt" KeyDown="OnMappingNumericKeyDown"/>
+                          <Grid Grid.Column="1" RowDefinitions="13,13" Height="26" Width="16">
+                            <RepeatButton Grid.Row="0" Classes="spinner-arrow" Width="16" Height="13" MinWidth="0" MinHeight="0" ClickMode="Press" Focusable="False" Delay="520" Interval="300" Click="OnMappingNumericSpin" Tag="TrackingPt:+1" ToolTip.Tip="Увеличить">
+                              <fi:FluentIcon Icon="ChevronUp" IconSize="Size20" Width="11" Height="11" FontSize="11" Foreground="{DynamicResource KpTextBrush}"/>
+                            </RepeatButton>
+                            <RepeatButton Grid.Row="1" Classes="spinner-arrow" Width="16" Height="13" MinWidth="0" MinHeight="0" ClickMode="Press" Focusable="False" Delay="520" Interval="300" Click="OnMappingNumericSpin" Tag="TrackingPt:-1" ToolTip.Tip="Уменьшить">
+                              <fi:FluentIcon Icon="ChevronDown" IconSize="Size20" Width="11" Height="11" FontSize="11" Foreground="{DynamicResource KpTextBrush}"/>
+                            </RepeatButton>
+                          </Grid>
+                        </Grid>
+                      </Grid>
+                      <Grid Width="350" Margin="0,0,9,4" ColumnDefinitions="140,*" ColumnSpacing="6" MinHeight="27">
+                        <TextBlock VerticalAlignment="Center" Text="{Binding GroupTitle}" TextTrimming="CharacterEllipsis">
+                          <ToolTip.Tip>
+                            <TextBlock Text="{Binding GroupHelp}" TextWrapping="Wrap" MaxWidth="340"/>
+                          </ToolTip.Tip>
+                        </TextBlock>
+                        <ComboBox Grid.Column="1" ItemsSource="{Binding Groups}" SelectedItem="{Binding Group, Mode=TwoWay}">
+                          <ComboBox.ItemTemplate>
+                            <DataTemplate x:DataType="vm:MappingOption">
+                              <TextBlock Text="{Binding Label}"/>
+                            </DataTemplate>
+                          </ComboBox.ItemTemplate>
+                        </ComboBox>
+                      </Grid>
+                      <Grid Width="350" Margin="0,0,9,4" ColumnDefinitions="140,*" ColumnSpacing="6" MinHeight="27">
+                        <TextBlock VerticalAlignment="Center" Text="{Binding GroupSizeTitle}" TextTrimming="CharacterEllipsis">
+                          <ToolTip.Tip>
+                            <TextBlock Text="{Binding GroupSizeHelp}" TextWrapping="Wrap" MaxWidth="340"/>
+                          </ToolTip.Tip>
+                        </TextBlock>
+                        <Grid Grid.Column="1" ColumnDefinitions="68,16" ColumnSpacing="2" Height="26" Width="86" HorizontalAlignment="Left" VerticalAlignment="Center">
+                          <TextBox Grid.Column="0" Width="68" Height="26" Text="{Binding GroupSize, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" Classes.invalid="{Binding GroupSizeInvalid}" Tag="GroupSize" KeyDown="OnMappingNumericKeyDown"/>
+                          <Grid Grid.Column="1" RowDefinitions="13,13" Height="26" Width="16">
+                            <RepeatButton Grid.Row="0" Classes="spinner-arrow" Width="16" Height="13" MinWidth="0" MinHeight="0" ClickMode="Press" Focusable="False" Delay="520" Interval="300" Click="OnMappingNumericSpin" Tag="GroupSize:+1" ToolTip.Tip="Увеличить">
+                              <fi:FluentIcon Icon="ChevronUp" IconSize="Size20" Width="11" Height="11" FontSize="11" Foreground="{DynamicResource KpTextBrush}"/>
+                            </RepeatButton>
+                            <RepeatButton Grid.Row="1" Classes="spinner-arrow" Width="16" Height="13" MinWidth="0" MinHeight="0" ClickMode="Press" Focusable="False" Delay="520" Interval="300" Click="OnMappingNumericSpin" Tag="GroupSize:-1" ToolTip.Tip="Уменьшить">
+                              <fi:FluentIcon Icon="ChevronDown" IconSize="Size20" Width="11" Height="11" FontSize="11" Foreground="{DynamicResource KpTextBrush}"/>
+                            </RepeatButton>
+                          </Grid>
+                        </Grid>
+                      </Grid>
+                      <Grid Width="350" Margin="0,0,9,4" ColumnDefinitions="140,*" ColumnSpacing="6" MinHeight="27">
+                        <TextBlock VerticalAlignment="Center" Text="{Binding GroupSpacesTitle}" TextTrimming="CharacterEllipsis">
+                          <ToolTip.Tip>
+                            <TextBlock Text="{Binding GroupSpacesHelp}" TextWrapping="Wrap" MaxWidth="340"/>
+                          </ToolTip.Tip>
+                        </TextBlock>
+                        <Grid Grid.Column="1" ColumnDefinitions="68,16" ColumnSpacing="2" Height="26" Width="86" HorizontalAlignment="Left" VerticalAlignment="Center">
+                          <TextBox Grid.Column="0" Width="68" Height="26" Text="{Binding GroupSpaces, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" Classes.invalid="{Binding GroupSpacesInvalid}" Tag="GroupSpaces" KeyDown="OnMappingNumericKeyDown"/>
+                          <Grid Grid.Column="1" RowDefinitions="13,13" Height="26" Width="16">
+                            <RepeatButton Grid.Row="0" Classes="spinner-arrow" Width="16" Height="13" MinWidth="0" MinHeight="0" ClickMode="Press" Focusable="False" Delay="520" Interval="300" Click="OnMappingNumericSpin" Tag="GroupSpaces:+1" ToolTip.Tip="Увеличить">
+                              <fi:FluentIcon Icon="ChevronUp" IconSize="Size20" Width="11" Height="11" FontSize="11" Foreground="{DynamicResource KpTextBrush}"/>
+                            </RepeatButton>
+                            <RepeatButton Grid.Row="1" Classes="spinner-arrow" Width="16" Height="13" MinWidth="0" MinHeight="0" ClickMode="Press" Focusable="False" Delay="520" Interval="300" Click="OnMappingNumericSpin" Tag="GroupSpaces:-1" ToolTip.Tip="Уменьшить">
+                              <fi:FluentIcon Icon="ChevronDown" IconSize="Size20" Width="11" Height="11" FontSize="11" Foreground="{DynamicResource KpTextBrush}"/>
+                            </RepeatButton>
+                          </Grid>
+                        </Grid>
+                      </Grid>
+                    </WrapPanel>
+                  </Border>
+                </ScrollViewer>
+              </Grid>
+            </Border>
+          </Grid>
+        </TabItem>
+
+        <TabItem ClipToBounds="True" ToolTip.Tip="{Binding TabDesign}">
+          <!-- Strongly typed against the window ShellViewModel: no reflection-bound header template (Native AOT). -->
+          <TabItem.Header>
+            <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+              <fi:FluentIcon Icon="Color" IconVariant="Regular" IconSize="Size20" Width="16" Height="16" FontSize="16"/>
+              <TextBlock Text="{Binding TabDesign}" IsVisible="{Binding ShowMainTabCaptions}" VerticalAlignment="Center"/>
+            </StackPanel>
+          </TabItem.Header>
+          <Grid Margin="9" RowDefinitions="Auto,Auto,*" RowSpacing="8" MinHeight="0">
+            <!-- The template manager is shared across both editors. The choice is
+                 distinct from the currently loaded template until Load is clicked. -->
+            <Border Grid.Row="0" Classes="template-toolbar" Padding="9,8" Background="{DynamicResource KpSurfaceBrush}" BorderBrush="{DynamicResource KpBorderBrush}" BorderThickness="1" CornerRadius="4">
+              <StackPanel Spacing="6">
+                <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="8">
+                  <TextBlock VerticalAlignment="Center" Classes="section-heading" Text="Шаблон"/>
+                  <ComboBox Grid.Column="1" ItemsSource="{Binding TemplateNames}" SelectedItem="{Binding SelectedTemplate,Mode=TwoWay}" ToolTip.Tip="Выберите шаблон и нажмите «Загрузить»"/>
+                  <Button Grid.Column="2"  Click="OnLoadCardTemplate" ToolTip.Tip="Загрузить выбранный шаблон целиком: обе стороны">
+                    <StackPanel Orientation="Horizontal" Spacing="5" VerticalAlignment="Center">
+                      <fi:FluentIcon Icon="FolderOpen" IconVariant="Regular" IconSize="Size20" Width="14" Height="14" FontSize="14" Foreground="{DynamicResource KpTextBrush}"/>
+                      <TextBlock Text="Загрузить" VerticalAlignment="Center"/>
+                    </StackPanel>
+                  </Button>
+                </Grid>
+                <TextBlock Text="{Binding ActiveTemplateNotice}" Classes="hint" TextWrapping="Wrap"/>
+                <WrapPanel Orientation="Horizontal">
+                  <TextBox Width="174" Margin="0,0,7,4" PlaceholderText="Название своего шаблона" Text="{Binding TemplateName,Mode=TwoWay,UpdateSourceTrigger=PropertyChanged}"/>
+                  <Button  Click="OnSaveCardTemplate" Margin="0,0,7,4" ToolTip.Tip="Создать независимую копию шаблона с оформлением обеих сторон">
+                    <StackPanel Orientation="Horizontal" Spacing="5" VerticalAlignment="Center">
+                      <fi:FluentIcon Icon="DocumentCopy" IconVariant="Regular" IconSize="Size20" Width="14" Height="14" FontSize="14" Foreground="{DynamicResource KpTextBrush}"/>
+                      <TextBlock Text="Создать мой шаблон" VerticalAlignment="Center"/>
+                    </StackPanel>
+                  </Button>
+                  <Button  Click="OnSaveAppearance" Margin="0,0,0,4" IsEnabled="{Binding CanSaveTemplateChanges}" ToolTip.Tip="Сохранить текущие настройки в свой шаблон">
+                    <StackPanel Orientation="Horizontal" Spacing="5" VerticalAlignment="Center">
+                      <fi:FluentIcon Icon="Save" IconVariant="Regular" IconSize="Size20" Width="14" Height="14" FontSize="14" Foreground="{DynamicResource KpTextBrush}"/>
+                      <TextBlock Text="Сохранить изменения" VerticalAlignment="Center"/>
+                    </StackPanel>
+                  </Button>
+                </WrapPanel>
+                <TextBlock Text="{Binding DesignMessage}" IsVisible="{Binding HasDesignMessage}" Classes="hint" TextWrapping="Wrap"/>
+              </StackPanel>
+            </Border>
+            <!-- A wrap-capable second-level navigation strip. It lives OUTSIDE
+                 the editable area so built-in templates remain browseable. -->
+            <Border Grid.Row="1" BorderBrush="{DynamicResource KpBorderBrush}" BorderThickness="0,0,0,1" Padding="0,5,0,1">
+              <ListBox x:Name="DesignSectionTabs" Classes="category-tabs" ItemsSource="{Binding DesignCategories}" SelectedItem="{Binding SelectedDesignCategory,Mode=TwoWay}" SelectionMode="Single" ScrollViewer.HorizontalScrollBarVisibility="Disabled" ScrollViewer.VerticalScrollBarVisibility="Disabled" ToolTip.Tip="Переключение раздела не загружает шаблон и не сбрасывает изменения">
+                <ListBox.ItemsPanel>
+                  <ItemsPanelTemplate><WrapPanel Orientation="Horizontal"/></ItemsPanelTemplate>
+                </ListBox.ItemsPanel>
+              </ListBox>
+            </Border>
+            <!-- Leave the scroll viewer enabled even for a protected built-in.
+                 Only individual value editors are disabled in that mode. -->
+            <Border Grid.Row="2" BorderThickness="1" BorderBrush="{DynamicResource KpBorderBrush}" Background="{DynamicResource KpSurfaceBrush}" Padding="9" CornerRadius="4" MinHeight="0">
+              <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                <ItemsControl ItemsSource="{Binding VisibleAppearanceFields}">
+                  <ItemsControl.ItemsPanel>
+                    <ItemsPanelTemplate><WrapPanel Orientation="Horizontal"/></ItemsPanelTemplate>
+                  </ItemsControl.ItemsPanel>
+                <ItemsControl.ItemTemplate>
+                  <DataTemplate x:DataType="svc:AppearanceField">
+                    <Grid Width="353" ColumnDefinitions="165,*" ColumnSpacing="6" Margin="0,0,9,4" MinHeight="27">
+                      <TextBlock VerticalAlignment="Center" Text="{Binding Label}" TextTrimming="CharacterEllipsis">
+                        <ToolTip.Tip>
+                          <TextBlock Text="{Binding Description}" TextWrapping="Wrap" MaxWidth="340"/>
+                        </ToolTip.Tip>
+                      </TextBlock>
+                      <Grid Grid.Column="1" ColumnDefinitions="Auto,Auto,Auto" ColumnSpacing="2" Height="26" VerticalAlignment="Center" IsVisible="{Binding IsText}" IsEnabled="{Binding IsEditable}">
+                        <TextBox Grid.Column="0" Width="{Binding EditorWidth}" Height="26" Text="{Binding TextValue,Mode=TwoWay,UpdateSourceTrigger=PropertyChanged}"/>
+                        <!-- Fixed 26-DIP spinner with vector glyphs: no font baseline shifts,
+                             no contribution to row height and no full-width numeric editor. -->
+                        <Grid Grid.Column="1" RowDefinitions="13,13" Width="16" Height="26" IsVisible="{Binding IsNumeric}" VerticalAlignment="Center">
+                          <RepeatButton Grid.Row="0" Classes="spinner-arrow" Width="16" Height="13" ClickMode="Press" Focusable="False" Delay="520" Interval="300" Click="OnAppearanceIncrease">
+                            <fi:FluentIcon Icon="ChevronUp" IconSize="Size20" Width="11" Height="11" FontSize="11" Foreground="{DynamicResource KpTextBrush}" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                          </RepeatButton>
+                          <RepeatButton Grid.Row="1" Classes="spinner-arrow" Width="16" Height="13" ClickMode="Press" Focusable="False" Delay="520" Interval="300" Click="OnAppearanceDecrease">
+                            <fi:FluentIcon Icon="ChevronDown" IconSize="Size20" Width="11" Height="11" FontSize="11" Foreground="{DynamicResource KpTextBrush}" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                          </RepeatButton>
+                        </Grid>
+                        <Border Grid.Column="2" Width="19" Height="19" CornerRadius="3" BorderBrush="{DynamicResource KpBorderBrush}" BorderThickness="1" Background="{Binding SwatchBrush}" IsVisible="{Binding IsColor}" VerticalAlignment="Center"/>
+                      </Grid>
+                      <CheckBox Grid.Column="1" VerticalAlignment="Center" IsChecked="{Binding Checked,Mode=TwoWay}" IsVisible="{Binding IsBool}" IsEnabled="{Binding IsEditable}"/>
+                      <ComboBox Grid.Column="1" ItemsSource="{Binding Choices}" SelectedItem="{Binding SelectedChoice,Mode=TwoWay}" IsVisible="{Binding IsChoice}" IsEnabled="{Binding IsEditable}">
+                        <ComboBox.ItemTemplate>
+                          <DataTemplate x:DataType="svc:DesignChoice"><TextBlock Text="{Binding Label}"/></DataTemplate>
+                        </ComboBox.ItemTemplate>
+                      </ComboBox>
+                    </Grid>
+                  </DataTemplate>
+                </ItemsControl.ItemTemplate>
+                </ItemsControl>
+              </ScrollViewer>
+            </Border>
+          </Grid>
+        </TabItem>
+        <TabItem ClipToBounds="True" ToolTip.Tip="{Binding TabDuplex}">
+          <!-- Strongly typed against the window ShellViewModel: no reflection-bound header template (Native AOT). -->
+          <TabItem.Header>
+            <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+              <fi:FluentIcon Icon="DocumentCopy" IconVariant="Regular" IconSize="Size20" Width="16" Height="16" FontSize="16"/>
+              <TextBlock Text="{Binding TabDuplex}" IsVisible="{Binding ShowMainTabCaptions}" VerticalAlignment="Center"/>
+            </StackPanel>
+          </TabItem.Header>
+          <Grid Margin="9" RowDefinitions="Auto,Auto,Auto,*" RowSpacing="8" MinHeight="0">
+            <!-- The template manager is shared across both editors. The choice is
+                 distinct from the currently loaded template until Load is clicked. -->
+            <Border Grid.Row="0" Classes="template-toolbar" Padding="9,8" Background="{DynamicResource KpSurfaceBrush}" BorderBrush="{DynamicResource KpBorderBrush}" BorderThickness="1" CornerRadius="4">
+              <StackPanel Spacing="6">
+                <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="8">
+                  <TextBlock VerticalAlignment="Center" Classes="section-heading" Text="Шаблон"/>
+                  <ComboBox Grid.Column="1" ItemsSource="{Binding TemplateNames}" SelectedItem="{Binding SelectedTemplate,Mode=TwoWay}" ToolTip.Tip="Выберите шаблон и нажмите «Загрузить»"/>
+                  <Button Grid.Column="2"  Click="OnLoadCardTemplate" ToolTip.Tip="Загрузить выбранный шаблон целиком: обе стороны">
+                    <StackPanel Orientation="Horizontal" Spacing="5" VerticalAlignment="Center">
+                      <fi:FluentIcon Icon="FolderOpen" IconVariant="Regular" IconSize="Size20" Width="14" Height="14" FontSize="14" Foreground="{DynamicResource KpTextBrush}"/>
+                      <TextBlock Text="Загрузить" VerticalAlignment="Center"/>
+                    </StackPanel>
+                  </Button>
+                </Grid>
+                <TextBlock Text="{Binding ActiveTemplateNotice}" Classes="hint" TextWrapping="Wrap"/>
+                <WrapPanel Orientation="Horizontal">
+                  <TextBox Width="174" Margin="0,0,7,4" PlaceholderText="Название своего шаблона" Text="{Binding TemplateName,Mode=TwoWay,UpdateSourceTrigger=PropertyChanged}"/>
+                  <Button  Click="OnSaveCardTemplate" Margin="0,0,7,4" ToolTip.Tip="Создать независимую копию шаблона с оформлением обеих сторон">
+                    <StackPanel Orientation="Horizontal" Spacing="5" VerticalAlignment="Center">
+                      <fi:FluentIcon Icon="DocumentCopy" IconVariant="Regular" IconSize="Size20" Width="14" Height="14" FontSize="14" Foreground="{DynamicResource KpTextBrush}"/>
+                      <TextBlock Text="Создать мой шаблон" VerticalAlignment="Center"/>
+                    </StackPanel>
+                  </Button>
+                  <Button  Click="OnSaveAppearance" Margin="0,0,0,4" IsEnabled="{Binding CanSaveTemplateChanges}" ToolTip.Tip="Сохранить текущие настройки в свой шаблон">
+                    <StackPanel Orientation="Horizontal" Spacing="5" VerticalAlignment="Center">
+                      <fi:FluentIcon Icon="Save" IconVariant="Regular" IconSize="Size20" Width="14" Height="14" FontSize="14" Foreground="{DynamicResource KpTextBrush}"/>
+                      <TextBlock Text="Сохранить изменения" VerticalAlignment="Center"/>
+                    </StackPanel>
+                  </Button>
+                </WrapPanel>
+                <TextBlock Text="{Binding DesignMessage}" IsVisible="{Binding HasDesignMessage}" Classes="hint" TextWrapping="Wrap"/>
+              </StackPanel>
+            </Border>
+            <!-- A wrap-capable second-level navigation strip. It lives OUTSIDE
+                 the editable area so built-in templates remain browseable. -->
+            <Border Grid.Row="1" BorderBrush="{DynamicResource KpBorderBrush}" BorderThickness="0,0,0,1" Padding="0,5,0,1">
+              <ListBox x:Name="DuplexSectionTabs" Classes="category-tabs" ItemsSource="{Binding DuplexDesignCategories}" SelectedItem="{Binding SelectedDuplexDesignCategory,Mode=TwoWay}" SelectionMode="Single" ScrollViewer.HorizontalScrollBarVisibility="Disabled" ScrollViewer.VerticalScrollBarVisibility="Disabled" ToolTip.Tip="Переключение раздела не загружает шаблон и не сбрасывает изменения">
+                <ListBox.ItemsPanel>
+                  <ItemsPanelTemplate><WrapPanel Orientation="Horizontal"/></ItemsPanelTemplate>
+                </ListBox.ItemsPanel>
+              </ListBox>
+            </Border>
+            <!-- High-frequency controls remain within reach on every subtab. -->
+            <Border Grid.Row="2" Padding="9,7" CornerRadius="4" BorderBrush="{DynamicResource KpBorderBrush}" BorderThickness="1" Background="{DynamicResource KpSurfaceBrush}">
+              <StackPanel Spacing="7">
+                <Grid ColumnDefinitions="Auto,*,Auto,Auto" ColumnSpacing="9">
+                  <TextBlock Grid.Column="0" Text="Пустой оборот" Classes="section-heading" VerticalAlignment="Center"/>
+                  <ComboBox Grid.Column="1" MinWidth="110" MaxWidth="215" HorizontalAlignment="Left" ItemsSource="{Binding EmptyBackFillField.Choices}" SelectedItem="{Binding EmptyBackFillField.SelectedChoice,Mode=TwoWay}" IsEnabled="{Binding EmptyBackFillField.IsEditable}" ToolTip.Tip="Оформление / пустой / другие режимы, которые доступны в шаблоне">
+                    <ComboBox.ItemTemplate>
+                      <DataTemplate x:DataType="svc:DesignChoice"><TextBlock Text="{Binding Label}"/></DataTemplate>
+                    </ComboBox.ItemTemplate>
+                  </ComboBox>
+                  <CheckBox Grid.Column="2" Content="Шапка" VerticalAlignment="Center" IsChecked="{Binding EmptyBackHeaderField.Checked,Mode=TwoWay}" IsEnabled="{Binding EmptyBackHeaderField.IsEditable}" ToolTip.Tip="Показывать шапку на пустом обороте"/>
+                  <CheckBox Grid.Column="3" Content="Подвал" VerticalAlignment="Center" IsChecked="{Binding EmptyBackFooterField.Checked,Mode=TwoWay}" IsEnabled="{Binding EmptyBackFooterField.IsEditable}" ToolTip.Tip="Показывать подвал на пустом обороте"/>
+                </Grid>
+              </StackPanel>
+            </Border>
+            <Border Grid.Row="3" BorderBrush="{DynamicResource KpBorderBrush}" BorderThickness="1" Background="{DynamicResource KpSurfaceBrush}" Padding="9" CornerRadius="4" MinHeight="0">
+              <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                <ItemsControl ItemsSource="{Binding DuplexAppearanceFields}">
+                  <ItemsControl.ItemsPanel>
+                    <ItemsPanelTemplate><WrapPanel Orientation="Horizontal"/></ItemsPanelTemplate>
+                  </ItemsControl.ItemsPanel>
+                <ItemsControl.ItemTemplate>
+                  <DataTemplate x:DataType="svc:AppearanceField">
+                    <Grid Width="353" ColumnDefinitions="165,*" ColumnSpacing="6" Margin="0,0,9,4" MinHeight="27">
+                      <TextBlock VerticalAlignment="Center" Text="{Binding Label}" TextTrimming="CharacterEllipsis">
+                        <ToolTip.Tip>
+                          <TextBlock Text="{Binding Description}" TextWrapping="Wrap" MaxWidth="340"/>
+                        </ToolTip.Tip>
+                      </TextBlock>
+                      <Grid Grid.Column="1" ColumnDefinitions="Auto,Auto,Auto" ColumnSpacing="2" Height="26" VerticalAlignment="Center" IsVisible="{Binding IsText}" IsEnabled="{Binding IsEditable}">
+                        <TextBox Grid.Column="0" Width="{Binding EditorWidth}" Height="26" Text="{Binding TextValue,Mode=TwoWay,UpdateSourceTrigger=PropertyChanged}"/>
+                        <!-- Fixed 26-DIP spinner with vector glyphs: no font baseline shifts,
+                             no contribution to row height and no full-width numeric editor. -->
+                        <Grid Grid.Column="1" RowDefinitions="13,13" Width="16" Height="26" IsVisible="{Binding IsNumeric}" VerticalAlignment="Center">
+                          <RepeatButton Grid.Row="0" Classes="spinner-arrow" Width="16" Height="13" ClickMode="Press" Focusable="False" Delay="520" Interval="300" Click="OnAppearanceIncrease">
+                            <fi:FluentIcon Icon="ChevronUp" IconSize="Size20" Width="11" Height="11" FontSize="11" Foreground="{DynamicResource KpTextBrush}" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                          </RepeatButton>
+                          <RepeatButton Grid.Row="1" Classes="spinner-arrow" Width="16" Height="13" ClickMode="Press" Focusable="False" Delay="520" Interval="300" Click="OnAppearanceDecrease">
+                            <fi:FluentIcon Icon="ChevronDown" IconSize="Size20" Width="11" Height="11" FontSize="11" Foreground="{DynamicResource KpTextBrush}" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                          </RepeatButton>
+                        </Grid>
+                        <Border Grid.Column="2" Width="19" Height="19" CornerRadius="3" BorderBrush="{DynamicResource KpBorderBrush}" BorderThickness="1" Background="{Binding SwatchBrush}" IsVisible="{Binding IsColor}" VerticalAlignment="Center"/>
+                      </Grid>
+                      <CheckBox Grid.Column="1" VerticalAlignment="Center" IsChecked="{Binding Checked,Mode=TwoWay}" IsVisible="{Binding IsBool}" IsEnabled="{Binding IsEditable}"/>
+                      <ComboBox Grid.Column="1" ItemsSource="{Binding Choices}" SelectedItem="{Binding SelectedChoice,Mode=TwoWay}" IsVisible="{Binding IsChoice}" IsEnabled="{Binding IsEditable}">
+                        <ComboBox.ItemTemplate>
+                          <DataTemplate x:DataType="svc:DesignChoice">
+                            <StackPanel Orientation="Horizontal" Spacing="7">
+                              <Path Width="24" Height="24" Data="{Binding IconGeometry}" Stretch="Uniform"
+                                    Fill="{DynamicResource KpTextBrush}" HorizontalAlignment="Center" VerticalAlignment="Center"
+                                    IsVisible="{Binding HasIconPreview}"/>
+                              <TextBlock Text="{Binding Label}" VerticalAlignment="Center"/>
+                            </StackPanel>
+                          </DataTemplate>
+                        </ComboBox.ItemTemplate>
+                      </ComboBox>
+                    </Grid>
+                  </DataTemplate>
+                </ItemsControl.ItemTemplate>
+                </ItemsControl>
+              </ScrollViewer>
+            </Border>
+          </Grid>
+        </TabItem>
+        <TabItem ClipToBounds="True" ToolTip.Tip="{Binding TabAbout}">
+          <TabItem.Header>
+            <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+              <fi:FluentIcon Icon="Info" IconVariant="Regular" IconSize="Size20" Width="16" Height="16" FontSize="16"/>
+              <TextBlock Text="{Binding TabAbout}" VerticalAlignment="Center"/>
+            </StackPanel>
+          </TabItem.Header>
+          <views:AboutView DataContext="{Binding About}"/>
+        </TabItem>
+      </TabControl>
+      </Border>
+
+      <GridSplitter Grid.Column="1" Background="{DynamicResource KpBorderBrush}" ResizeDirection="Columns" ResizeBehavior="PreviousAndNext" ToolTip.Tip="Перетаскивайте для изменения ширины панелей"/>
+
+      <!-- A single movable, icon-first toolbar; preview geometry is independent of toolbar docking. -->
+      <Grid Grid.Column="2" RowDefinitions="Auto,Auto,*" RowSpacing="4" Margin="9,0,0,0" MinWidth="420" MinHeight="0">
+        <Grid Grid.Row="0" ColumnDefinitions="Auto,*,Auto,Auto,Auto" ColumnSpacing="7" MinHeight="24">
+          <TextBlock Classes="section-heading" Text="Предпросмотр" VerticalAlignment="Center"/>
+          <TextBlock Grid.Column="2" Text="{Binding PreviewCardCount}" VerticalAlignment="Center"
+                     ToolTip.Tip="Номер текущей карточки или листа и общее количество"/>
+          <TextBlock Grid.Column="3" Text="{Binding PreviewFaceLabel}" FontSize="11" VerticalAlignment="Center"
+                     Foreground="{DynamicResource KpSubtleBrush}"/>
+          <TextBlock Grid.Column="4" x:Name="PreviewZoomLabel" Text="{Binding PreviewZoomCaption}"
+                     FontSize="11" FontWeight="SemiBold" MinWidth="43" TextAlignment="Right"
+                     VerticalAlignment="Center" HorizontalAlignment="Right"
+                     ToolTip.Tip="Текущий масштаб предпросмотра. Колесо мыши — масштабирование от курсора"/>
+        </Grid>
+        <Border x:Name="PreviewToolbarTopHost" Grid.Row="1" Padding="2" MinHeight="33">
+          <StackPanel x:Name="PreviewToolbar" Orientation="Horizontal" Spacing="3" VerticalAlignment="Top" HorizontalAlignment="Left">
+            <Button Classes="preview-tool" Click="OnPreviewPrevious" IsEnabled="{Binding PreviewCanGoBack}"
+                    ToolTip.Tip="Предыдущая карточка или лист">
+              <fi:FluentIcon Icon="ChevronLeft" IconSize="Size20" IconVariant="Regular" Width="20" Height="20" FontSize="20"/>
+            </Button>
+            <Button Classes="preview-tool" Click="OnPreviewNext" IsEnabled="{Binding PreviewCanGoNext}"
+                    ToolTip.Tip="Следующая карточка или лист">
+              <fi:FluentIcon Icon="ChevronRight" IconSize="Size20" IconVariant="Regular" Width="20" Height="20" FontSize="20"/>
+            </Button>
+            <ToggleButton Classes="preview-tool" IsChecked="{Binding PreviewShowSheet,Mode=TwoWay}"
+                          ToolTip.Tip="Переключить: карточка / полный лист">
+              <fi:FluentIcon Icon="Grid" IconSize="Size20" IconVariant="Regular" Width="20" Height="20" FontSize="20"/>
+            </ToggleButton>
+            <ToggleButton Classes="preview-tool" IsChecked="{Binding PreviewIsFront,Mode=OneWay}"
+                          IsVisible="{Binding PreviewDuplexAvailable}" Click="OnPreviewFront"
+                          ToolTip.Tip="Лицевая сторона — выделена, когда активна">
+              <fi:FluentIcon Icon="DocumentOnePage" IconSize="Size20" IconVariant="Regular" Width="20" Height="20" FontSize="20"/>
+            </ToggleButton>
+            <ToggleButton Classes="preview-tool" IsChecked="{Binding PreviewIsBack,Mode=OneWay}"
+                          IsVisible="{Binding PreviewDuplexAvailable}" Click="OnPreviewBack"
+                          ToolTip.Tip="Оборотная сторона — выделена, когда активна">
+              <fi:FluentIcon Icon="DocumentCopy" IconSize="Size20" IconVariant="Regular" Width="20" Height="20" FontSize="20"/>
+            </ToggleButton>
+            <Button Classes="preview-tool" Click="OnPreviewZoomFit"
+                    ToolTip.Tip="Вписать лист или карточку в окно (Ctrl+0)">
+              <fi:FluentIcon Icon="FullScreenMaximize" IconSize="Size20" IconVariant="Regular" Width="20" Height="20" FontSize="20"/>
+            </Button>
+            <Button Classes="preview-tool" Content="1:1" FontSize="10" FontWeight="SemiBold" Click="OnPreviewZoom100"
+                    ToolTip.Tip="Вернуть масштаб 100%, сохранив точку просмотра (Ctrl+1)"/>
+            <Button Classes="preview-tool" ToolTip.Tip="Настройки листа, анимации, ч/б и масштаба">
+              <Button.Flyout>
+                <Flyout>
+                  <Border Classes="preview-settings-flyout" Background="{DynamicResource KpSurfaceBrush}"
+                          BorderBrush="{DynamicResource KpBorderBrush}" BorderThickness="1"
+                          CornerRadius="5" Padding="11">
+                    <StackPanel Spacing="7" MinWidth="268">
+                      <TextBlock Text="Предпросмотр и лист" Classes="section-heading"/>
+                      <CheckBox Content="Показывать полный лист" IsChecked="{Binding PreviewShowSheet,Mode=TwoWay}"/>
+                      <Grid ColumnDefinitions="Auto,*" ColumnSpacing="10">
+                        <TextBlock VerticalAlignment="Center" Text="Бумага"/>
+                        <ComboBox Grid.Column="1" ItemsSource="{Binding PaperFormats}" SelectedItem="{Binding SelectedPaperFormat,Mode=TwoWay}"/>
+                      </Grid>
+                      <CheckBox Content="Альбомная ориентация" IsChecked="{Binding PrintLandscape,Mode=TwoWay}"/>
+                      <CheckBox Content="Переворот по короткому краю" IsChecked="{Binding PrintShortEdgeFlip,Mode=TwoWay}"/>
+                      <Grid ColumnDefinitions="Auto,*" ColumnSpacing="10">
+                        <TextBlock Text="Первый слот" VerticalAlignment="Center"/>
+                        <TextBox Grid.Column="1" Width="52" HorizontalAlignment="Left" Text="{Binding PrintStartSlotText,Mode=TwoWay}"
+                                 ToolTip.Tip="Номер первого занятого кармашка на первом листе"/>
+                      </Grid>
+                      <Border Height="1" Background="{DynamicResource KpBorderBrush}"/>
+                      <Grid ColumnDefinitions="Auto,*" ColumnSpacing="10">
+                        <TextBlock Text="Шаг колеса" VerticalAlignment="Center"/>
+                        <ComboBox Grid.Column="1" ItemsSource="{Binding PreviewWheelStepOptions}"
+                                  SelectedItem="{Binding SelectedPreviewWheelStep,Mode=TwoWay}" Width="76" HorizontalAlignment="Left"
+                                  ToolTip.Tip="Изменение масштаба за шаг колеса мыши"/>
+                      </Grid>
+                      <CheckBox Content="Чёрно-белый предпросмотр" IsChecked="{Binding PreviewMonochrome,Mode=TwoWay}"
+                                ToolTip.Tip="Чёрно-белое отображение без изменений PDF и печатной геометрии"/>
+                      <Border Height="1" Background="{DynamicResource KpBorderBrush}"/>
+                      <TextBlock Text="Анимация предпросмотра" Classes="section-heading"/>
+                      <CheckBox Content="Включить переходы" IsChecked="{Binding PreviewAnimationEnabled,Mode=TwoWay}"/>
+                      <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="8" IsEnabled="{Binding PreviewAnimationEnabled}">
+                        <TextBlock Text="Длительность" VerticalAlignment="Center"/>
+                        <Slider Grid.Column="1" Minimum="50" Maximum="500" SmallChange="10" LargeChange="50"
+                                Value="{Binding PreviewAnimationDurationMs,Mode=TwoWay}" Width="146"
+                                ToolTip.Tip="Плавная регулировка 50–500 мс (шаг 10 мс)"/>
+                        <TextBlock Grid.Column="2" Text="{Binding PreviewAnimationDurationCaption}" MinWidth="49"
+                                   TextAlignment="Right" VerticalAlignment="Center"/>
+                      </Grid>
+                      <StackPanel Spacing="3" IsEnabled="{Binding PreviewAnimationEnabled}">
+                        <CheckBox Content="После длительного пересчёта" IsChecked="{Binding PreviewAnimateAfterDelay,Mode=TwoWay}"/>
+                        <CheckBox Content="При перелистывании карточек и листов" IsChecked="{Binding PreviewAnimateNavigation,Mode=TwoWay}"/>
+                        <CheckBox Content="При смене лицевой / оборотной стороны" IsChecked="{Binding PreviewAnimateSideChange,Mode=TwoWay}"/>
+                      </StackPanel>
+                    </StackPanel>
+                  </Border>
+                </Flyout>
+              </Button.Flyout>
+              <fi:FluentIcon Icon="Settings" IconSize="Size20" IconVariant="Regular" Width="20" Height="20" FontSize="20"/>
+            </Button>
+            <Button Classes="preview-tool" IsEnabled="{Binding PrintReady}" ToolTip.Tip="Экспорт выбранных карточек: векторный PDF или растр 600 DPI">
+              <Button.Flyout>
+                <MenuFlyout>
+                  <MenuItem Header="Векторный PDF…" Click="OnExportPdf" IsEnabled="{Binding PrintReady}"/>
+                  <MenuItem Header="Растр 600 DPI (ZIP с PNG)…" Click="OnExportRaster" IsEnabled="{Binding PrintReady}"/>
+                </MenuFlyout>
+              </Button.Flyout>
+              <fi:FluentIcon Icon="ArrowDownload" IconSize="Size20" IconVariant="Regular" Width="20" Height="20" FontSize="20"/>
+            </Button>
+            <Button Classes="preview-tool" Click="OnOpenPrintDialog" IsEnabled="{Binding PrintReady}" ToolTip.Tip="Печать на принтере">
+              <fi:FluentIcon Icon="Print" IconSize="Size20" IconVariant="Regular" Width="20" Height="20" FontSize="20"/>
+            </Button>
+            <Button Classes="preview-tool" Click="OnOpenPrintHistory" ToolTip.Tip="История и контроль печати">
+              <fi:FluentIcon Icon="History" IconSize="Size20" IconVariant="Regular" Width="20" Height="20" FontSize="20"/>
+            </Button>
+            <Button x:Name="PreviewToolbarDockButton" Classes="preview-tool" Click="OnPreviewToggleToolbarDock"
+                    ToolTip.Tip="Разместить панель сверху / вертикально слева">
+              <fi:FluentIcon Icon="PanelLeft" IconSize="Size20" IconVariant="Regular" Width="20" Height="20" FontSize="20"/>
+            </Button>
+          </StackPanel>
+        </Border>
+        <Grid Grid.Row="2" ColumnDefinitions="Auto,*" ColumnSpacing="3" MinHeight="0">
+          <ScrollViewer x:Name="PreviewToolbarSideHost" Grid.Column="0" IsVisible="False"
+                        VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled"
+                        Width="44" HorizontalAlignment="Left" VerticalAlignment="Stretch" VerticalContentAlignment="Top"/>
+          <Border Grid.Column="1" Background="{DynamicResource KpCanvasBrush}" BorderBrush="{DynamicResource KpBorderBrush}" BorderThickness="1" ClipToBounds="True" MinHeight="0">
+          <Grid>
+            <!-- Stable viewport: zoom alters only a Skia/Avalonia visual transform,
+                 never the page's layout or a ScrollViewer's clamped offset. -->
+            <Grid ColumnDefinitions="*,14" RowDefinitions="*,14" MinHeight="0">
+              <Canvas x:Name="PreviewViewport" Grid.Row="0" Grid.Column="0" Background="Transparent"
+                      ClipToBounds="True" UseLayoutRounding="False" SizeChanged="OnPreviewViewportSizeChanged">
+                <Grid x:Name="PreviewPageHost" Background="Transparent" Cursor="Hand" UseLayoutRounding="False"
+                      PointerPressed="OnPreviewPanPressed" PointerMoved="OnPreviewPanMoved"
+                      PointerReleased="OnPreviewPanReleased" PointerCaptureLost="OnPreviewPanCaptureLost"
+                      SizeChanged="OnPreviewPageSizeChanged"
+                      Width="{Binding PreviewDisplayWidth}" Height="{Binding PreviewDisplayHeight}">
+                  <!-- One Skia draw operation blends both print scenes with real SKPaint alpha.
+                       Each 16-ms opacity change repaints this scene; no external Opacity. -->
+                  <controls:SkiaPreviewControl Scene="{Binding PreviewScene}"
+                                               PreviousScene="{Binding PreviewPreviousScene}"
+                                               PreviousOpacity="{Binding PreviewOldOpacity}" Monochrome="{Binding PreviewMonochrome}"/>
+                </Grid>
+              </Canvas>
+              <!-- Viewport-centred notices, independent of zoom/pan and page dimensions. -->
+              <Border Grid.Row="0" Grid.Column="0" Classes="preview-state"
+                      IsVisible="{Binding PreviewUpdating}"
+                      HorizontalAlignment="Center" VerticalAlignment="Center">
+                <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                  <fi:FluentIcon Icon="ArrowSync" IconVariant="Regular" IconSize="Size20"
+                                 Width="17" Height="17" Foreground="{DynamicResource KpAccentBrush}"/>
+                  <TextBlock Text="{Binding PreviewUpdateLabel}" VerticalAlignment="Center"
+                             TextWrapping="Wrap"/>
+                </StackPanel>
+              </Border>
+              <Border Grid.Row="0" Grid.Column="0" Classes="preview-state"
+                      IsVisible="{Binding PreviewEmpty}"
+                      HorizontalAlignment="Center" VerticalAlignment="Center">
+                <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                  <fi:FluentIcon Icon="DocumentOnePage" IconVariant="Regular" IconSize="Size20"
+                                 Width="17" Height="17" Foreground="{DynamicResource KpAccentBrush}"/>
+                  <TextBlock Text="{Binding PreviewNoCardsLabel}" VerticalAlignment="Center"
+                             TextWrapping="Wrap"/>
+                </StackPanel>
+              </Border>
+              <ScrollBar x:Name="PreviewVerticalScrollBar" Grid.Row="0" Grid.Column="1"
+                         Orientation="Vertical" AllowAutoHide="False" Visibility="Visible"/>
+              <ScrollBar x:Name="PreviewHorizontalScrollBar" Grid.Row="1" Grid.Column="0"
+                         Orientation="Horizontal" AllowAutoHide="False" Visibility="Visible"/>
+            </Grid>
+            <TextBlock Text="{Binding PreviewError}" Classes="hint" TextTrimming="CharacterEllipsis"
+                       VerticalAlignment="Bottom" HorizontalAlignment="Left" Margin="8" ToolTip.Tip="{Binding PreviewError}"/>
+          </Grid>
+          </Border>
+        </Grid>
+
+      </Grid>
+    </Grid>
+    <Border Grid.Row="2" Classes="app-footer">
+      <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12" MinWidth="0">
+        <!-- Keep the name and details immediately adjacent. Auto,* is deliberate:
+             *,Auto right-aligns the details and creates a huge empty gap. -->
+        <Grid Grid.Column="0" ColumnDefinitions="Auto,*" ColumnSpacing="0" MinWidth="0" ClipToBounds="True"
+              IsVisible="{Binding HasLoadedStatus}">
+          <TextBlock Grid.Column="0" Classes="app-footer-text" MaxWidth="220" MinWidth="0"
+                     Text="{Binding StatusLead}" TextTrimming="CharacterEllipsis"
+                     TextWrapping="NoWrap" ToolTip.Tip="{Binding Status}"/>
+          <TextBlock Grid.Column="1" Classes="app-footer-text" MinWidth="0"
+                     Text="{Binding StatusTail}" TextTrimming="CharacterEllipsis"
+                     TextWrapping="NoWrap" HorizontalAlignment="Left"
+                     ToolTip.Tip="{Binding Status}"/>
+        </Grid>
+        <!-- Operational messages and errors use the entire available footer width.
+             Only the ordinary loaded-database title/metrics can be abbreviated. -->
+        <TextBlock Grid.Column="0" Classes="app-footer-text" Text="{Binding StatusLead}"
+                   IsVisible="{Binding ShowOperationalStatus}" MinWidth="0"
+                   TextWrapping="Wrap" TextTrimming="None" VerticalAlignment="Center" />
+        <TextBlock Grid.Column="1" Classes="app-footer-meta" Text="{Binding AppVersionPlatform}"
+                   HorizontalAlignment="Right" VerticalAlignment="Center"/>
+      </Grid>
+    </Border>
+  </Grid>
+  </Window>

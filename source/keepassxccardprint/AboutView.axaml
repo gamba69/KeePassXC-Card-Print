@@ -1,0 +1,204 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:KeePassXCCardPrint.ViewModels"
+             xmlns:fi="using:FluentIcons.Avalonia"
+             x:Class="KeePassXCCardPrint.AboutView" x:DataType="vm:AboutViewModel"
+             Background="{DynamicResource KpSurfaceBrush}"
+             SizeChanged="OnPageSizeChanged">
+  <!-- Content remains scrollable in a narrow editing pane; the reserved bottom strip stays blank. -->
+  <Grid RowDefinitions="*,38" MinHeight="0">
+    <ScrollViewer Grid.Row="0" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+      <StackPanel Margin="11,10,11,6" Spacing="9">
+        <!-- Compact identity and purpose; no full-width card for a single descriptive sentence. -->
+        <!-- Brandmark aligns to the title/version only; description wraps separately below.
+             No background tile in either theme. -->
+        <Grid ColumnDefinitions="32,*" ColumnSpacing="11" RowDefinitions="Auto,Auto" RowSpacing="3">
+          <Image Grid.Row="0" x:Name="AboutAppIcon" Width="32" Height="32" Stretch="Fill"
+                 HorizontalAlignment="Center" VerticalAlignment="Center"
+                 Source="avares://KeePassXCCardPrint/assets/CardPrint_black_32.png"/>
+          <StackPanel Grid.Column="1" Grid.Row="0" Spacing="2" VerticalAlignment="Center">
+            <TextBlock Text="{Binding AppTitle}" FontWeight="SemiBold" FontSize="18" Foreground="{DynamicResource KpTextBrush}"/>
+            <TextBlock Text="{Binding AppVersion}" FontSize="11" Foreground="{DynamicResource KpSubtleBrush}"/>
+          </StackPanel>
+          <TextBlock Grid.Column="1" Grid.Row="1" Text="{Binding Purpose}" TextWrapping="Wrap" FontSize="11"
+                     Foreground="{DynamicResource KpSubtleBrush}" Margin="0,1,0,0"/>
+        </Grid>
+
+        <!-- Side-by-side at normal widths. Reflows to one column below 850 px. -->
+        <Grid x:Name="DetailsGrid" ColumnDefinitions="1.15*,*" RowDefinitions="Auto" ColumnSpacing="9" RowSpacing="9">
+          <Border Grid.Column="0" Grid.Row="0" Classes="settings-card" Padding="10,9">
+            <StackPanel Spacing="6">
+              <TextBlock Classes="section-heading" Text="{Binding ComponentsTitle}"/>
+              <!-- Separate columns with independent name/version alignment, not 15 full-width rows. -->
+              <Grid ColumnDefinitions="*,*" ColumnSpacing="13">
+                <ItemsControl Grid.Column="0" Classes="about-zebra-list" ItemsSource="{Binding LibrariesLeft}">
+                  <ItemsControl.Styles>
+                    <Style Selector="ContentPresenter">
+                      <Setter Property="Padding" Value="4,2" />
+                    </Style>
+                    <Style Selector="ContentPresenter:nth-child(even)">
+                      <Setter Property="Background" Value="{DynamicResource KpStripeBrush}" />
+                    </Style>
+                  </ItemsControl.Styles>
+                  <ItemsControl.ItemTemplate>
+                    <DataTemplate x:DataType="vm:AboutLibraryVersion">
+                      <Grid ColumnDefinitions="*,Auto" ColumnSpacing="5" Margin="0,1">
+                        <TextBlock Text="{Binding Name}" ToolTip.Tip="{Binding Name}" TextTrimming="CharacterEllipsis"
+                                   FontSize="11" Foreground="{DynamicResource KpTextBrush}"/>
+                        <TextBlock Grid.Column="1" Text="{Binding Version}" FontSize="11"
+                                   Foreground="{DynamicResource KpSubtleBrush}"/>
+                      </Grid>
+                    </DataTemplate>
+                  </ItemsControl.ItemTemplate>
+                </ItemsControl>
+                <ItemsControl Grid.Column="1" Classes="about-zebra-list" ItemsSource="{Binding LibrariesRight}">
+                  <ItemsControl.Styles>
+                    <Style Selector="ContentPresenter">
+                      <Setter Property="Padding" Value="4,2" />
+                    </Style>
+                    <Style Selector="ContentPresenter:nth-child(even)">
+                      <Setter Property="Background" Value="{DynamicResource KpStripeBrush}" />
+                    </Style>
+                  </ItemsControl.Styles>
+                  <ItemsControl.ItemTemplate>
+                    <DataTemplate x:DataType="vm:AboutLibraryVersion">
+                      <Grid ColumnDefinitions="*,Auto" ColumnSpacing="5" Margin="0,1">
+                        <TextBlock Text="{Binding Name}" ToolTip.Tip="{Binding Name}" TextTrimming="CharacterEllipsis"
+                                   FontSize="11" Foreground="{DynamicResource KpTextBrush}"/>
+                        <TextBlock Grid.Column="1" Text="{Binding Version}" FontSize="11"
+                                   Foreground="{DynamicResource KpSubtleBrush}"/>
+                      </Grid>
+                    </DataTemplate>
+                  </ItemsControl.ItemTemplate>
+                </ItemsControl>
+              </Grid>
+            </StackPanel>
+          </Border>
+
+          <StackPanel x:Name="TechColumn" Grid.Column="1" Grid.Row="0" Spacing="9">
+            <Border Classes="settings-card" Padding="10,9">
+              <StackPanel Spacing="7">
+                <TextBlock Classes="section-heading" Text="{Binding GraphicsTitle}"/>
+                <StackPanel Spacing="4">
+                  <Border Background="{DynamicResource KpStripeBrush}" CornerRadius="4" Padding="7,5">
+                    <Grid ColumnDefinitions="*,*" ColumnSpacing="10">
+                      <StackPanel Spacing="1">
+                        <TextBlock Text="{Binding HostLabel}" FontSize="10" Foreground="{DynamicResource KpSubtleBrush}"/>
+                        <TextBlock Text="{Binding HostValue}" FontSize="11" TextWrapping="Wrap"/>
+                      </StackPanel>
+                      <StackPanel Grid.Column="1" Spacing="1">
+                        <TextBlock Text="{Binding RuntimeLabel}" FontSize="10" Foreground="{DynamicResource KpSubtleBrush}"/>
+                        <TextBlock Text="{Binding RuntimeValue}" FontSize="11" TextWrapping="Wrap"/>
+                      </StackPanel>
+                    </Grid>
+                  </Border>
+                  <Border CornerRadius="4" Padding="7,5">
+                    <Grid ColumnDefinitions="*,*" ColumnSpacing="10">
+                      <StackPanel Spacing="1">
+                        <TextBlock Text="{Binding RenderEngineLabel}" FontSize="10" Foreground="{DynamicResource KpSubtleBrush}"/>
+                        <TextBlock Text="{Binding RenderingValue}" FontSize="11" TextWrapping="Wrap"/>
+                      </StackPanel>
+                      <StackPanel Grid.Column="1" Spacing="1">
+                        <TextBlock Text="{Binding NativeSkiaLabel}" FontSize="10" Foreground="{DynamicResource KpSubtleBrush}"/>
+                        <TextBlock Text="{Binding NativeSkiaValue}" FontSize="11" TextWrapping="Wrap"/>
+                      </StackPanel>
+                    </Grid>
+                  </Border>
+                  <Border Background="{DynamicResource KpStripeBrush}" CornerRadius="4" Padding="7,5">
+                    <Grid ColumnDefinitions="*,*" ColumnSpacing="10">
+                      <StackPanel Spacing="1">
+                        <TextBlock Text="{Binding CardEngineLabel}" FontSize="10" Foreground="{DynamicResource KpSubtleBrush}"/>
+                        <TextBlock Text="{Binding CardEngineValue}" FontSize="11" TextWrapping="Wrap"/>
+                      </StackPanel>
+                      <StackPanel Grid.Column="1" Spacing="1">
+                        <TextBlock Text="{Binding TextEngineLabel}" FontSize="10" Foreground="{DynamicResource KpSubtleBrush}"/>
+                        <TextBlock Text="{Binding TextEngineValue}" FontSize="11" TextWrapping="Wrap"/>
+                      </StackPanel>
+                    </Grid>
+                  </Border>
+                  <Border CornerRadius="4" Padding="7,5">
+                    <Grid ColumnDefinitions="*,*" ColumnSpacing="10">
+                      <StackPanel Spacing="1">
+                        <TextBlock Text="{Binding ScalingLabel}" FontSize="10" Foreground="{DynamicResource KpSubtleBrush}"/>
+                        <TextBlock Text="{Binding ScalingValue}" FontSize="11"/>
+                      </StackPanel>
+                      <StackPanel Grid.Column="1" Spacing="1">
+                        <TextBlock Text="{Binding GpuLabel}" FontSize="10" Foreground="{DynamicResource KpSubtleBrush}"/>
+                        <TextBlock Text="{Binding GpuValue}" FontSize="11" TextWrapping="Wrap"/>
+                      </StackPanel>
+                    </Grid>
+                  </Border>
+                </StackPanel>
+              </StackPanel>
+            </Border>
+
+            <Border Classes="settings-card" Padding="10,9">
+              <StackPanel Spacing="6">
+                <TextBlock Classes="section-heading" Text="{Binding PrintingTitle}"/>
+                <StackPanel Spacing="4">
+                  <Border Background="{DynamicResource KpStripeBrush}" CornerRadius="4" Padding="7,5">
+                    <Grid ColumnDefinitions="*,*" ColumnSpacing="10">
+                      <StackPanel Spacing="1">
+                        <TextBlock Text="{Binding SpoolerLabel}" FontSize="10" Foreground="{DynamicResource KpSubtleBrush}"/>
+                        <TextBlock Text="{Binding SpoolerValue}" FontSize="11" TextWrapping="Wrap"/>
+                      </StackPanel>
+                      <StackPanel Grid.Column="1" Spacing="1">
+                        <TextBlock Text="{Binding RasterLabel}" FontSize="10" Foreground="{DynamicResource KpSubtleBrush}"/>
+                        <TextBlock Text="{Binding RasterValue}" FontSize="11" TextWrapping="Wrap"/>
+                      </StackPanel>
+                    </Grid>
+                  </Border>
+                  <Border CornerRadius="4" Padding="7,5">
+                    <StackPanel Spacing="1">
+                      <TextBlock Text="{Binding ExportLabel}" FontSize="10" Foreground="{DynamicResource KpSubtleBrush}"/>
+                      <TextBlock Text="{Binding ExportValue}" FontSize="11" TextWrapping="Wrap"/>
+                    </StackPanel>
+                  </Border>
+                </StackPanel>
+              </StackPanel>
+            </Border>
+          </StackPanel>
+        </Grid>
+
+        <!-- A single narrow diagnostics section, with all four readings on one row. -->
+        <Border Classes="settings-card" Padding="10,9">
+          <StackPanel Spacing="8">
+            <TextBlock Classes="section-heading" Text="{Binding PerformanceTitle}"/>
+            <Grid ColumnDefinitions="*,*,*,*" ColumnSpacing="10">
+              <StackPanel Grid.Column="0" Spacing="2">
+                <TextBlock Text="{Binding LastLabel}" FontSize="10" TextWrapping="Wrap" Foreground="{DynamicResource KpSubtleBrush}"/>
+                <TextBlock Text="{Binding LastValue}" FontSize="15" FontWeight="SemiBold"/>
+              </StackPanel>
+              <StackPanel Grid.Column="1" Spacing="2">
+                <TextBlock Text="{Binding P95Label}" FontSize="10" TextWrapping="Wrap" Foreground="{DynamicResource KpSubtleBrush}"/>
+                <TextBlock Text="{Binding P95Value}" FontSize="15" FontWeight="SemiBold"/>
+              </StackPanel>
+              <StackPanel Grid.Column="2" Spacing="2">
+                <TextBlock Text="{Binding CacheLabel}" FontSize="10" TextWrapping="Wrap" Foreground="{DynamicResource KpSubtleBrush}"/>
+                <TextBlock Text="{Binding CacheValue}" FontSize="15" FontWeight="SemiBold"/>
+              </StackPanel>
+              <StackPanel Grid.Column="3" Spacing="2">
+                <TextBlock Text="{Binding MemoryLabel}" FontSize="10" TextWrapping="Wrap" Foreground="{DynamicResource KpSubtleBrush}"/>
+                <TextBlock Text="{Binding MemoryValue}" FontSize="15" FontWeight="SemiBold"/>
+              </StackPanel>
+            </Grid>
+            <Grid ColumnDefinitions="*,Auto" ColumnSpacing="10">
+              <CheckBox IsChecked="{Binding OverlaysEnabled, Mode=TwoWay}" Content="{Binding OverlaysLabel}"
+                        FontSize="11" VerticalAlignment="Center"/>
+              <Button Grid.Column="1" HorizontalAlignment="Right" Click="OnCopyDiagnostics" Padding="8,4">
+                <StackPanel Orientation="Horizontal" Spacing="5">
+                  <fi:FluentIcon Icon="Copy" IconSize="Size20" Width="15" Height="15"/>
+                  <TextBlock Text="{Binding CopyLabel}" FontSize="11" VerticalAlignment="Center"/>
+                </StackPanel>
+              </Button>
+            </Grid>
+            <TextBlock Text="{Binding CopyStatus}" FontSize="10" Foreground="{DynamicResource KpSubtleBrush}"/>
+            <TextBlock Text="{Binding SafeHint}" FontSize="10" Foreground="{DynamicResource KpSubtleBrush}" TextWrapping="Wrap"/>
+          </StackPanel>
+        </Border>
+      </StackPanel>
+    </ScrollViewer>
+    <!-- Reserved without any visible placeholder for a later project link. -->
+    <Border Grid.Row="1" Background="{DynamicResource KpSurfaceBrush}"/>
+  </Grid>
+</UserControl>

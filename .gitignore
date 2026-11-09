@@ -1,0 +1,79 @@
+**/bin/
+**/obj/
+publish/
+dist/
+data/
+**/data/
+*.user
+*.suo
+*.patch
+
+# Native AOT debug symbol files are not included in portable releases.
+*.pdb
+
+# The eight portable TTFs, their manifests, hashes, and OFL licenses are
+# intentionally tracked in Git. Never ignore fonts/.
+
+# All generated release ZIPs and checksums live in ignored dist/.
+
+# Ignore stale files created by historical local build tools as well.
+# The current build never writes these locations.
+out/
+KeePassXCCardPrint-*-win-x64.zip
+KeePassXCCardPrint-*-win-x64.zip.sha256
+KeePassXCCardPrint-*-win-x64.zip.tmp
+
+# Private KeePassXC data and key files. Never commit or package them.
+*.kdbx
+*.kdb
+*.keyx
+*.key
+*.keyfile
+*.pem
+*.p12
+*.pfx
+*.ppk
+*.asc
+*.gpg
+*.age
+*.env
+.env
+.env.*
+
+# Personal configuration, selection state, backups and exported documents.
+**/ui-shell.json
+**/vault-state.json
+**/appearance.json
+**/appearance-template-source.json
+**/mapping.json
+**/domains.json
+**/storage-mode.txt
+**/print-tracking/
+**/templates/
+**/backups/
+**/screenshots/
+**/captures/
+**/logs/
+**/debug-dumps/
+*.sqlite
+*.sqlite3
+*.db
+*.db3
+*.log
+*.dmp
+*.mdmp
+*.bak
+*.backup
+*.tmp
+*.pdf
+*.7z
+*.rar
+*.zip
+*.tar.gz
+Thumbs.db
+desktop.ini
+.DS_Store
+*screenshot*.png
+*screenshot*.jpg
+*screen-capture*.png
+*screen-capture*.jpg
