@@ -1,4 +1,4 @@
-Portable fonts for KeePassXC Card Print 6.0.7 (SIL OFL 1.1)
+Portable fonts for KeePassXC Card Print 6.0.9 (SIL OFL 1.1)
 
 These eight original variable TTFs and their eight license texts are committed
 in the source repository, rather than downloaded during every build. A fresh

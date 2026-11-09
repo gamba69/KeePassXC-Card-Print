@@ -6,7 +6,7 @@ on:
   workflow_dispatch:
     inputs:
       tag:
-        description: 'Existing tag: v6.0.8 or 6.0.8'
+        description: 'Existing tag: v6.0.9 or 6.0.9'
         required: true
         type: string
 
@@ -21,6 +21,10 @@ jobs:
   preflight:
     name: Verify existing tag and draft release
     runs-on: ubuntu-latest
+    # GitHub only exposes draft releases to identities with push access.
+    # Build remains read-only; this job never mutates tags or releases.
+    permissions:
+      contents: write
     outputs:
       version: ${{ steps.validate.outputs.version }}
     steps:
@@ -41,7 +45,7 @@ jobs:
             exit 1
           }
           release_json="$(gh release view "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" --json tagName,isDraft,assets)" || {
-            echo '[FAIL] Create a draft release for the exact tag before running this workflow.' >&2
+            echo '[FAIL] Draft release inaccessible. Verify the exact tag has a saved draft and the workflow has Contents: write permission.' >&2
             exit 1
           }
           echo "$release_json" | jq -e --arg tag "$RELEASE_TAG" \
