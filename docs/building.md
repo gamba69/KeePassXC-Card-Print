@@ -49,7 +49,7 @@ The build uses two fixed, ignored directories at the repository root:
 
 ```text
 publish/    # Complete runnable Windows application (EXE, DLLs, fonts, notices)
-dist/       # KeePassXCCardPrint-6.0.7-win-x64.zip and its .zip.sha256
+dist/       # KeePassXCCardPrint-6.0.8-win-x64.zip and its .zip.sha256
 ```
 
 Each new build clears the previous `publish/` and `dist/` contents. It does
@@ -90,18 +90,28 @@ A separate compile-time dependency manifest derives package versions from
 `PackageReference` declarations. Windows-specific package declarations are
 kept in `platforms/windows/windows-packages.props`.
 
-The current version is **6.0.7**. Do not add version numbers to application
+The current version is **6.0.8**. Do not add version numbers to application
 source files or XAML titles. Platform folders and all other repository folders
 use lowercase names; source filenames and class names retain their natural
 C# casing.
 
-## CI
+## Continuous integration and releases
 
-`.github/workflows/draft-release.yml` is a **manual-only** GitHub Actions
-workflow. It checks out an existing tag, builds/tests the Windows package,
-verifies ZIP and SHA-256, and attaches them to an existing **draft** release.
-It never creates or publishes releases. See [Releasing](releasing.md) for the
-complete operator procedure. No Linux/macOS binaries or installers are produced.
+`.github/workflows/ci.yml` runs automatically for every **push** and **pull
+request**. The Windows runner executes `build.bat --no-pause`, including the
+repository privacy check, bundled-font verification, managed smoke tests,
+Native AOT publishing and packaged-application tests. A failed command returns
+a nonzero exit status and fails the GitHub status check. A successful run shows
+a green check beside the commit or pull request. CI has read-only repository
+permissions; it neither uploads release assets nor creates or publishes releases.
+The local `publish/` and `dist/` directories are job-local and are discarded
+when that CI run finishes.
+
+`.github/workflows/draft-release.yml` remains **manual-only**. It checks out an
+existing tag, builds/tests the Windows package, verifies ZIP and SHA-256,
+and attaches them to an existing **draft** release. It never creates or
+publishes releases. See [Releasing](releasing.md) for the complete operator
+procedure. No Linux/macOS binaries or installers are produced.
 
 ## Build failures
 

@@ -1,0 +1,34 @@
+name: Windows CI
+
+# Validate every pushed branch and pull request. This workflow has no release
+# permissions and never creates or uploads a release package to GitHub.
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: windows-ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-and-test:
+    name: Build and test Windows x64 Native AOT
+    runs-on: windows-2025
+    timeout-minutes: 60
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Install patched .NET 10 SDK
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+
+      - name: Run all source checks, tests, and Native AOT build
+        shell: cmd
+        run: build.bat --no-pause

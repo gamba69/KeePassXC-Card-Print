@@ -19,7 +19,9 @@ Thank you for helping improve KeePassXC Card Print.
 
 ## Before submitting a change
 
-Run `build.bat` on a supported Windows build machine. Review every test line,
+Run `build.bat` on a supported Windows build machine. GitHub Actions also
+runs the complete Windows build and tests automatically on each push and pull
+request; check the resulting CI status before merging. Review every test line,
 not just the summary. Check both dark and light UI themes, display scaling,
 keyboard focus, vector/raster output and safe no-selection preview behaviour
 when they are relevant. If printer output changes, include a non-sensitive

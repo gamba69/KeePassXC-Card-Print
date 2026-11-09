@@ -46,7 +46,7 @@ sheet when calibrating a new printer.
 
 Check which storage mode is active. The portable folder is `data/`; system
 settings live in `%LOCALAPPDATA%\keepassxccardprint`. The selector is stored
-in that system folder, not in Registry. New 6.0.7 settings do not import older
+in that system folder, not in Registry. New 6.0.8 settings do not import older
 application files. Do not overwrite an installation's active configuration
 without backing it up first.
 

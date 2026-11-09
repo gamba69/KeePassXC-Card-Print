@@ -2,7 +2,7 @@
 
 ## Intent and current status
 
-KeePassXC Card Print 6.0.7 is **Windows x64 only**. Its shared rendering,
+KeePassXC Card Print 6.0.8 is **Windows x64 only**. Its shared rendering,
 models, business rules and Avalonia UI are organized to minimize assumptions
 about the operating system. Linux and macOS hosts do not exist yet. This is a
 source-level architectural boundary, **not a claim of functional portability
