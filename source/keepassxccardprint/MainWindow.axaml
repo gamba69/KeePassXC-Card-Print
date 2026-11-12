@@ -56,6 +56,8 @@
               <TextBlock Text="{Binding TabSource}" IsVisible="{Binding ShowMainTabCaptions}" VerticalAlignment="Center"/>
             </StackPanel>
           </TabItem.Header>
+          <ScrollViewer x:Name="SourceTabScroll" VerticalScrollBarVisibility="Auto"
+                        HorizontalScrollBarVisibility="Disabled" MinHeight="0" SizeChanged="OnEditorTabScrollSizeChanged">
           <Grid Margin="9" RowDefinitions="Auto,*" RowSpacing="8" MinHeight="0">
             <Border Grid.Row="0" Classes="settings-card" MinHeight="0">
               <Grid RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto" RowSpacing="5" MinHeight="0">
@@ -207,6 +209,7 @@
               </Grid>
             </Border>
           </Grid>
+          </ScrollViewer>
         </TabItem>
 
         <TabItem ClipToBounds="True" ToolTip.Tip="{Binding TabMapping}">
@@ -217,6 +220,8 @@
               <TextBlock Text="{Binding TabMapping}" IsVisible="{Binding ShowMainTabCaptions}" VerticalAlignment="Center"/>
             </StackPanel>
           </TabItem.Header>
+          <ScrollViewer x:Name="MappingTabScroll" VerticalScrollBarVisibility="Auto"
+                        HorizontalScrollBarVisibility="Disabled" MinHeight="0" SizeChanged="OnEditorTabScrollSizeChanged">
           <Grid Margin="9" RowDefinitions="Auto,*,Auto" RowSpacing="8" MinHeight="0" SizeChanged="OnMappingTabSizeChanged">
             <Border Grid.Row="0" Classes="settings-card" MinHeight="0">
               <Grid RowDefinitions="Auto,Auto,Auto" RowSpacing="5">
@@ -565,6 +570,7 @@
               </Grid>
             </Border>
           </Grid>
+          </ScrollViewer>
         </TabItem>
 
         <TabItem ClipToBounds="True" ToolTip.Tip="{Binding TabDesign}">
@@ -575,6 +581,8 @@
               <TextBlock Text="{Binding TabDesign}" IsVisible="{Binding ShowMainTabCaptions}" VerticalAlignment="Center"/>
             </StackPanel>
           </TabItem.Header>
+          <ScrollViewer x:Name="DesignTabScroll" VerticalScrollBarVisibility="Auto"
+                        HorizontalScrollBarVisibility="Disabled" MinHeight="0" SizeChanged="OnEditorTabScrollSizeChanged">
           <Grid Margin="9" RowDefinitions="Auto,Auto,*" RowSpacing="8" MinHeight="0">
             <!-- The template manager is shared across both editors. The choice is
                  distinct from the currently loaded template until Load is clicked. -->
@@ -661,6 +669,7 @@
               </ScrollViewer>
             </Border>
           </Grid>
+          </ScrollViewer>
         </TabItem>
         <TabItem ClipToBounds="True" ToolTip.Tip="{Binding TabDuplex}">
           <!-- Strongly typed against the window ShellViewModel: no reflection-bound header template (Native AOT). -->
@@ -670,6 +679,8 @@
               <TextBlock Text="{Binding TabDuplex}" IsVisible="{Binding ShowMainTabCaptions}" VerticalAlignment="Center"/>
             </StackPanel>
           </TabItem.Header>
+          <ScrollViewer x:Name="DuplexTabScroll" VerticalScrollBarVisibility="Auto"
+                        HorizontalScrollBarVisibility="Disabled" MinHeight="0" SizeChanged="OnEditorTabScrollSizeChanged">
           <Grid Margin="9" RowDefinitions="Auto,Auto,Auto,*" RowSpacing="8" MinHeight="0">
             <!-- The template manager is shared across both editors. The choice is
                  distinct from the currently loaded template until Load is clicked. -->
@@ -776,6 +787,7 @@
               </ScrollViewer>
             </Border>
           </Grid>
+          </ScrollViewer>
         </TabItem>
         <TabItem ClipToBounds="True" ToolTip.Tip="{Binding TabAbout}">
           <TabItem.Header>

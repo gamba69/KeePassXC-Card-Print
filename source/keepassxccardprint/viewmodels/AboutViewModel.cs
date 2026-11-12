@@ -18,9 +18,10 @@ public sealed class AboutViewModel : INotifyPropertyChanged
     private readonly UiSettings _settings;
     private bool _overlaysEnabled;
     private double _displayScaling = 1;
-    private string _last = "—", _p95 = "—", _cache = "—", _memory = "—", _skiaNative = "—";
+    private string _median = "—", _p95 = "—", _cache = "—", _memory = "—", _skiaNative = "—";
     private bool _checkedSkia;
     private string _copyStatus = "";
+    private string _repositoryStatus = "";
     public event PropertyChangedEventHandler? PropertyChanged;
     public event Action<bool>? OverlayChangeRequested;
 
@@ -54,9 +55,14 @@ public sealed class AboutViewModel : INotifyPropertyChanged
     public IReadOnlyList<AboutLibraryVersion> LibrariesRight { get; }
     public ObservableCollection<AboutLibraryVersion> Libraries { get; }
     private string T(string key) => Localizer.Text(_settings.Language, key);
+    public const string RepositoryAddress = "https://github.com/gamba69/KeePassXC-Card-Print";
     public string AppTitle => "KeePassXC Card Print";
     public string AppVersion => $"{AppBuildInfo.Version} · {PlatformServices.Current.PlatformLabel} · {RuntimeInformation.ProcessArchitecture} · " +
-        (System.Runtime.CompilerServices.RuntimeFeature.IsDynamicCodeSupported ? "JIT" : "Native AOT");
+        (System.Runtime.CompilerServices.RuntimeFeature.IsDynamicCodeSupported ? "JIT" : "Native AOT") +
+        " · © 2026 Igor К. Dulevich · Developed with AI assistance (OpenAI Codex) · ";
+    public string RepositoryUrl => RepositoryAddress;
+    public string RepositoryStatus => _repositoryStatus;
+    public bool HasRepositoryStatus => !string.IsNullOrEmpty(_repositoryStatus);
     public string PurposeTitle => T("AboutPurposeTitle");
     public string Purpose => T("AboutPurpose");
     public string ComponentsTitle => T("AboutComponents");
@@ -74,7 +80,7 @@ public sealed class AboutViewModel : INotifyPropertyChanged
     public string SpoolerLabel => T("AboutPrintBackend");
     public string RasterLabel => T("AboutRasterExport");
     public string ExportLabel => T("AboutPdfExport");
-    public string LastLabel => T("AboutLastBuild");
+    public string MedianLabel => T("AboutMedian");
     public string P95Label => T("AboutP95");
     public string CacheLabel => T("AboutCacheHit");
     public string MemoryLabel => T("AboutMemory");
@@ -82,6 +88,7 @@ public sealed class AboutViewModel : INotifyPropertyChanged
     public string CopyLabel => T("AboutCopy");
     public string SafeHint => T("AboutSafeHint");
     public string CopyStatus => _copyStatus;
+    public bool HasCopyStatus => !string.IsNullOrEmpty(_copyStatus);
     public string HostValue => PlatformServices.Current.PlatformLabel;
     public string RuntimeValue => RuntimeInformation.FrameworkDescription;
     public string RenderingValue => "Avalonia.Skia · " + PlatformServices.Current.PlatformLabel;
@@ -93,7 +100,7 @@ public sealed class AboutViewModel : INotifyPropertyChanged
     public string RasterValue => T("AboutRasterExportValue");
     public string ExportValue => T("AboutPdfExportValue");
     public string NativeSkiaValue => _skiaNative;
-    public string LastValue => _last;
+    public string MedianValue => _median;
     public string P95Value => _p95;
     public string CacheValue => _cache;
     public string MemoryValue => _memory;
@@ -116,19 +123,31 @@ public sealed class AboutViewModel : INotifyPropertyChanged
     {
         _copyStatus = T(success ? "AboutCopied" : "AboutCopyFailed");
         Changed(nameof(CopyStatus));
+        Changed(nameof(HasCopyStatus));
+    }
+
+    public void SetRepositoryOpenFailed()
+    {
+        _repositoryStatus = T("AboutRepositoryOpenFailed");
+        Changed(nameof(RepositoryStatus));
+        Changed(nameof(HasRepositoryStatus));
     }
 
     public void Relocalize()
     {
         _copyStatus = "";
+        _repositoryStatus = "";
         Changed(nameof(CopyStatus));
+        Changed(nameof(HasCopyStatus));
+        Changed(nameof(RepositoryStatus));
+        Changed(nameof(HasRepositoryStatus));
         foreach (var name in new[]
         {
             nameof(PurposeTitle),nameof(Purpose),nameof(ComponentsTitle),nameof(GraphicsTitle),
             nameof(PerformanceTitle),nameof(PrintingTitle),nameof(HostLabel),nameof(RuntimeLabel),
             nameof(NativeSkiaLabel),nameof(RenderEngineLabel),nameof(GpuLabel),nameof(CardEngineLabel),
             nameof(TextEngineLabel),nameof(ScalingLabel),nameof(SpoolerLabel),nameof(RasterLabel),
-            nameof(ExportLabel),nameof(LastLabel),nameof(P95Label),nameof(CacheLabel),nameof(MemoryLabel),
+            nameof(ExportLabel),nameof(MedianLabel),nameof(P95Label),nameof(CacheLabel),nameof(MemoryLabel),
             nameof(OverlaysLabel),nameof(CopyLabel),nameof(SafeHint),nameof(GpuValue),
             nameof(CardEngineValue),nameof(RasterValue),nameof(ExportValue)
         }) Changed(name);
@@ -146,12 +165,12 @@ public sealed class AboutViewModel : INotifyPropertyChanged
             Changed(nameof(NativeSkiaValue));
         }
         var sample = PreviewTelemetry.Snapshot();
-        _last = sample.LastMs.HasValue ? sample.LastMs.Value.ToString("0.0", CultureInfo.CurrentCulture)+" ms" : T("AboutNoSample");
+        _median = sample.MedianMs.HasValue ? sample.MedianMs.Value.ToString("0.0", CultureInfo.CurrentCulture)+" ms" : T("AboutNoSample");
         _p95 = sample.P95Ms.HasValue ? sample.P95Ms.Value.ToString("0.0", CultureInfo.CurrentCulture)+" ms" : T("AboutNoSample");
         _cache = sample.CacheHitPct.HasValue ? sample.CacheHitPct.Value.ToString("0.0", CultureInfo.CurrentCulture)+"%" : T("AboutNoSample");
         try { using var process = Process.GetCurrentProcess(); _memory = (process.WorkingSet64/1048576d).ToString("0", CultureInfo.CurrentCulture)+" MiB"; }
         catch (Exception) { _memory = "—"; }
-        Changed(nameof(LastValue)); Changed(nameof(P95Value)); Changed(nameof(CacheValue)); Changed(nameof(MemoryValue));
+        Changed(nameof(MedianValue)); Changed(nameof(P95Value)); Changed(nameof(CacheValue)); Changed(nameof(MemoryValue));
     }
 
     public string SafeDiagnosticSummary()
@@ -166,8 +185,8 @@ public sealed class AboutViewModel : INotifyPropertyChanged
             "GPU backend: unavailable through public Avalonia API",
             "Native Skia: " + _skiaNative,
             "Display scaling: " + (_displayScaling*100d).ToString("0.#", CultureInfo.InvariantCulture) + "%",
-            "Preview last: " + _last,
-            "Preview P95 (30 samples): " + _p95,
+            "Preview median (last 30 samples): " + _median,
+            "Preview P₉₅ (last 30 samples): " + _p95,
             "Preview cache hit: " + _cache,
             "Process working set: " + _memory,
             "Spooler/vector: " + SpoolerValue,

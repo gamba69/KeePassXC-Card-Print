@@ -324,6 +324,14 @@ internal static class CardEngineSelfTests
                 Path.GetFullPath(fakeDatabasePath).Replace('/', '\\').ToLowerInvariant(),
                 "Windows selection-token path normalization is unchanged");
             Check(platform.Printing.VectorFormatName == "XPS", "Windows vector backend identity");
+            Check(PreviewTelemetry.PercentileSorted(new double[] { 10, 20, 30, 40 }, .5) == 25,
+                "preview median interpolates the middle pair for even samples");
+            Check(PreviewTelemetry.PercentileSorted(new double[] { 10, 20, 30 }, .5) == 20,
+                "preview median selects the middle sample for odd counts");
+            Check(Math.Abs(PreviewTelemetry.PercentileSorted(new double[] { 1, 2, 3, 4, 5 }, .95) - 4.8) < 1e-10,
+                "preview P95 interpolates exact sample durations instead of nearest rank");
+            Check(PreviewTelemetry.PercentileSorted(new double[] { 13 }, .95) == 13,
+                "preview P95 handles one collected sample");
             TestPublicKdbxHeaderMetadata();
             TestXpsPathSyntax();
             TestSharedGlyphRuns();

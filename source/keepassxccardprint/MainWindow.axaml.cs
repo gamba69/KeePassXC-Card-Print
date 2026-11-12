@@ -190,6 +190,30 @@ public partial class MainWindow : Window
         _vm.ShowMainTabCaptions = e.NewSize.Width >= 650;
     }
 
+    // The outer viewport owns vertical overflow for the four editor tabs.
+    // Keep their star-sized grids bounded: otherwise a Grid measured with infinite
+    // height by ScrollViewer expands its tables/editors and loses inner scrolling.
+    private void OnEditorTabScrollSizeChanged(object? sender, SizeChangedEventArgs e)
+    {
+        if (sender is not ScrollViewer scroll || scroll.Content is not Grid page ||
+            e.NewSize.Height <= 0) return;
+
+        // Minimums leave usable space for both top controls and bottom content.
+        // On larger windows the page fills the viewport without spare blank space.
+        double minimum = scroll.Name switch
+        {
+            "SourceTabScroll" => 560,
+            "MappingTabScroll" => 550,
+            "DesignTabScroll" => 430,
+            "DuplexTabScroll" => 490,
+            _ => 0
+        };
+        double available = Math.Max(0, e.NewSize.Height - page.Margin.Top - page.Margin.Bottom);
+        double height = Math.Max(available, minimum);
+        if (double.IsNaN(page.Height) || Math.Abs(page.Height - height) >= 0.5)
+            page.Height = height;
+    }
+
     private void OnShellPropertyChanged(object? sender, PropertyChangedEventArgs e)
     {
         if (e.PropertyName == nameof(ShellViewModel.ActiveTab)) UpdateAboutRefresh();

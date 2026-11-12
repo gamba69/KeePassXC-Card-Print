@@ -28,6 +28,19 @@ internal static class PreviewTelemetry
         }
     }
 
+    // Type-7 quantile: interpolate between adjacent unrounded measurements.
+    // Both the median and P95 use the same definition for small sample windows.
+    internal static double PercentileSorted(ReadOnlySpan<double> sortedSamples, double percentile)
+    {
+        if (sortedSamples.IsEmpty) throw new ArgumentException("Samples are required.", nameof(sortedSamples));
+        if (!double.IsFinite(percentile) || percentile < 0 || percentile > 1)
+            throw new ArgumentOutOfRangeException(nameof(percentile));
+        double position = (sortedSamples.Length - 1) * percentile;
+        int lower = (int)position;
+        int upper = Math.Min(lower + 1, sortedSamples.Length - 1);
+        return sortedSamples[lower] + (sortedSamples[upper] - sortedSamples[lower]) * (position - lower);
+    }
+
     internal static PreviewTelemetrySnapshot Snapshot()
     {
         lock (Gate)
@@ -38,12 +51,11 @@ internal static class PreviewTelemetry
             var samples = new double[_count];
             Array.Copy(DurationsMs, samples, _count);
             Array.Sort(samples);
-            int last = (_next + Window - 1) % Window;
-            return new PreviewTelemetrySnapshot(DurationsMs[last],
-                samples[(int)Math.Ceiling(_count * .95) - 1],
+            return new PreviewTelemetrySnapshot(PercentileSorted(samples, .5),
+                PercentileSorted(samples, .95),
                 _hits + _misses == 0 ? null : 100d * _hits / (_hits + _misses));
         }
     }
 }
 
-internal readonly record struct PreviewTelemetrySnapshot(double? LastMs, double? P95Ms, double? CacheHitPct);
+internal readonly record struct PreviewTelemetrySnapshot(double? MedianMs, double? P95Ms, double? CacheHitPct);

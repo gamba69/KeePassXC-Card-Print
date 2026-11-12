@@ -750,11 +750,27 @@ if ($null -eq $mappingReset -or $null -ne $mappingApply -or
     throw 'UI check: mapping must have an editor-only reset and no Apply stage.'
 }
 Write-Host '[PASS] top mapping Save changes action, editor reset and live editing.' -ForegroundColor Green
+# Each editor now has its own vertical scroll viewport. The rounded cards remain
+# direct children of the content Grid inside that viewport, not of the TabItem.
+# Validate all four viewports before checking card ownership and actions.
+foreach ($scrollName in @('SourceTabScroll', 'MappingTabScroll', 'DesignTabScroll', 'DuplexTabScroll')) {
+    $outerScroll = $ui.SelectSingleNode("//*[local-name()='TabItem']/*[local-name()='ScrollViewer' and @*[local-name()='Name']='$scrollName']")
+    if ($null -eq $outerScroll -or
+        $outerScroll.GetAttribute('VerticalScrollBarVisibility') -ne 'Auto' -or
+        $outerScroll.GetAttribute('SizeChanged') -ne 'OnEditorTabScrollSizeChanged' -or
+        $null -eq $outerScroll.SelectSingleNode("./*[local-name()='Grid']")) {
+        throw "UI check: $scrollName must contain a vertically scrollable editor Grid."
+    }
+}
+[xml]$aboutScrollUi = Get-Content -LiteralPath (Join-Path $sourceRoot 'AboutView.axaml') -Raw -Encoding UTF8
+if ($null -eq $aboutScrollUi.DocumentElement.SelectSingleNode("./*[local-name()='ScrollViewer' and @VerticalScrollBarVisibility='Auto']")) {
+    throw 'UI check: About tab must expose its vertical scroll viewport.'
+}
 # Early layout contract: the first two tabs use the same rounded settings
 # cards as Appearance/Duplex. Verify control ownership and not only card count.
 $sourceTab = $ui.SelectSingleNode("//*[local-name()='TabItem' and *[local-name()='TabItem.Header']//*[local-name()='TextBlock' and @Text='{Binding TabSource}']]")
 if ($null -eq $sourceTab) { throw 'UI check: Source tab is missing.' }
-$sourceCards = @($sourceTab.SelectNodes("./*[local-name()='Grid']/*[local-name()='Border' and @Classes='settings-card']"))
+$sourceCards = @($sourceTab.SelectNodes("./*[local-name()='ScrollViewer' and @*[local-name()='Name']='SourceTabScroll']/*[local-name()='Grid']/*[local-name()='Border' and @Classes='settings-card']"))
 if ($sourceCards.Count -ne 2 -or $sourceCards[0].GetAttribute('Grid.Row') -ne '0' -or
     $sourceCards[1].GetAttribute('Grid.Row') -ne '1') {
     throw 'UI check: Source must contain two rounded cards (connection and records).'
@@ -772,7 +788,7 @@ foreach ($handler in @('OnSelectAll', 'OnSelectNone')) {
 if ($null -eq $sourceCards[1].SelectSingleNode(".//*[local-name()='ItemsControl' and @ItemsSource='{Binding VaultRecords}']")) {
     throw 'UI check: records list must be inside its rounded card.'
 }
-$mappingCards = @($mappingTab.SelectNodes("./*[local-name()='Grid']/*[local-name()='Border' and @Classes='settings-card']"))
+$mappingCards = @($mappingTab.SelectNodes("./*[local-name()='ScrollViewer' and @*[local-name()='Name']='MappingTabScroll']/*[local-name()='Grid']/*[local-name()='Border' and @Classes='settings-card']"))
 if ($mappingCards.Count -ne 3 -or $mappingCards[0].GetAttribute('Grid.Row') -ne '0' -or
     $mappingCards[1].GetAttribute('Grid.Row') -ne '1' -or $mappingCards[2].GetAttribute('Grid.Row') -ne '2') {
     throw 'UI check: Mapping must contain toolbar, field list and editor cards.'

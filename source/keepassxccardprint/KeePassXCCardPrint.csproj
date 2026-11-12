@@ -13,7 +13,7 @@
     <ApplicationIcon>assets\CardPrint_white.ico</ApplicationIcon>
     <AssemblyName>KeePassXCCardPrint</AssemblyName>
     <RootNamespace>KeePassXCCardPrint</RootNamespace>
-    <Version>6.0.9</Version>
+    <Version>6.0.13</Version>
     <WarningsAsErrors>$(WarningsAsErrors);CA1416;IL2026;IL2070;IL2072;IL2075;IL3050;IL3053;AVLN5001</WarningsAsErrors>
   </PropertyGroup>
   <ItemGroup>
@@ -26,6 +26,8 @@
     <PackageReference Include="FluentIcons.Avalonia" Version="2.1.345" />
     <PackageReference Include="DgNet.Keepass" Version="0.2.0" />
     <PackageReference Include="Yubico.YubiKey" Version="1.18.0" />
+    <!-- Override Yubico.YubiKey's vulnerable transitive CBOR minimum (GHSA-vmv3-wvjp-wqpj). -->
+    <PackageReference Include="System.Formats.Cbor" Version="10.0.15" />
     <PackageReference Include="SkiaSharp" Version="4.154.0" />
     <PackageReference Include="SkiaSharp.HarfBuzz" Version="4.154.0" />
     <!-- Version 4 of SkiaSharp.HarfBuzz requires HarfBuzz 14; do not leave Avalonia's older minimum in charge. -->

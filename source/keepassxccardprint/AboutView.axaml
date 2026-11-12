@@ -5,10 +5,9 @@
              x:Class="KeePassXCCardPrint.AboutView" x:DataType="vm:AboutViewModel"
              Background="{DynamicResource KpSurfaceBrush}"
              SizeChanged="OnPageSizeChanged">
-  <!-- Content remains scrollable in a narrow editing pane; the reserved bottom strip stays blank. -->
-  <Grid RowDefinitions="*,38" MinHeight="0">
-    <ScrollViewer Grid.Row="0" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
-      <StackPanel Margin="11,10,11,6" Spacing="9">
+  <!-- A single scrolling surface; no reserved empty footer. -->
+  <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" MinHeight="0">
+    <StackPanel Margin="11,10,11,2" Spacing="9">
         <!-- Compact identity and purpose; no full-width card for a single descriptive sentence. -->
         <!-- Brandmark aligns to the title/version only; description wraps separately below.
              No background tile in either theme. -->
@@ -18,7 +17,17 @@
                  Source="avares://KeePassXCCardPrint/assets/CardPrint_black_32.png"/>
           <StackPanel Grid.Column="1" Grid.Row="0" Spacing="2" VerticalAlignment="Center">
             <TextBlock Text="{Binding AppTitle}" FontWeight="SemiBold" FontSize="18" Foreground="{DynamicResource KpTextBrush}"/>
-            <TextBlock Text="{Binding AppVersion}" FontSize="11" Foreground="{DynamicResource KpSubtleBrush}"/>
+            <WrapPanel Orientation="Horizontal">
+              <TextBlock Text="{Binding AppVersion}" FontSize="11" Foreground="{DynamicResource KpSubtleBrush}" VerticalAlignment="Center"/>
+              <TextBlock x:Name="AboutRepositoryLink" Text="{Binding RepositoryUrl}" FontSize="11"
+                         Foreground="{DynamicResource KpSubtleBrush}" TextWrapping="NoWrap"
+                         VerticalAlignment="Center" Cursor="Hand" Focusable="True"
+                         ToolTip.Tip="{Binding RepositoryUrl}"
+                         PointerPressed="OnRepositoryPointerPressed" KeyDown="OnRepositoryKeyDown"/>
+            </WrapPanel>
+            <TextBlock Text="{Binding RepositoryStatus}" FontSize="10" TextWrapping="Wrap"
+                       IsVisible="{Binding HasRepositoryStatus}"
+                       Foreground="{DynamicResource KpSubtleBrush}"/>
           </StackPanel>
           <TextBlock Grid.Column="1" Grid.Row="1" Text="{Binding Purpose}" TextWrapping="Wrap" FontSize="11"
                      Foreground="{DynamicResource KpSubtleBrush}" Margin="0,1,0,0"/>
@@ -166,8 +175,8 @@
             <TextBlock Classes="section-heading" Text="{Binding PerformanceTitle}"/>
             <Grid ColumnDefinitions="*,*,*,*" ColumnSpacing="10">
               <StackPanel Grid.Column="0" Spacing="2">
-                <TextBlock Text="{Binding LastLabel}" FontSize="10" TextWrapping="Wrap" Foreground="{DynamicResource KpSubtleBrush}"/>
-                <TextBlock Text="{Binding LastValue}" FontSize="15" FontWeight="SemiBold"/>
+                <TextBlock Text="{Binding MedianLabel}" FontSize="10" TextWrapping="Wrap" Foreground="{DynamicResource KpSubtleBrush}"/>
+                <TextBlock Text="{Binding MedianValue}" FontSize="15" FontWeight="SemiBold"/>
               </StackPanel>
               <StackPanel Grid.Column="1" Spacing="2">
                 <TextBlock Text="{Binding P95Label}" FontSize="10" TextWrapping="Wrap" Foreground="{DynamicResource KpSubtleBrush}"/>
@@ -192,13 +201,11 @@
                 </StackPanel>
               </Button>
             </Grid>
-            <TextBlock Text="{Binding CopyStatus}" FontSize="10" Foreground="{DynamicResource KpSubtleBrush}"/>
+            <TextBlock Text="{Binding CopyStatus}" FontSize="10" IsVisible="{Binding HasCopyStatus}"
+                       Foreground="{DynamicResource KpSubtleBrush}"/>
             <TextBlock Text="{Binding SafeHint}" FontSize="10" Foreground="{DynamicResource KpSubtleBrush}" TextWrapping="Wrap"/>
           </StackPanel>
         </Border>
-      </StackPanel>
-    </ScrollViewer>
-    <!-- Reserved without any visible placeholder for a later project link. -->
-    <Border Grid.Row="1" Background="{DynamicResource KpSurfaceBrush}"/>
-  </Grid>
+    </StackPanel>
+  </ScrollViewer>
 </UserControl>
