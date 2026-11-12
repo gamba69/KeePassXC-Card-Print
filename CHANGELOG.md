@@ -3,6 +3,19 @@
 All notable changes to KeePassXC Card Print are documented **only in this file**.
 Other documentation describes the current release and must not contain a version-by-version history.
 
+## [6.2.5] - 2026-11-12
+
+### Changed
+- Use the selected cinematic hero collage on the README and GitHub Pages site.
+- Synchronize the application and current-release documentation version with 6.2.5.
+
+## [6.2.4] - 2026-11-12
+
+### Changed
+- Add a version-independent promotional collage and a demo-only screenshot gallery to the README.
+- Add a GitHub Pages site with a dark desktop-inspired Cayman theme, overview, user guide, image gallery and privacy policy, served from `docs/`.
+- Align current documentation examples and the application version with 6.2.4; application behavior is unchanged.
+
 ## [6.2.3] - 2026-11-12
 
 ### Fixed

@@ -33,7 +33,7 @@ files would be overwritten.
 | `backups/` | Settings backups when a storage switch replaces target files | May contain all of the above |
 
 Do not commit these files. Their contents are local state rather than product
-source. A fresh 6.2.3 installation starts from its own configuration defaults;
+source. A fresh 6.2.5 installation starts from its own configuration defaults;
 **there is no automatic import of earlier application formats**.
 
 ## Safe settings transfer

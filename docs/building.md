@@ -49,7 +49,7 @@ The build uses two fixed, ignored directories at the repository root:
 
 ```text
 publish/    # Complete runnable Windows application (EXE, DLLs, fonts, notices)
-dist/       # KeePassXCCardPrint-6.2.3-win-x64.zip and its .zip.sha256
+dist/       # KeePassXCCardPrint-6.2.5-win-x64.zip and its .zip.sha256
 ```
 
 Each new build clears the previous `publish/` and `dist/` contents. It does
@@ -90,7 +90,7 @@ A separate compile-time dependency manifest derives package versions from
 `PackageReference` declarations. Windows-specific package declarations are
 kept in `platforms/windows/windows-packages.props`.
 
-The current version is **6.2.3**. Do not add version numbers to application
+The current version is **6.2.5**. Do not add version numbers to application
 source files or XAML titles. Platform folders and all other repository folders
 use lowercase names; source filenames and class names retain their natural
 C# casing.

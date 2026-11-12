@@ -1,6 +1,10 @@
 # KeePassXC Card Print
 
-**Version 6.2.3 · Windows x64 · .NET 10 Native AOT**
+**Portable Windows card designer for KeePassXC credentials.**
+
+![KeePassXC Card Print — editor and printed-card collage](docs/images/hero-collage.png)
+
+**Version 6.2.5 · Windows x64 · .NET 10 Native AOT**
 
 KeePassXC Card Print is a portable desktop application for preparing and printing
 compact account-information cards from a KeePassXC-compatible KDBX database.
@@ -32,6 +36,61 @@ an official KeePassXC project**.
   English UI translations with light/dark/system appearance.
 - View compiled dependency versions, selected rendering details, and safe
   preview performance statistics on the **About** tab.
+
+## Screenshot gallery
+
+These are real captures of the desktop interface running in **Demo** mode with
+randomly generated sample credentials. No real accounts or personal vault data
+are shown. The promotional image above combines application views and card
+previews; the screenshots below show the actual editor windows.
+
+### Database and entries
+
+![Database and entries with synthetic demo data](docs/images/database-and-entries.png)
+
+### Field mapping
+
+![Field mapping and per-field options](docs/images/field-mapping.png)
+
+### Appearance — header, footer and typography
+
+![Appearance header and footer settings](docs/images/appearance-header-footer.png)
+
+![Appearance typography settings](docs/images/appearance-fonts.png)
+
+### Recovery codes and reverse sides
+
+![Recovery code layout settings](docs/images/appearance-recovery.png)
+
+![Reverse-side artwork and icon options](docs/images/duplex-background-icon.png)
+
+<details>
+<summary><strong>More screenshots — geometry, fields, colors, backgrounds and reverse design</strong></summary>
+
+#### Geometry
+
+![Card dimensions and geometry settings](docs/images/appearance-geometry.png)
+
+#### Fields and content
+
+![Field content and label settings](docs/images/appearance-fields.png)
+
+#### Icons and colors
+
+![Icon and color settings](docs/images/appearance-colors.png)
+
+#### Background and artwork
+
+![Background pattern settings](docs/images/appearance-background.png)
+
+#### Empty reverse
+
+![Empty reverse settings](docs/images/duplex-empty-reverse.png)
+
+</details>
+
+The complete gallery and an illustrated walkthrough are also available in
+[GitHub Pages documentation](docs/index.md).
 
 ## Requirements
 
@@ -102,6 +161,7 @@ storage switch for a controlled transfer.
 | --- | --- |
 | Preparing the application | [Building and portable distribution](docs/building.md) |
 | Daily use | [Card design and workflow](docs/usage.md) |
+| Public documentation | [GitHub Pages home](docs/index.md), [User guide](docs/guide.md), [Gallery](docs/gallery.md), [Privacy](docs/privacy.md) |
 | Front/back and printing | [Printing, duplex, calibration and exports](docs/printing.md) |
 | Settings and data locations | [Configuration and state files](docs/configuration.md) |
 | Architecture and portability | [Architecture and platform boundaries](docs/architecture.md) |
@@ -111,6 +171,15 @@ storage switch for a controlled transfer.
 | Common problems | [Troubleshooting](docs/troubleshooting.md) |
 | Responsible disclosure | [Security](SECURITY.md) |
 | Building on the code | [Contributing](CONTRIBUTING.md) |
+
+## GitHub Pages
+
+The public website uses a dark Cayman theme with its source entirely in
+`docs/`. To publish it, open **Repository Settings → Pages**, choose **Deploy
+from a branch**, select `main` and `/docs`, then save. The site is published at
+`https://gamba69.github.io/KeePassXC-Card-Print/` after GitHub Pages completes
+deployment. The documentation source is usable directly from this repository
+without enabling Pages.
 
 ## Privacy and security
 

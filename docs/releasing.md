@@ -8,7 +8,7 @@ does **not** publish the release. The only supported binary target for now is
 ## 1. Verify the source version
 
 The sole application version is the `<Version>` in
-`source/keepassxccardprint/KeePassXCCardPrint.csproj`, e.g. `6.2.3`.
+`source/keepassxccardprint/KeePassXCCardPrint.csproj`, e.g. `6.2.5`.
 Commit the reviewed code and confirm all required checks have passed.
 
 ## 2. Create and push the tag manually
@@ -16,8 +16,8 @@ Commit the reviewed code and confirm all required checks have passed.
 Both `vN.N.N` and `N.N.N` are accepted, for example:
 
 ```sh
-git tag -a v6.2.3 -m "KeePassXC Card Print 6.2.3"
-git push origin v6.2.3
+git tag -a v6.2.5 -m "KeePassXC Card Print 6.2.5"
+git push origin v6.2.5
 ```
 
 Alternatively, create the tag in the GitHub web UI. The prefix is optional,
@@ -28,7 +28,7 @@ published version's tag.
 ## 3. Create a draft Release manually
 
 On GitHub, open **Releases** → **Draft a new release**. Choose the **already
-existing exact tag** (`v6.2.3` and `6.2.3` are different tag names), fill in
+existing exact tag** (`v6.2.5` and `6.2.5` are different tag names), fill in
 the release title and notes, and choose **Save draft**. Do not publish it yet.
 
 ## 4. Run the release workflow manually
@@ -65,7 +65,7 @@ Check the build logs and every `[PASS]`/`[FAIL]` test entry. Download the ZIP
 and verify the checksum locally. In PowerShell:
 
 ```powershell
-$zip = 'KeePassXCCardPrint-6.2.3-win-x64.zip'
+$zip = 'KeePassXCCardPrint-6.2.5-win-x64.zip'
 $expected = (Get-Content "$zip.sha256" -Raw).Trim().Split(' ')[0]
 $actual = (Get-FileHash -LiteralPath $zip -Algorithm SHA256).Hash
 if ($expected -ne $actual) { throw 'SHA-256 mismatch' }
@@ -84,8 +84,8 @@ Only after the manual acceptance checks, open the draft on GitHub and click
 The release contains two attached files:
 
 ```text
-KeePassXCCardPrint-6.2.3-win-x64.zip
-KeePassXCCardPrint-6.2.3-win-x64.zip.sha256
+KeePassXCCardPrint-6.2.5-win-x64.zip
+KeePassXCCardPrint-6.2.5-win-x64.zip.sha256
 ```
 
 The ZIP contains the portable executable, any runtime native DLLs copied by
