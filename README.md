@@ -1,6 +1,6 @@
 # KeePassXC Card Print
 
-**Version 6.0.13 · Windows x64 · .NET 10 Native AOT**
+**Version 6.2.3 · Windows x64 · .NET 10 Native AOT**
 
 KeePassXC Card Print is a portable desktop application for preparing and printing
 compact account-information cards from a KeePassXC-compatible KDBX database.
@@ -92,10 +92,9 @@ printer names, entry UUIDs and print history. Do not treat a settings backup as
 anonymous. See [Configuration](docs/configuration.md) and
 [Security](SECURITY.md).
 
-**First-release configuration:** This source tree uses its own 6.0.9 settings
-files and does not import configurations from earlier implementations. If you
-have settings in another installation, retain your backup and configure this
-installation separately.
+The application keeps its settings independent of other installations.
+Retain a settings backup before switching storage locations; use the in-app
+storage switch for a controlled transfer.
 
 ## Guides
 
@@ -108,6 +107,7 @@ installation separately.
 | Architecture and portability | [Architecture and platform boundaries](docs/architecture.md) |
 | Test commands and results | [Testing](docs/testing.md) |
 | Tag, draft, archive and manual publication | [Release procedure](docs/releasing.md) |
+| Release-to-release changes | [Changelog](CHANGELOG.md) |
 | Common problems | [Troubleshooting](docs/troubleshooting.md) |
 | Responsible disclosure | [Security](SECURITY.md) |
 | Building on the code | [Contributing](CONTRIBUTING.md) |

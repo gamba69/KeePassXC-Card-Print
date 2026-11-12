@@ -2,6 +2,7 @@ using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Layout;
 using KeePassXCCardPrint.ViewModels;
+using KeePassXCCardPrint.Services;
 
 namespace KeePassXCCardPrint;
 
@@ -9,7 +10,7 @@ public sealed class PrintHistoryWindow : Window
 {
     public PrintHistoryWindow(ShellViewModel vm)
     {
-        Title="История печати";
+        Title=UiText.Tr("История печати");
         PrintWindowIcons.Attach(this);
         Width=710;Height=500;MinWidth=550;MinHeight=300;
         WindowStartupLocation=WindowStartupLocation.CenterOwner;
@@ -25,21 +26,21 @@ public sealed class PrintHistoryWindow : Window
         DockPanel.SetDock(footer,Dock.Bottom);root.Children.Add(footer);
         var list=new StackPanel{Spacing=7};
         if(vm.CurrentPrintLedger is null)
-            list.Children.Add(new TextBlock{Text="Откройте KDBX, чтобы увидеть историю печати."});
+            list.Children.Add(new TextBlock{Text=UiText.Tr("Откройте KDBX, чтобы увидеть историю печати.")});
         else if(vm.CurrentPrintLedger.History.Count==0)
-            list.Children.Add(new TextBlock{Text="Подтверждённых или отправленных заданий пока нет."});
+            list.Children.Add(new TextBlock{Text=UiText.Tr("Подтверждённых или отправленных заданий пока нет.")});
         else foreach(var job in vm.CurrentPrintLedger.History)
         {
             var card=new Border();card.Classes.Add("settings-card");
             var content=new StackPanel{Spacing=4};
             content.Children.Add(new TextBlock
             {
-                Text=$"{job.Utc.ToLocalTime():dd.MM.yyyy HH:mm}  ·  {job.Printer}  ·  {job.Result}",
+                Text=$"{job.Utc.ToLocalTime():dd.MM.yyyy HH:mm}  ·  {job.Printer}  ·  {UiText.Tr(job.Result)}",
                 FontWeight=Avalonia.Media.FontWeight.SemiBold
             });
             content.Children.Add(new TextBlock
             {
-                Text=$"{job.CardCount} карточек · {job.Sheets} листов · {job.Mode}",
+                Text=UiText.Tr($"{job.CardCount} карточек · {job.Sheets} листов · {job.Mode}"),
                 FontSize=12
             });
             var titles=job.EntryIds.Select(id=>vm.VaultRecords.FirstOrDefault(x=>x.Uuid==id)?.Title??
@@ -51,5 +52,6 @@ public sealed class PrintHistoryWindow : Window
         root.Children.Add(new ScrollViewer{Content=list,Margin=new Thickness(12),
             VerticalScrollBarVisibility=Avalonia.Controls.Primitives.ScrollBarVisibility.Auto});
         Content=root;
+        UiText.Enable(this, translateText: false);
     }
 }

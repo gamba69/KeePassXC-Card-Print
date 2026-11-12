@@ -72,12 +72,29 @@ public sealed partial class ShellViewModel
     private bool _confirmDiscardOnLoad;
     public bool CanEditAppearance => _activeTemplateOrigin != TemplateOrigin.BuiltIn;
     public bool CanSaveTemplateChanges => _activeTemplateOrigin == TemplateOrigin.Personal && _templateDirty;
-    public string ActiveTemplateNotice => _activeTemplateOrigin switch
+    public string ActiveTemplateNotice => Localizer.ResolveLanguage(_settings.Language) switch
     {
-        TemplateOrigin.BuiltIn => $"Встроенный · {_activeTemplateName} — только просмотр. Создайте свой шаблон, чтобы изменять лицо и оборот.",
-        TemplateOrigin.Personal => $"Мой · {_activeTemplateName} — лицо и оборот доступны для правки." +
-                                   (_templateDirty ? " Есть несохранённые изменения." : " Все изменения сохранены."),
-        _ => "Текущее оформление без шаблона. Создайте свой шаблон для сохранения и редактирования обеих сторон."
+        "en" => _activeTemplateOrigin switch
+        {
+            TemplateOrigin.BuiltIn => $"Built-in · {_activeTemplateName} — read-only. Create your own template to edit either side.",
+            TemplateOrigin.Personal => $"My · {_activeTemplateName} — both sides are editable." +
+                (_templateDirty ? " Unsaved changes." : " All changes saved."),
+            _ => "Current design without a template. Create a personal template to save edits to both sides."
+        },
+        "uk" => _activeTemplateOrigin switch
+        {
+            TemplateOrigin.BuiltIn => $"Вбудований · {_activeTemplateName} — лише перегляд. Створіть власний шаблон для редагування обох боків.",
+            TemplateOrigin.Personal => $"Мій · {_activeTemplateName} — обидва боки доступні для редагування." +
+                (_templateDirty ? " Є незбережені зміни." : " Усі зміни збережені."),
+            _ => "Поточне оформлення без шаблона. Створіть власний шаблон для збереження змін обох боків."
+        },
+        _ => _activeTemplateOrigin switch
+        {
+            TemplateOrigin.BuiltIn => $"Встроенный · {_activeTemplateName} — только просмотр. Создайте свой шаблон, чтобы изменять лицо и оборот.",
+            TemplateOrigin.Personal => $"Мой · {_activeTemplateName} — лицо и оборот доступны для правки." +
+                (_templateDirty ? " Есть несохранённые изменения." : " Все изменения сохранены."),
+            _ => "Текущее оформление без шаблона. Создайте свой шаблон для сохранения и редактирования обеих сторон."
+        }
     };
     private void NotifyTemplateState()
     {
@@ -103,6 +120,17 @@ public sealed partial class ShellViewModel
         ("minimal", "Встроенный · Минимализм"),
         ("table", "Встроенный · Табличный")
     ];
+    private string BuiltinName(string code) => Localizer.ResolveLanguage(_settings.Language) switch
+    {
+        "uk" => code switch {"archive"=>"Архівний","technical"=>"Технічна сітка","classic"=>"Класичний","minimal"=>"Мінімалізм","table"=>"Табличний",_=>code},
+        "en" => code switch {"archive"=>"Archive","technical"=>"Technical grid","classic"=>"Classic","minimal"=>"Minimal","table"=>"Table",_=>code},
+        _ => BuiltInTemplates.First(x=>x.Code==code).Label.Split('·').Last().Trim()
+    };
+    private string BuiltinLabel(string code) =>
+        (Localizer.ResolveLanguage(_settings.Language) switch {"uk"=>"Вбудований","en"=>"Built-in",_=>"Встроенный"})
+        + " · " + BuiltinName(code);
+    private string PersonalPrefix => Localizer.ResolveLanguage(_settings.Language) switch {"uk"=>"Мій · ","en"=>"My · ",_=>"Мой · "};
+    private string CopySuffix => Localizer.ResolveLanguage(_settings.Language) switch {"uk"=>" - копія","en"=>" - copy",_=>" - копия"};
 
     public ObservableCollection<AppearanceField> AppearanceFields { get; } = new();
     public ObservableCollection<AppearanceField> VisibleAppearanceFields { get; } = new();
@@ -130,7 +158,8 @@ public sealed partial class ShellViewModel
     private void RefreshDuplexAppearanceFields()
     {
         DuplexAppearanceFields.Clear();
-        var group=_selectedDuplexDesignCategory=="Основное"?"Две стороны":_selectedDuplexDesignCategory;
+        var group=AppearanceTranslations.CanonicalGroup(_selectedDuplexDesignCategory);
+        if (group=="Основное") group="Две стороны";
         foreach(var item in AppearanceFields.Where(x=>x.Group==group &&
             x.Key is not ("duplex_back_fill" or "empty_back_show_header" or "empty_back_show_footer")))
             DuplexAppearanceFields.Add(item);
@@ -144,7 +173,8 @@ public sealed partial class ShellViewModel
             if(value is null || _selectedDesignCategory==value)return;
             _selectedDesignCategory=value;Changed();
             VisibleAppearanceFields.Clear();
-            foreach (var appearanceItem in AppearanceFields.Where(item => item.Group == value))
+            foreach (var appearanceItem in AppearanceFields.Where(item =>
+                item.Group == AppearanceTranslations.CanonicalGroup(value)))
                 VisibleAppearanceFields.Add(appearanceItem);
         }
     }
@@ -156,7 +186,7 @@ public sealed partial class ShellViewModel
     }
     public string DesignMessage
     {
-        get => _designMessage;
+        get => UiText.Tr(_designMessage,_settings.Language);
         private set
         {
             if (_designMessage == value) return;
@@ -273,7 +303,7 @@ public sealed partial class ShellViewModel
             PreferencesChanged?.Invoke(this,EventArgs.Empty);
         }
     }
-    public string PreviewAnimationDurationCaption=>$"{_settings.PreviewAnimationDurationMs} мс";
+    public string PreviewAnimationDurationCaption=>UiText.Tr($"{_settings.PreviewAnimationDurationMs} мс",_settings.Language);
     public bool PreviewMonochrome
     {
         get=>_settings.PreviewMonochrome;
@@ -331,9 +361,9 @@ public sealed partial class ShellViewModel
     public string PreviewCardCount => _previewShowSheet
         ? (_previewSheets.Count==0?"— / —":$"{_previewSheetIndex+1} / {_previewSheets.Count}")
         : (_cardParts.Count==0?"— / —":$"{_cardIndex+1} / {_cardParts.Count}");
-    public string PreviewFaceLabel => _previewShowSheet
+    public string PreviewFaceLabel => UiText.Tr(_previewShowSheet
         ? (_previewSheets.Count>0 && _previewSheets[_previewSheetIndex].Reverse?"Лист · оборот":"Лист · лицо")
-        : (_backSide?"Оборотная сторона":"Лицевая сторона");
+        : (_backSide?"Оборотная сторона":"Лицевая сторона"),_settings.Language);
     public bool PreviewHasCard => _cardParts.Count>0;
     public bool PreviewDuplexAvailable => _appearance.DuplexEnabled && _cardParts.Count>0;
     public bool PreviewIsFront => !_backSide;
@@ -342,7 +372,7 @@ public sealed partial class ShellViewModel
         CardPreviewSequence.CanStep(_cardParts.Count,_cardIndex,_backSide,_appearance.DuplexEnabled,-1);
     public bool PreviewCanGoNext => _previewShowSheet ? _previewSheetIndex+1<_previewSheets.Count :
         CardPreviewSequence.CanStep(_cardParts.Count,_cardIndex,_backSide,_appearance.DuplexEnabled,+1);
-    public string PreviewError => _previewError;
+    public string PreviewError => UiText.Tr(_previewError,_settings.Language);
 
     public void SetPreviewNotice(string message) { _previewError=message;Changed(nameof(PreviewError)); }
     private void UpdatePreviewDisplayWidth()
@@ -376,14 +406,42 @@ public sealed partial class ShellViewModel
         RestorePersonalTemplateSelection();
         RebuildAppearanceFields();
         ReloadTemplates();
+        RelocalizeAppearance();
         UpdatePreviewDisplayWidth();
         ScheduleCardPreview();
     }
+    private void RelocalizeAppearance()
+    {
+        var group = AppearanceTranslations.CanonicalGroup(_selectedDesignCategory);
+        var duplexGroup = AppearanceTranslations.CanonicalGroup(_selectedDuplexDesignCategory);
+        if (_activeTemplateOrigin == TemplateOrigin.BuiltIn)
+            _activeTemplateName = BuiltinName(_appearance.Style);
+        ReloadTemplates();
+        foreach (var field in AppearanceFields) field.Relocalize(_settings.Language);
+        var categories = DesignCategories.Select(AppearanceTranslations.CanonicalGroup).ToArray();
+        var duplexCategories = DuplexDesignCategories.Select(AppearanceTranslations.CanonicalGroup).ToArray();
+        DesignCategories.Clear();
+        foreach (var category in categories)
+            DesignCategories.Add(AppearanceTranslations.Group(category, _settings.Language));
+        DuplexDesignCategories.Clear();
+        foreach (var category in duplexCategories)
+            DuplexDesignCategories.Add(AppearanceTranslations.Group(category, _settings.Language));
+        _selectedDesignCategory = AppearanceTranslations.Group(group, _settings.Language);
+        _selectedDuplexDesignCategory = AppearanceTranslations.Group(duplexGroup, _settings.Language);
+        Changed(nameof(SelectedDesignCategory));
+        Changed(nameof(SelectedDuplexDesignCategory));
+        VisibleAppearanceFields.Clear();
+        foreach (var field in AppearanceFields.Where(x => x.Group == group))
+            VisibleAppearanceFields.Add(field);
+        RefreshDuplexAppearanceFields();
+        NotifyTemplateState();
+    }
+
     private void RebuildAppearanceFields()
     {
         AppearanceFields.Clear();
         DuplexAppearanceFields.Clear();
-        foreach(var f in AppearanceDescriptor.Create(_appearance))
+        foreach(var f in AppearanceDescriptor.Create(_appearance,_settings.Language))
         {
             f.IsReadOnly = !CanEditAppearance;
             f.ValueChanged+=(_,_)=>AppearanceEdited();
@@ -414,8 +472,8 @@ public sealed partial class ShellViewModel
                 {
                     _appearance = CardAppearancePresets.Create(builtin.Code);
                     _activeTemplateOrigin = TemplateOrigin.BuiltIn;
-                    _activeTemplateName = builtin.Label.Split('·').Last().Trim();
-                    TemplateName = _activeTemplateName + " - копия";
+                    _activeTemplateName = BuiltinName(builtin.Code);
+                    TemplateName = _activeTemplateName + CopySuffix;
                     NotifyTemplateState();
                 }
             }
@@ -442,7 +500,7 @@ public sealed partial class ShellViewModel
         var priorSelection = _selectedTemplate;
         _personalTemplatePaths.Clear();
         TemplateNames.Clear();
-        foreach (var (_, label) in BuiltInTemplates) TemplateNames.Add(label);
+        foreach (var (code, _) in BuiltInTemplates) TemplateNames.Add(BuiltinLabel(code));
 
         foreach (var path in CardAppearanceStore.Templates())
         {
@@ -450,7 +508,7 @@ public sealed partial class ShellViewModel
             try { name = CardAppearanceStore.ReadTemplateName(path); }
             catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or System.Text.Json.JsonException or InvalidDataException)
             { continue; }
-            var label = "Мой · " + name;
+            var label = PersonalPrefix + name;
             if (_personalTemplatePaths.ContainsKey(label))
                 label += " (" + Path.GetFileNameWithoutExtension(path) + ")";
             _personalTemplatePaths[label] = path;
@@ -464,7 +522,7 @@ public sealed partial class ShellViewModel
         else if (activePersonal is not null)
             SelectedTemplate = activePersonal;
         else if (_activeTemplateOrigin == TemplateOrigin.BuiltIn)
-            SelectedTemplate = BuiltInTemplates.FirstOrDefault(t => t.Code == _appearance.Style).Label;
+            SelectedTemplate = BuiltinLabel(_appearance.Style);
         else
             SelectedTemplate = null; // Built-in presets are not selected while editing a custom working copy.
     }
@@ -496,14 +554,14 @@ public sealed partial class ShellViewModel
         _confirmDiscardOnLoad = false;
         try
         {
-            var builtin = BuiltInTemplates.FirstOrDefault(t => t.Label == _selectedTemplate);
+            var builtin = BuiltInTemplates.FirstOrDefault(t => BuiltinLabel(t.Code) == _selectedTemplate);
             if (builtin.Code is not null)
             {
                 _appearance = CardAppearancePresets.Create(builtin.Code);
                 _activeTemplateOrigin = TemplateOrigin.BuiltIn;
                 _activePersonalTemplatePath = null;
-                _activeTemplateName = builtin.Label.Split('·').Last().Trim();
-                TemplateName = _activeTemplateName + " - копия";
+                _activeTemplateName = BuiltinName(builtin.Code);
+                TemplateName = _activeTemplateName + CopySuffix;
             }
             else if (_personalTemplatePaths.TryGetValue(_selectedTemplate, out var path))
             {
@@ -511,7 +569,7 @@ public sealed partial class ShellViewModel
                 _activeTemplateOrigin = TemplateOrigin.Personal;
                 _activePersonalTemplatePath = path;
                 _activeTemplateName = CardAppearanceStore.ReadTemplateName(path);
-                TemplateName = _activeTemplateName + " - копия";
+                TemplateName = _activeTemplateName + CopySuffix;
             }
             else return;
             _templateDirty = false;

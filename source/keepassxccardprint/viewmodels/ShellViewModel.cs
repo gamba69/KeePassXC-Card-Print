@@ -97,6 +97,12 @@ public sealed partial class ShellViewModel : INotifyPropertyChanged
                 PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(property));
             RelocalizeMapping();
             About.Relocalize();
+            RelocalizeAppearance();
+            RefreshPrintStatuses();
+            Changed(nameof(DesignMessage));
+            Changed(nameof(PreviewError));
+            Changed(nameof(PreviewFaceLabel));
+            Changed(nameof(PreviewAnimationDurationCaption));
             PreferencesChanged?.Invoke(this, EventArgs.Empty);
         }
     }
@@ -251,9 +257,55 @@ public sealed partial class ShellViewModel : INotifyPropertyChanged
         nameof(Status),
         nameof(StatusLead),
         nameof(StatusTail),
+        nameof(UiTemplate),
+        nameof(UiLoadTemplate),
+        nameof(UiTemplateNamePlaceholder),
+        nameof(UiCreateTemplate),
+        nameof(UiSaveChanges),
+        nameof(UiEmptyReverse),
+        nameof(UiShowHeader),
+        nameof(UiShowFooter),
+        nameof(UiPreview),
+        nameof(UiPreviewAndSheet),
+        nameof(UiShowFullSheet),
+        nameof(UiLandscape),
+        nameof(UiShortEdgeFlip),
+        nameof(UiFirstSlot),
+        nameof(UiWheelStep),
+        nameof(UiPreviewAnimation),
+        nameof(UiTransitions),
+        nameof(UiDuration),
+        nameof(UiAfterRebuild),
+        nameof(UiPrintStatus),
+        nameof(UiMonochromePreview),
+        nameof(UiNavigationAnimation),
+        nameof(UiSideChangeAnimation),
     ];
 
     // View-model titles are all compiled-bound and can be relocalized without recreating controls.
+    public string UiTemplate => Localizer.Text(_settings.Language, "UiTemplate");
+    public string UiLoadTemplate => Localizer.Text(_settings.Language, "UiLoadTemplate");
+    public string UiTemplateNamePlaceholder => Localizer.Text(_settings.Language, "UiTemplateNamePlaceholder");
+    public string UiCreateTemplate => Localizer.Text(_settings.Language, "UiCreateTemplate");
+    public string UiSaveChanges => Localizer.Text(_settings.Language, "UiSaveChanges");
+    public string UiEmptyReverse => Localizer.Text(_settings.Language, "UiEmptyReverse");
+    public string UiShowHeader => Localizer.Text(_settings.Language, "UiShowHeader");
+    public string UiShowFooter => Localizer.Text(_settings.Language, "UiShowFooter");
+    public string UiPreview => Localizer.Text(_settings.Language, "UiPreview");
+    public string UiPreviewAndSheet => Localizer.Text(_settings.Language, "UiPreviewAndSheet");
+    public string UiShowFullSheet => Localizer.Text(_settings.Language, "UiShowFullSheet");
+    public string UiLandscape => Localizer.Text(_settings.Language, "UiLandscape");
+    public string UiShortEdgeFlip => Localizer.Text(_settings.Language, "UiShortEdgeFlip");
+    public string UiFirstSlot => Localizer.Text(_settings.Language, "UiFirstSlot");
+    public string UiWheelStep => Localizer.Text(_settings.Language, "UiWheelStep");
+    public string UiPreviewAnimation => Localizer.Text(_settings.Language, "UiPreviewAnimation");
+    public string UiTransitions => Localizer.Text(_settings.Language, "UiTransitions");
+    public string UiDuration => Localizer.Text(_settings.Language, "UiDuration");
+    public string UiAfterRebuild => Localizer.Text(_settings.Language, "UiAfterRebuild");
+    public string UiPrintStatus => Localizer.Text(_settings.Language, "UiPrintStatus");
+    public string UiMonochromePreview => Localizer.Text(_settings.Language, "UiMonochromePreview");
+    public string UiNavigationAnimation => Localizer.Text(_settings.Language, "UiNavigationAnimation");
+    public string UiSideChangeAnimation => Localizer.Text(_settings.Language, "UiSideChangeAnimation");
     public string AppDisplayName => "KeePassXC Card Print";
     public string AppTagline => Localizer.Text(_settings.Language, "AppTagline");
     public string AppVersionPlatform => $"{AppBuildInfo.Version} · {PlatformServices.Current.PlatformLabel}";

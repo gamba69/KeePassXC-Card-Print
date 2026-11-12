@@ -9,8 +9,15 @@ using KeePassXCCardPrint.Rendering;
 
 namespace KeePassXCCardPrint.Services;
 
-public sealed class DesignChoice(string code)
+public sealed class DesignChoice(string code, string language) : INotifyPropertyChanged
 {
+    private string _language = language;
+    public event PropertyChangedEventHandler? PropertyChanged;
+    public void Relocalize(string language)
+    {
+        _language = language;
+        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(Label)));
+    }
     public string Code { get; } = code;
     private static readonly Lazy<IReadOnlyDictionary<string, Geometry>> IconPreviews = new(() =>
     {
@@ -21,7 +28,7 @@ public sealed class DesignChoice(string code)
     });
     public bool HasIconPreview => FluentCardGlyphs.PathData(Code) is not null;
     public Geometry? IconGeometry => HasIconPreview ? IconPreviews.Value[Code] : null;
-    public string Label => Code switch
+    public string Label => AppearanceTranslations.Choice(Code, _language, Code switch
     {
         "true" => "Да", "false" => "Нет", "archive" => "Архив", "technical" => "Технический", "classic" => "Классический", "table" => "Табличный",
         "minimal" => "Минимальный", "normal" => "Обычная", "compact" => "Компактная", "large" => "Крупная", "spacious" => "Крупная",
@@ -38,7 +45,7 @@ public sealed class DesignChoice(string code)
         "500" => "Medium (500)", "600" => "SemiBold (600)", "700" => "Bold (700)",
         "800" => "ExtraBold (800)",
         _ => Code
-    };
+    });
     public override string ToString() => Label;
 }
 
@@ -46,9 +53,11 @@ public sealed class DesignChoice(string code)
 public sealed class AppearanceField : INotifyPropertyChanged
 {
     public string Group { get; }
-    public string Label { get; }
+    public string Label { get; private set; }
+    private readonly string _russianLabel;
+    private string _language;
     public string Key { get; }
-    public string Description { get; }
+    public string Description { get; private set; }
     public double EditorWidth => IsNumeric ? 96 : IsColor ? 140 : 187;
     public bool IsColor => Key.EndsWith("_color",StringComparison.Ordinal);
     public IBrush? SwatchBrush => Color.TryParse(_text,out var color) ? new SolidColorBrush(color) : null;
@@ -164,13 +173,26 @@ public sealed class AppearanceField : INotifyPropertyChanged
         TextValue = newText;
     }
     public AppearanceField(string group,string label,string key,string type,CardAppearance appearance,
-                           Func<CardAppearance,string> read,Action<CardAppearance,string> write,string? options)
+                           Func<CardAppearance,string> read,Action<CardAppearance,string> write,string? options,string language)
     {
-        Group=group;Label=label;Key=key;Description=AppearanceDescriptions.For(key,label);_appearance=appearance;_read=read;_write=write;_type=type;
+        Group=group;_russianLabel=label;_language=language;Key=key;
+        Label=AppearanceTranslations.Field(key,label,language);
+        Description=AppearanceTranslations.Description(key,Label,language);
+        _appearance=appearance;_read=read;_write=write;_type=type;
         IsBool=type=="bool";IsChoice=options is not null; IsInteger=type=="int"; IsNumeric=type is "int" or "double";
-        if (options is not null) foreach(var code in options.Split(','))Choices.Add(new DesignChoice(code));
+        if (options is not null) foreach(var code in options.Split(','))Choices.Add(new DesignChoice(code, language));
         Reload();
     }
+    public void Relocalize(string language)
+    {
+        _language = language;
+        Label = AppearanceTranslations.Field(Key, _russianLabel, language);
+        Description = AppearanceTranslations.Description(Key, Label, language);
+        Raise(nameof(Label));
+        Raise(nameof(Description));
+        foreach (var choice in Choices) choice.Relocalize(language);
+    }
+
     public void Reload()
     {
         _text = _read(_appearance);
@@ -190,10 +212,12 @@ public static class AppearanceDescriptor
     private static int ParseInt(string s,int fallback) => int.TryParse(s,NumberStyles.Integer,CultureInfo.InvariantCulture,out var v) ? v : fallback;
     private static double ParseDouble(string s,double fallback) => double.TryParse(s.Replace(',','.'),NumberStyles.Float,CultureInfo.InvariantCulture,out var v) && double.IsFinite(v) ? v : fallback;
     public static IReadOnlyList<AppearanceField> Create(CardAppearance model)
+        => Create(model, "ru");
+    public static IReadOnlyList<AppearanceField> Create(CardAppearance model, string language)
     {
         var result = new List<AppearanceField>(140);
         void Add(string group,string label,string key,string type,Func<CardAppearance,string> reader,Action<CardAppearance,string> writer,string? choices)
-            => result.Add(new AppearanceField(group,label,key,type,model,reader,writer,choices));
+            => result.Add(new AppearanceField(group,label,key,type,model,reader,writer,choices,language));
             Add("Геометрия", "Ширина, мм", "width_mm", "double", a => a.WidthMm.ToString(CultureInfo.InvariantCulture), (a,v) => a.WidthMm = ParseDouble(v,a.WidthMm), null);
             Add("Геометрия", "Высота, мм", "height_mm", "double", a => a.HeightMm.ToString(CultureInfo.InvariantCulture), (a,v) => a.HeightMm = ParseDouble(v,a.HeightMm), null);
             Add("Геометрия", "Плотность", "density", "string", a => a.Density.ToString(), (a,v) => a.Density = v, "compact,normal,large");

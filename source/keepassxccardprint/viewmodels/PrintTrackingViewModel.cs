@@ -18,7 +18,7 @@ public sealed partial class ShellViewModel
     public void RefreshPrintStatuses()
     {
         foreach(var record in VaultRecords)
-            record.PrintStatus=_printLedger?.Status(record.Uuid)??"—";
+            record.PrintStatus=UiText.Tr(_printLedger?.Status(record.Uuid)??"—",_settings.Language);
         ApplyRecordFilters();
     }
     public void MarkPrintStatus(VaultRecord record,string action)
@@ -28,7 +28,7 @@ public sealed partial class ShellViewModel
                 .Select(card=>(int?)card.Front.Total).FirstOrDefault()
             : null;
         _printLedger?.Mark(record.Uuid,action,partCount);
-        record.PrintStatus=_printLedger?.Status(record.Uuid)??"—";
+        record.PrintStatus=UiText.Tr(_printLedger?.Status(record.Uuid)??"—",_settings.Language);
         ApplyRecordFilters();
     }
     public void ConfirmPrint(IReadOnlyList<CardPrintSheet> sheets,IReadOnlySet<int>? failed=null)

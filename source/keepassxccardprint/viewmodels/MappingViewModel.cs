@@ -143,6 +143,8 @@ public sealed class MappingEditor : INotifyPropertyChanged
         Weight=Select(Weights,draft.Weight); Group=Select(Groups,draft.Group); PhoneFormat=draft.PhoneFormat;
     }
     private string _language;
+    public string PhoneCaption => UiText.Tr("Логин — телефон",_language);
+    public string PhoneFormatCaption => UiText.Tr("Форматировать номер",_language);
     public string DisplayTitle => MappingLexicon.Text("Display",_language);
     public string GroupTitleTitle => MappingLexicon.Text("GroupTitle",_language);
     public string LabelTitle => MappingLexicon.Text("Label",_language);
@@ -189,7 +191,7 @@ public sealed class MappingEditor : INotifyPropertyChanged
     public void Relocalize(string language)
     {
         _language=language;
-        foreach(var key in new[]{nameof(DisplayTitle),nameof(GroupTitleTitle),nameof(LabelTitle),nameof(PriorityTitle),nameof(VisibleTitle),nameof(ShowHeadingTitle),nameof(UrlTitle),nameof(FitTitle),nameof(WeightTitle),nameof(SizeTitle),nameof(TrackingTitle),nameof(GroupTitle),nameof(GroupSizeTitle),nameof(GroupSpacesTitle),nameof(UrlSourceTitle)})Changed(key);
+        foreach(var key in new[]{nameof(DisplayTitle),nameof(GroupTitleTitle),nameof(LabelTitle),nameof(PriorityTitle),nameof(VisibleTitle),nameof(ShowHeadingTitle),nameof(UrlTitle),nameof(FitTitle),nameof(WeightTitle),nameof(SizeTitle),nameof(TrackingTitle),nameof(GroupTitle),nameof(GroupSizeTitle),nameof(GroupSpacesTitle),nameof(UrlSourceTitle),nameof(PhoneCaption),nameof(PhoneFormatCaption)})Changed(key);
         foreach(var key in new[]{nameof(DisplayHelp),nameof(GroupTitleHelp),nameof(LabelHelp),nameof(PriorityHelp),nameof(VisibleHelp),nameof(ShowHeadingHelp),nameof(UrlHelp),nameof(FitHelp),nameof(WeightHelp),nameof(SizeHelp),nameof(TrackingHelp),nameof(GroupHelp),nameof(GroupSizeHelp),nameof(GroupSpacesHelp)})Changed(key);
         foreach(var items in new[]{Roles,Sections,Visibilities,Headings,UrlModes,UrlSources,Fits,Weights,Groups})
             foreach(var option in items) option.Relocalize(language);

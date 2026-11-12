@@ -71,6 +71,7 @@ internal static class AppConfirmations
         card.Child=stack;
         root.Children.Add(card);
         win.Content=root;
+        Services.UiText.Enable(win, translateText: true);
         win.KeyDown+=(s,e)=>{if(e.Key==Key.Escape){e.Handled=true;win.Close(false);}};
         return win.ShowDialog<bool>(owner);
     }

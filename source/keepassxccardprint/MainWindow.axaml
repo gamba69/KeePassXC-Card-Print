@@ -164,7 +164,7 @@
                   <Grid ColumnDefinitions="175,*,112,56" Margin="5,0">
                     <TextBlock VerticalAlignment="Center" Text="{Binding Group}"/>
                     <TextBlock Grid.Column="1" VerticalAlignment="Center" Text="{Binding Title}"/>
-                    <TextBlock Grid.Column="2" VerticalAlignment="Center" Text="Статус печати"/>
+                    <TextBlock Grid.Column="2" VerticalAlignment="Center" Text="{Binding UiPrintStatus}"/>
                     <TextBlock Grid.Column="3" VerticalAlignment="Center" Text="{Binding Print}"/>
                   </Grid>
                 </Border>
@@ -176,7 +176,7 @@
                           <!-- Full-row click/Space toggles print; current-row focus and mouse hover are distinct. -->
                           <Border Classes="vault-row" Classes.print-selected="{Binding Selected}" Height="26" Padding="5,0" IsVisible="{Binding Visible}" Focusable="True" Cursor="Hand" PointerPressed="OnRecordRowPressed" KeyDown="OnRecordRowKeyDown">
                             <Border.ContextMenu>
-                              <ContextMenu>
+                              <ContextMenu Opened="OnRecordContextMenuOpened">
                                 <MenuItem Header="Считать напечатанной" CommandParameter="{Binding}" Click="OnRecordMarkPrinted"/>
                                 <MenuItem Header="Считать не напечатанной" CommandParameter="{Binding}" Click="OnRecordMarkUnprinted"/>
                                 <MenuItem Header="Не отслеживать" CommandParameter="{Binding}" Click="OnRecordExcludeTracking"/>
@@ -457,8 +457,8 @@
                                  TextWrapping="Wrap" IsVisible="{Binding IsUrlField}"
                                  Text="{Binding UrlPreviewStatus}"/>
                       <Grid Width="350" Margin="0,0,9,4" ColumnDefinitions="140,*" ColumnSpacing="6" MinHeight="27" IsVisible="{Binding IsUsernameField}">
-                        <TextBlock VerticalAlignment="Center" Text="Логин — телефон" ToolTip.Tip="Только отображение, без изменения данных базы. Поддерживаются явные номера +380 и +1."/>
-                        <CheckBox Grid.Column="1" Content="Форматировать номер" VerticalAlignment="Center" IsChecked="{Binding PhoneFormat, Mode=TwoWay}"/>
+                        <TextBlock VerticalAlignment="Center" Text="{Binding PhoneCaption}" ToolTip.Tip="Только отображение, без изменения данных базы. Поддерживаются явные номера +380 и +1."/>
+                        <CheckBox Grid.Column="1" Content="{Binding PhoneFormatCaption}" VerticalAlignment="Center" IsChecked="{Binding PhoneFormat, Mode=TwoWay}"/>
                       </Grid>
                       <Grid Width="350" Margin="0,0,9,4" ColumnDefinitions="140,*" ColumnSpacing="6" MinHeight="27">
                         <TextBlock VerticalAlignment="Center" Text="{Binding FitTitle}" TextTrimming="CharacterEllipsis">
@@ -599,28 +599,28 @@
             <Border Grid.Row="0" Classes="template-toolbar" Padding="9,8" Background="{DynamicResource KpSurfaceBrush}" BorderBrush="{DynamicResource KpBorderBrush}" BorderThickness="1" CornerRadius="4">
               <StackPanel Spacing="6">
                 <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="8">
-                  <TextBlock VerticalAlignment="Center" Classes="section-heading" Text="Шаблон"/>
+                  <TextBlock VerticalAlignment="Center" Classes="section-heading" Text="{Binding UiTemplate}"/>
                   <ComboBox Grid.Column="1" ItemsSource="{Binding TemplateNames}" SelectedItem="{Binding SelectedTemplate,Mode=TwoWay}" ToolTip.Tip="Выберите шаблон и нажмите «Загрузить»"/>
                   <Button Grid.Column="2"  Click="OnLoadCardTemplate" ToolTip.Tip="Загрузить выбранный шаблон целиком: обе стороны">
                     <StackPanel Orientation="Horizontal" Spacing="5" VerticalAlignment="Center">
                       <fi:FluentIcon Icon="FolderOpen" IconVariant="Regular" IconSize="Size20" Width="14" Height="14" FontSize="14" Foreground="{DynamicResource KpTextBrush}"/>
-                      <TextBlock Text="Загрузить" VerticalAlignment="Center"/>
+                      <TextBlock Text="{Binding UiLoadTemplate}" VerticalAlignment="Center"/>
                     </StackPanel>
                   </Button>
                 </Grid>
                 <TextBlock Text="{Binding ActiveTemplateNotice}" Classes="hint" TextWrapping="Wrap"/>
                 <WrapPanel Orientation="Horizontal">
-                  <TextBox Width="174" Margin="0,0,7,4" PlaceholderText="Название своего шаблона" Text="{Binding TemplateName,Mode=TwoWay,UpdateSourceTrigger=PropertyChanged}"/>
+                  <TextBox Width="174" Margin="0,0,7,4" PlaceholderText="{Binding UiTemplateNamePlaceholder}" Text="{Binding TemplateName,Mode=TwoWay,UpdateSourceTrigger=PropertyChanged}"/>
                   <Button  Click="OnSaveCardTemplate" Margin="0,0,7,4" ToolTip.Tip="Создать независимую копию шаблона с оформлением обеих сторон">
                     <StackPanel Orientation="Horizontal" Spacing="5" VerticalAlignment="Center">
                       <fi:FluentIcon Icon="DocumentCopy" IconVariant="Regular" IconSize="Size20" Width="14" Height="14" FontSize="14" Foreground="{DynamicResource KpTextBrush}"/>
-                      <TextBlock Text="Создать мой шаблон" VerticalAlignment="Center"/>
+                      <TextBlock Text="{Binding UiCreateTemplate}" VerticalAlignment="Center"/>
                     </StackPanel>
                   </Button>
                   <Button  Click="OnSaveAppearance" Margin="0,0,0,4" IsEnabled="{Binding CanSaveTemplateChanges}" ToolTip.Tip="Сохранить текущие настройки в свой шаблон">
                     <StackPanel Orientation="Horizontal" Spacing="5" VerticalAlignment="Center">
                       <fi:FluentIcon Icon="Save" IconVariant="Regular" IconSize="Size20" Width="14" Height="14" FontSize="14" Foreground="{DynamicResource KpTextBrush}"/>
-                      <TextBlock Text="Сохранить изменения" VerticalAlignment="Center"/>
+                      <TextBlock Text="{Binding UiSaveChanges}" VerticalAlignment="Center"/>
                     </StackPanel>
                   </Button>
                 </WrapPanel>
@@ -697,28 +697,28 @@
             <Border Grid.Row="0" Classes="template-toolbar" Padding="9,8" Background="{DynamicResource KpSurfaceBrush}" BorderBrush="{DynamicResource KpBorderBrush}" BorderThickness="1" CornerRadius="4">
               <StackPanel Spacing="6">
                 <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="8">
-                  <TextBlock VerticalAlignment="Center" Classes="section-heading" Text="Шаблон"/>
+                  <TextBlock VerticalAlignment="Center" Classes="section-heading" Text="{Binding UiTemplate}"/>
                   <ComboBox Grid.Column="1" ItemsSource="{Binding TemplateNames}" SelectedItem="{Binding SelectedTemplate,Mode=TwoWay}" ToolTip.Tip="Выберите шаблон и нажмите «Загрузить»"/>
                   <Button Grid.Column="2"  Click="OnLoadCardTemplate" ToolTip.Tip="Загрузить выбранный шаблон целиком: обе стороны">
                     <StackPanel Orientation="Horizontal" Spacing="5" VerticalAlignment="Center">
                       <fi:FluentIcon Icon="FolderOpen" IconVariant="Regular" IconSize="Size20" Width="14" Height="14" FontSize="14" Foreground="{DynamicResource KpTextBrush}"/>
-                      <TextBlock Text="Загрузить" VerticalAlignment="Center"/>
+                      <TextBlock Text="{Binding UiLoadTemplate}" VerticalAlignment="Center"/>
                     </StackPanel>
                   </Button>
                 </Grid>
                 <TextBlock Text="{Binding ActiveTemplateNotice}" Classes="hint" TextWrapping="Wrap"/>
                 <WrapPanel Orientation="Horizontal">
-                  <TextBox Width="174" Margin="0,0,7,4" PlaceholderText="Название своего шаблона" Text="{Binding TemplateName,Mode=TwoWay,UpdateSourceTrigger=PropertyChanged}"/>
+                  <TextBox Width="174" Margin="0,0,7,4" PlaceholderText="{Binding UiTemplateNamePlaceholder}" Text="{Binding TemplateName,Mode=TwoWay,UpdateSourceTrigger=PropertyChanged}"/>
                   <Button  Click="OnSaveCardTemplate" Margin="0,0,7,4" ToolTip.Tip="Создать независимую копию шаблона с оформлением обеих сторон">
                     <StackPanel Orientation="Horizontal" Spacing="5" VerticalAlignment="Center">
                       <fi:FluentIcon Icon="DocumentCopy" IconVariant="Regular" IconSize="Size20" Width="14" Height="14" FontSize="14" Foreground="{DynamicResource KpTextBrush}"/>
-                      <TextBlock Text="Создать мой шаблон" VerticalAlignment="Center"/>
+                      <TextBlock Text="{Binding UiCreateTemplate}" VerticalAlignment="Center"/>
                     </StackPanel>
                   </Button>
                   <Button  Click="OnSaveAppearance" Margin="0,0,0,4" IsEnabled="{Binding CanSaveTemplateChanges}" ToolTip.Tip="Сохранить текущие настройки в свой шаблон">
                     <StackPanel Orientation="Horizontal" Spacing="5" VerticalAlignment="Center">
                       <fi:FluentIcon Icon="Save" IconVariant="Regular" IconSize="Size20" Width="14" Height="14" FontSize="14" Foreground="{DynamicResource KpTextBrush}"/>
-                      <TextBlock Text="Сохранить изменения" VerticalAlignment="Center"/>
+                      <TextBlock Text="{Binding UiSaveChanges}" VerticalAlignment="Center"/>
                     </StackPanel>
                   </Button>
                 </WrapPanel>
@@ -738,14 +738,14 @@
             <Border Grid.Row="2" Padding="9,7" CornerRadius="4" BorderBrush="{DynamicResource KpBorderBrush}" BorderThickness="1" Background="{DynamicResource KpSurfaceBrush}">
               <StackPanel Spacing="7">
                 <Grid ColumnDefinitions="Auto,*,Auto,Auto" ColumnSpacing="9">
-                  <TextBlock Grid.Column="0" Text="Пустой оборот" Classes="section-heading" VerticalAlignment="Center"/>
+                  <TextBlock Grid.Column="0" Text="{Binding UiEmptyReverse}" Classes="section-heading" VerticalAlignment="Center"/>
                   <ComboBox Grid.Column="1" MinWidth="110" MaxWidth="215" HorizontalAlignment="Left" ItemsSource="{Binding EmptyBackFillField.Choices}" SelectedItem="{Binding EmptyBackFillField.SelectedChoice,Mode=TwoWay}" IsEnabled="{Binding EmptyBackFillField.IsEditable}" ToolTip.Tip="Оформление / пустой / другие режимы, которые доступны в шаблоне">
                     <ComboBox.ItemTemplate>
                       <DataTemplate x:DataType="svc:DesignChoice"><TextBlock Text="{Binding Label}"/></DataTemplate>
                     </ComboBox.ItemTemplate>
                   </ComboBox>
-                  <CheckBox Grid.Column="2" Content="Шапка" VerticalAlignment="Center" IsChecked="{Binding EmptyBackHeaderField.Checked,Mode=TwoWay}" IsEnabled="{Binding EmptyBackHeaderField.IsEditable}" ToolTip.Tip="Показывать шапку на пустом обороте"/>
-                  <CheckBox Grid.Column="3" Content="Подвал" VerticalAlignment="Center" IsChecked="{Binding EmptyBackFooterField.Checked,Mode=TwoWay}" IsEnabled="{Binding EmptyBackFooterField.IsEditable}" ToolTip.Tip="Показывать подвал на пустом обороте"/>
+                  <CheckBox Grid.Column="2" Content="{Binding UiShowHeader}" VerticalAlignment="Center" IsChecked="{Binding EmptyBackHeaderField.Checked,Mode=TwoWay}" IsEnabled="{Binding EmptyBackHeaderField.IsEditable}" ToolTip.Tip="Показывать шапку на пустом обороте"/>
+                  <CheckBox Grid.Column="3" Content="{Binding UiShowFooter}" VerticalAlignment="Center" IsChecked="{Binding EmptyBackFooterField.Checked,Mode=TwoWay}" IsEnabled="{Binding EmptyBackFooterField.IsEditable}" ToolTip.Tip="Показывать подвал на пустом обороте"/>
                 </Grid>
               </StackPanel>
             </Border>
@@ -816,7 +816,7 @@
       <!-- A single movable, icon-first toolbar; preview geometry is independent of toolbar docking. -->
       <Grid Grid.Column="2" RowDefinitions="Auto,Auto,*" RowSpacing="4" Margin="9,0,0,0" MinWidth="420" MinHeight="0">
         <Grid Grid.Row="0" ColumnDefinitions="Auto,*,Auto,Auto,Auto" ColumnSpacing="7" MinHeight="24">
-          <TextBlock Classes="section-heading" Text="Предпросмотр" VerticalAlignment="Center"/>
+          <TextBlock Classes="section-heading" Text="{Binding UiPreview}" VerticalAlignment="Center"/>
           <TextBlock Grid.Column="2" Text="{Binding PreviewCardCount}" VerticalAlignment="Center"
                      ToolTip.Tip="Номер текущей карточки или листа и общее количество"/>
           <TextBlock Grid.Column="3" Text="{Binding PreviewFaceLabel}" FontSize="11" VerticalAlignment="Center"
@@ -858,38 +858,38 @@
                     ToolTip.Tip="Вернуть масштаб 100%, сохранив точку просмотра (Ctrl+1)"/>
             <Button Classes="preview-tool" ToolTip.Tip="Настройки листа, анимации, ч/б и масштаба">
               <Button.Flyout>
-                <Flyout>
+                <Flyout Opened="OnPreviewSettingsFlyoutOpened">
                   <Border Classes="preview-settings-flyout" Background="{DynamicResource KpSurfaceBrush}"
                           BorderBrush="{DynamicResource KpBorderBrush}" BorderThickness="1"
                           CornerRadius="5" Padding="11">
                     <StackPanel Spacing="7" MinWidth="268">
-                      <TextBlock Text="Предпросмотр и лист" Classes="section-heading"/>
-                      <CheckBox Content="Показывать полный лист" IsChecked="{Binding PreviewShowSheet,Mode=TwoWay}"/>
+                      <TextBlock Text="{Binding UiPreviewAndSheet}" Classes="section-heading"/>
+                      <CheckBox Content="{Binding UiShowFullSheet}" IsChecked="{Binding PreviewShowSheet,Mode=TwoWay}"/>
                       <Grid ColumnDefinitions="Auto,*" ColumnSpacing="10">
-                        <TextBlock VerticalAlignment="Center" Text="Бумага"/>
+                        <TextBlock VerticalAlignment="Center" Text="{Binding Paper}"/>
                         <ComboBox Grid.Column="1" ItemsSource="{Binding PaperFormats}" SelectedItem="{Binding SelectedPaperFormat,Mode=TwoWay}"/>
                       </Grid>
-                      <CheckBox Content="Альбомная ориентация" IsChecked="{Binding PrintLandscape,Mode=TwoWay}"/>
-                      <CheckBox Content="Переворот по короткому краю" IsChecked="{Binding PrintShortEdgeFlip,Mode=TwoWay}"/>
+                      <CheckBox Content="{Binding UiLandscape}" IsChecked="{Binding PrintLandscape,Mode=TwoWay}"/>
+                      <CheckBox Content="{Binding UiShortEdgeFlip}" IsChecked="{Binding PrintShortEdgeFlip,Mode=TwoWay}"/>
                       <Grid ColumnDefinitions="Auto,*" ColumnSpacing="10">
-                        <TextBlock Text="Первый слот" VerticalAlignment="Center"/>
+                        <TextBlock Text="{Binding UiFirstSlot}" VerticalAlignment="Center"/>
                         <TextBox Grid.Column="1" Width="52" HorizontalAlignment="Left" Text="{Binding PrintStartSlotText,Mode=TwoWay}"
                                  ToolTip.Tip="Номер первого занятого кармашка на первом листе"/>
                       </Grid>
                       <Border Height="1" Background="{DynamicResource KpBorderBrush}"/>
                       <Grid ColumnDefinitions="Auto,*" ColumnSpacing="10">
-                        <TextBlock Text="Шаг колеса" VerticalAlignment="Center"/>
+                        <TextBlock Text="{Binding UiWheelStep}" VerticalAlignment="Center"/>
                         <ComboBox Grid.Column="1" ItemsSource="{Binding PreviewWheelStepOptions}"
                                   SelectedItem="{Binding SelectedPreviewWheelStep,Mode=TwoWay}" Width="76" HorizontalAlignment="Left"
                                   ToolTip.Tip="Изменение масштаба за шаг колеса мыши"/>
                       </Grid>
-                      <CheckBox Content="Чёрно-белый предпросмотр" IsChecked="{Binding PreviewMonochrome,Mode=TwoWay}"
+                      <CheckBox Content="{Binding UiMonochromePreview}" IsChecked="{Binding PreviewMonochrome,Mode=TwoWay}"
                                 ToolTip.Tip="Чёрно-белое отображение без изменений PDF и печатной геометрии"/>
                       <Border Height="1" Background="{DynamicResource KpBorderBrush}"/>
-                      <TextBlock Text="Анимация предпросмотра" Classes="section-heading"/>
-                      <CheckBox Content="Включить переходы" IsChecked="{Binding PreviewAnimationEnabled,Mode=TwoWay}"/>
+                      <TextBlock Text="{Binding UiPreviewAnimation}" Classes="section-heading"/>
+                      <CheckBox Content="{Binding UiTransitions}" IsChecked="{Binding PreviewAnimationEnabled,Mode=TwoWay}"/>
                       <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="8" IsEnabled="{Binding PreviewAnimationEnabled}">
-                        <TextBlock Text="Длительность" VerticalAlignment="Center"/>
+                        <TextBlock Text="{Binding UiDuration}" VerticalAlignment="Center"/>
                         <Slider Grid.Column="1" Minimum="50" Maximum="500" SmallChange="10" LargeChange="50"
                                 Value="{Binding PreviewAnimationDurationMs,Mode=TwoWay}" Width="146"
                                 ToolTip.Tip="Плавная регулировка 50–500 мс (шаг 10 мс)"/>
@@ -897,9 +897,9 @@
                                    TextAlignment="Right" VerticalAlignment="Center"/>
                       </Grid>
                       <StackPanel Spacing="3" IsEnabled="{Binding PreviewAnimationEnabled}">
-                        <CheckBox Content="После длительного пересчёта" IsChecked="{Binding PreviewAnimateAfterDelay,Mode=TwoWay}"/>
-                        <CheckBox Content="При перелистывании карточек и листов" IsChecked="{Binding PreviewAnimateNavigation,Mode=TwoWay}"/>
-                        <CheckBox Content="При смене лицевой / оборотной стороны" IsChecked="{Binding PreviewAnimateSideChange,Mode=TwoWay}"/>
+                        <CheckBox Content="{Binding UiAfterRebuild}" IsChecked="{Binding PreviewAnimateAfterDelay,Mode=TwoWay}"/>
+                        <CheckBox Content="{Binding UiNavigationAnimation}" IsChecked="{Binding PreviewAnimateNavigation,Mode=TwoWay}"/>
+                        <CheckBox Content="{Binding UiSideChangeAnimation}" IsChecked="{Binding PreviewAnimateSideChange,Mode=TwoWay}"/>
                       </StackPanel>
                     </StackPanel>
                   </Border>
@@ -909,7 +909,7 @@
             </Button>
             <Button Classes="preview-tool" IsEnabled="{Binding PrintReady}" ToolTip.Tip="Экспорт выбранных карточек: векторный PDF или растр 600 DPI">
               <Button.Flyout>
-                <MenuFlyout>
+                <MenuFlyout Opened="OnExportMenuOpened">
                   <MenuItem Header="Векторный PDF…" Click="OnExportPdf" IsEnabled="{Binding PrintReady}"/>
                   <MenuItem Header="Растр 600 DPI (ZIP с PNG)…" Click="OnExportRaster" IsEnabled="{Binding PrintReady}"/>
                 </MenuFlyout>

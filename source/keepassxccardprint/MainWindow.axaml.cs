@@ -69,6 +69,8 @@ public partial class MainWindow : Window
         InitializeComponent();
         Title = "KeePassXC Card Print  " + AppBuildInfo.Version;
         DataContext = _vm;
+        UiText.Language = _settings.Language;
+        UiText.Enable(this, translateText: false);
         _aboutRefreshTimer.Tick += (_, _) => _vm.About.RefreshDiagnostics(RenderScaling);
         _vm.About.OverlayChangeRequested += SetAvaloniaDiagnostics;
         _vm.PropertyChanged += OnShellPropertyChanged;
@@ -216,7 +218,40 @@ public partial class MainWindow : Window
 
     private void OnShellPropertyChanged(object? sender, PropertyChangedEventArgs e)
     {
-        if (e.PropertyName == nameof(ShellViewModel.ActiveTab)) UpdateAboutRefresh();
+        if (e.PropertyName == nameof(ShellViewModel.ActiveTab))
+        {
+            UpdateAboutRefresh();
+            Dispatcher.UIThread.Post(() => UiText.Apply(this, translateText: false), DispatcherPriority.Loaded);
+        }
+        if (e.PropertyName == nameof(ShellViewModel.SelectedLanguage))
+        {
+            UiText.Language = _settings.Language;
+            UiText.Apply(this, translateText: false);
+        }
+    }
+
+    // Popups live in independent visual roots. They are localized when opened,
+    // rather than altering bound record values or user-controlled mapping labels.
+    private void OnRecordContextMenuOpened(object? sender, RoutedEventArgs e)
+    {
+        if (sender is not ContextMenu menu) return;
+        foreach (var item in menu.Items.OfType<MenuItem>())
+            if (item.Header is string label)
+                item.Header = UiText.Tr(label, _settings.Language);
+    }
+
+    private void OnExportMenuOpened(object? sender, EventArgs e)
+    {
+        if (sender is not MenuFlyout flyout) return;
+        foreach (var item in flyout.Items.OfType<MenuItem>())
+            if (item.Header is string label)
+                item.Header = UiText.Tr(label, _settings.Language);
+    }
+
+    private void OnPreviewSettingsFlyoutOpened(object? sender, EventArgs e)
+    {
+        if (sender is Flyout { Content: Control content })
+            UiText.TranslateTooltips(content, _settings.Language);
     }
 
     private void UpdateAboutRefresh()
@@ -346,6 +381,9 @@ public partial class MainWindow : Window
             }
             _vm.PreferencesChanged += PreferencesChanged;
             DataContext = _vm;
+            _vm.PropertyChanged += OnShellPropertyChanged;
+            UiText.Language = _settings.Language;
+            UiText.Apply(this, translateText: false);
             ApplyPreviewToolbarDock();
             SetTheme();
             RestorePanelRatio();
@@ -606,7 +644,7 @@ public partial class MainWindow : Window
     private async void OnBrowseDatabase(object? sender, RoutedEventArgs e)
     {
         var files = await StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
-        { Title = "Открыть базу KeePassXC", AllowMultiple = false,
+        { Title = UiText.Tr("Открыть базу KeePassXC"), AllowMultiple = false,
           FileTypeFilter = [new FilePickerFileType("KeePass KDBX") { Patterns = ["*.kdbx"] }] });
         if (files.Count != 0 && files[0].TryGetLocalPath() is string path) _vm.DatabasePath = path;
     }
@@ -614,12 +652,12 @@ public partial class MainWindow : Window
     private async void OnBrowseKeyFile(object? sender, RoutedEventArgs e)
     {
         var files = await StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
-        { Title = "Выбрать файл-ключ", AllowMultiple = false,
+        { Title = UiText.Tr("Выбрать файл-ключ"), AllowMultiple = false,
           FileTypeFilter =
           [
               new FilePickerFileType("KeePassXC (*.keyx)") { Patterns = ["*.keyx"] },
-              new FilePickerFileType("Другие файлы ключей") { Patterns = ["*.key", "*.xml", "*.bin"] },
-              new FilePickerFileType("Все файлы") { Patterns = ["*"] }
+              new FilePickerFileType(UiText.Tr("Другие файлы ключей")) { Patterns = ["*.key", "*.xml", "*.bin"] },
+              new FilePickerFileType(UiText.Tr("Все файлы")) { Patterns = ["*"] }
           ] });
         if (files.Count != 0 && files[0].TryGetLocalPath() is string path) _vm.KeyFilePath = path;
     }
@@ -1053,7 +1091,7 @@ public partial class MainWindow : Window
         string extension=raster?"zip":"pdf";
         var picker=new FilePickerSaveOptions
         {
-            Title=raster?"Экспорт листов 600 DPI":"Экспорт векторного документа PDF",
+            Title=UiText.Tr(raster?"Экспорт листов 600 DPI":"Экспорт векторного документа PDF"),
             SuggestedFileName="KeePassXCCardPrint-Print."+extension,
             DefaultExtension=extension,
             FileTypeChoices=[new FilePickerFileType(raster?"PNG pages in ZIP":"Vector PDF")

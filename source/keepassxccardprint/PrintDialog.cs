@@ -31,11 +31,11 @@ public sealed class PrintDialog : Window
     private bool _printModeInitialized;
     private sealed record PrintModeOption(string Code, string Caption)
     {
-        public override string ToString() => Caption;
+        public override string ToString() => UiText.Tr(Caption);
     }
     private sealed record FeedModeOption(string Code, string Caption)
     {
-        public override string ToString() => Caption;
+        public override string ToString() => UiText.Tr(Caption);
     }
     private string SelectedPrintMethod => (_method.SelectedItem as PrintModeOption)?.Code ?? "auto";
     private string SelectedFeedMode => (_duplex.SelectedItem as FeedModeOption)?.Code ?? "manual";
@@ -91,6 +91,7 @@ public sealed class PrintDialog : Window
         DockPanel.SetDock(footer,Dock.Bottom);
         root.Children.Add(footer);root.Children.Add(scroll);
         Content=root;
+        UiText.Enable(this, translateText: true);
 
         // Printer section
         var printers=_printing.Printers();
@@ -128,7 +129,7 @@ public sealed class PrintDialog : Window
                 $"{_sheets.SelectMany(s=>s.Slots).Select(s=>s.CardIndex).Distinct().Count()} карточек"
         };
         paperInfo.Classes.Add("hint");
-        _sides.ItemsSource=new[]{"Лицевые и оборотные","Только лицевые","Только оборотные"};
+        _sides.ItemsSource=new[]{"Лицевые и оборотные","Только лицевые","Только оборотные"}.Select(x=>UiText.Tr(x)).ToArray();
         _sides.SelectedIndex=_appearance.DuplexEnabled?0:1;
         _sides.MinWidth=240;
         // Feed method is independent of what sides are included. Even with a
@@ -147,7 +148,7 @@ public sealed class PrintDialog : Window
         // Calibration section
         var calibration=new Grid{ColumnDefinitions=new ColumnDefinitions("Auto,85,Auto,85"),
             RowDefinitions=new RowDefinitions("Auto,Auto"),ColumnSpacing=8,RowSpacing=6};
-        string[] labels={"Лицо X","Лицо Y","Оборот X","Оборот Y"};
+        string[] labels=new[]{"Лицо X","Лицо Y","Оборот X","Оборот Y"}.Select(x=>UiText.Tr(x)).ToArray();
         for(int i=0;i<4;i++)
         {
             var label=new TextBlock{Text=labels[i],VerticalAlignment=VerticalAlignment.Center};
@@ -254,7 +255,9 @@ public sealed class PrintDialog : Window
             }
             catch { /* Unknown hardware capability must not become "supported". */ }
         }
-        _printerInfo.Text=printerSelected ? quality+"\n"+duplex : "Принтер не выбран.";
+        _printerInfo.Text=printerSelected
+            ? UiText.Tr(quality,_settings.Language)+"\n"+UiText.Tr(duplex,_settings.Language)
+            : UiText.Tr("Принтер не выбран.",_settings.Language);
 
         var feedModes=new List<FeedModeOption>
         {
@@ -537,7 +540,7 @@ internal static class PrintDialogButtons
             Children=
             {
                 ActionIconVectors.Create(string.IsNullOrEmpty(icon)?"page":icon),
-                new TextBlock{Text=caption,VerticalAlignment=VerticalAlignment.Center}
+                new TextBlock{Text=UiText.Tr(caption),VerticalAlignment=VerticalAlignment.Center}
             }
         },
         Height = ActionHeight,
@@ -561,7 +564,7 @@ internal static class PrintQuestion
 
     public static async Task<HashSet<int>?> ConfirmAsync(Window owner,IReadOnlyList<CardPrintSheet> pages)
     {
-        var win=new Window{Title="Подтверждение печати",Width=480,
+        var win=new Window{Title=UiText.Tr("Подтверждение печати"),Width=480,
             MinWidth=400,MinHeight=170,MaxHeight=530,SizeToContent=SizeToContent.Height,
             CanResize=false,ShowInTaskbar=false,WindowDecorations=WindowDecorations.Full,
             WindowStartupLocation=WindowStartupLocation.CenterOwner};
@@ -578,11 +581,11 @@ internal static class PrintQuestion
         var cards=pages.SelectMany(p=>p.Slots).GroupBy(s=>s.CardIndex).Select(g=>g.First()).ToArray();
         var choices=new List<(int Index,CheckBox Box)>();
         var col=new StackPanel{Spacing=8};
-        col.Children.Add(new TextBlock{Text="Какие физические карточки НЕ получились? Отметьте брак.",
+        col.Children.Add(new TextBlock{Text=UiText.Tr("Какие физические карточки НЕ получились? Отметьте брак."),
             TextWrapping=Avalonia.Media.TextWrapping.Wrap});
         foreach(var slot in cards)
         {
-            var box=new CheckBox{Content=$"Позиция {slot.CardIndex+1} · {slot.Card.Front.Record.Title}",
+            var box=new CheckBox{Content=$"{UiText.Tr("Позиция")} {slot.CardIndex+1} · {slot.Card.Front.Record.Title}",
                 IsChecked=false};
             col.Children.Add(box);choices.Add((slot.CardIndex,box));
         }
@@ -591,6 +594,7 @@ internal static class PrintQuestion
         root.Children.Add(new ScrollViewer{Content=listCard,MaxHeight=410,
             VerticalScrollBarVisibility=Avalonia.Controls.Primitives.ScrollBarVisibility.Auto});
         win.Content=root;
+        UiText.Enable(win, translateText: true);
         all.Click+=(_,_)=>win.Close(new HashSet<int>());
         partial.Click+=(_,_)=>win.Close(choices.Where(c=>c.Box.IsChecked==true).Select(c=>c.Index).ToHashSet());
         later.Click+=(_,_)=>win.Close((HashSet<int>?)null);

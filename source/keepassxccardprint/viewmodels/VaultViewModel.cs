@@ -165,7 +165,7 @@ public sealed partial class ShellViewModel
                          VaultStatus.StartsWith("KDBX ", StringComparison.Ordinal)));
 
     public bool ShowOperationalStatus => !HasLoadedStatus;
-    public string StatusLead => HasLoadedStatus ? _snapshot!.DisplayName : BuildOperationalStatus();
+    public string StatusLead => HasLoadedStatus ? _snapshot!.DisplayName : UiText.Tr(BuildOperationalStatus(),_settings.Language);
     public string StatusTail => HasLoadedStatus ? " · " + BuildVaultDetails() : "";
 
     private string BuildVaultDetails()

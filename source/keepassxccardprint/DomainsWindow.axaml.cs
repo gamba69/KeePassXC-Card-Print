@@ -20,6 +20,7 @@ public partial class DomainsWindow : Window
     {
         AvaloniaXamlLoader.Load(this);
         PrintWindowIcons.Attach(this);
+        UiText.Enable(this, translateText: true);
         _list = this.FindControl<ListBox>("PrefixList")!;
         _input = this.FindControl<TextBox>("PrefixInput")!;
         _status = this.FindControl<TextBlock>("DomainStatus")!;
