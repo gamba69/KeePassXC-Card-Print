@@ -166,6 +166,9 @@ public sealed partial class ShellViewModel : INotifyPropertyChanged
         nameof(PasswordLayoutHelp),
         nameof(Open),
         nameof(Demo),
+        nameof(DemoHelp),
+        nameof(DemoDatabasePlaceholder),
+        nameof(DemoKeyFilePlaceholder),
         nameof(Clear),
         nameof(RememberPathsCaption),
         nameof(RememberSelectionCaption),
@@ -283,6 +286,9 @@ public sealed partial class ShellViewModel : INotifyPropertyChanged
     }
     public string Open => Localizer.Text(_settings.Language, "Open");
     public string Demo => Localizer.Text(_settings.Language, "Demo");
+    public string DemoHelp => Localizer.Text(_settings.Language, "DemoHelp");
+    public string DemoDatabasePlaceholder => Localizer.Text(_settings.Language, "DemoDatabasePlaceholder");
+    public string DemoKeyFilePlaceholder => Localizer.Text(_settings.Language, "DemoKeyFilePlaceholder");
     public string Clear => Localizer.Text(_settings.Language, "Clear");
     public string RememberPathsCaption => Localizer.Text(_settings.Language, "RememberPaths");
     public string RememberSelectionCaption => Localizer.Text(_settings.Language, "RememberSelection");

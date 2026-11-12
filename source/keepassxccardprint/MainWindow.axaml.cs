@@ -661,6 +661,17 @@ public partial class MainWindow : Window
         _refreshAwaitingPassword = false;
         await _vm.OpenVaultAsync();
     }
+    private void OnLoadDemo(object? sender, RoutedEventArgs e)
+    {
+        if (_vm.Busy) return;
+        _refreshAwaitingPassword = false;
+        _passwordLayout.Leave();
+        _vaultGeneration++;
+        _printExportCancellation?.Cancel();
+        _vm.SaveVaultPreferences();
+        _vm.SaveCardAppearance();
+        _vm.LoadDemo();
+    }
     private void OnCloseDatabase(object? sender, RoutedEventArgs e)
     {
         _refreshAwaitingPassword = false;

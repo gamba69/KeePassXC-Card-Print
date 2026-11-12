@@ -38,16 +38,20 @@ internal partial class PrintTrackingJsonContext : JsonSerializerContext { }
 public sealed class PrintTrackingLedger
 {
     private readonly string _path;
+    private readonly bool _inMemory;
     private readonly PrintTrackingData _data;
     private readonly Dictionary<Guid,PrintEntryState> _entries;
     public IReadOnlyList<PrintJobHistory> History => _data.History;
 
-    public PrintTrackingLedger(Guid databaseRoot)
+    public PrintTrackingLedger(Guid databaseRoot, bool inMemory = false)
     {
         if(databaseRoot==Guid.Empty)throw new ArgumentException("Missing KDBX root ID.");
+        _inMemory = inMemory;
+        // Demo mode has no file path at all. In particular, it must not load
+        // or overwrite a real database's print history.
         var name=Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(databaseRoot.ToString("D")))).ToLowerInvariant();
-        _path=Path.Combine(SettingsLocation.DirectoryPath,"print-tracking",name+".json");
-        if(File.Exists(_path))
+        _path=inMemory ? "" : Path.Combine(SettingsLocation.DirectoryPath,"print-tracking",name+".json");
+        if(!inMemory && File.Exists(_path))
         {
             if(new FileInfo(_path).Length>2_000_000)throw new InvalidDataException("Слишком большой журнал печати.");
             _data=JsonSerializer.Deserialize(File.ReadAllBytes(_path),PrintTrackingJsonContext.Default.PrintTrackingData)
@@ -126,6 +130,7 @@ public sealed class PrintTrackingLedger
     }
     private void Save()
     {
+        if (_inMemory) return;
         Directory.CreateDirectory(Path.GetDirectoryName(_path)!);
         byte[] json=JsonSerializer.SerializeToUtf8Bytes(_data,PrintTrackingJsonContext.Default.PrintTrackingData);
         string temp=_path+".tmp";

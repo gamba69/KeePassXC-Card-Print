@@ -22,6 +22,9 @@ public sealed partial class ShellViewModel
     private RecordQuickFilter _recordQuickFilter;
     // Remember only whether the successful unlock used a password, NEVER the password itself.
     private bool _lastVaultUsedPassword;
+    private bool _isDemoMode;
+    public bool IsDemoMode => _isDemoMode;
+    public bool IsRealMode => !_isDemoMode;
     private string _vaultStatus = "База не открыта";
     private bool _busy;
     private bool _bulkSelection;
@@ -78,7 +81,8 @@ public sealed partial class ShellViewModel
     public bool FilterSelectedActive => _recordQuickFilter == RecordQuickFilter.Selected;
     public bool FilterRemainingActive => _recordQuickFilter == RecordQuickFilter.Remaining;
     public bool FilterReprintActive => _recordQuickFilter == RecordQuickFilter.Reprint;
-    public bool CanRefreshRecords => !_busy && _snapshot is not null;
+    public bool HasRecords => !_busy && _snapshot is not null;
+    public bool CanRefreshRecords => HasRecords && !_isDemoMode;
     public bool RequiresPasswordForRefresh => _lastVaultUsedPassword;
     public string FilterSelectedTip => Localizer.Text(_settings.Language, "QuickFilterSelected");
     public string FilterRemainingTip => Localizer.Text(_settings.Language, "QuickFilterRemaining");
@@ -145,7 +149,7 @@ public sealed partial class ShellViewModel
         ScheduleCardPreview();
     }
     public string VaultStatus { get => _vaultStatus; set { _vaultStatus = value; Changed(); Changed(nameof(Status)); } }
-    public bool Busy { get => _busy; set { _busy = value; Changed(); Changed(nameof(CanOpen)); Changed(nameof(CanRefreshRecords)); Changed(nameof(Status)); Changed(nameof(PrintReady)); } }
+    public bool Busy { get => _busy; set { _busy = value; Changed(); Changed(nameof(CanOpen)); Changed(nameof(HasRecords)); Changed(nameof(CanRefreshRecords)); Changed(nameof(Status)); Changed(nameof(PrintReady)); } }
     public bool CanOpen => !_busy;
     public string SelectedCountText => Localizer.ResolveLanguage(_settings.Language) switch
     {
@@ -157,8 +161,8 @@ public sealed partial class ShellViewModel
     // A separate, trimmable database title keeps the operational counters
     // visible in a narrow window. Both pieces use the same status source.
     public bool HasLoadedStatus => !Busy && _snapshot is not null &&
-        !VaultStatus.StartsWith('[') &&
-        VaultStatus.StartsWith("KDBX ", StringComparison.Ordinal);
+        (_isDemoMode || (!VaultStatus.StartsWith('[') &&
+                         VaultStatus.StartsWith("KDBX ", StringComparison.Ordinal)));
 
     public bool ShowOperationalStatus => !HasLoadedStatus;
     public string StatusLead => HasLoadedStatus ? _snapshot!.DisplayName : BuildOperationalStatus();
@@ -167,7 +171,7 @@ public sealed partial class ShellViewModel
     private string BuildVaultDetails()
     {
         if (_snapshot is null) return "";
-        var security = $"KDBX {_snapshot.FormatVersion} / {_snapshot.CipherName} / {_snapshot.KdfName}";
+        var security = _isDemoMode ? "DEMO" : $"KDBX {_snapshot.FormatVersion} / {_snapshot.CipherName} / {_snapshot.KdfName}";
         var visible = VaultRecords.Count(r => r.Visible);
         return Localizer.ResolveLanguage(_settings.Language) switch
         {
@@ -180,6 +184,8 @@ public sealed partial class ShellViewModel
     private string BuildOperationalStatus()
     {
         if (Busy) return VaultStatus;
+        if (_isDemoMode && _snapshot is not null)
+            return _snapshot.DisplayName + " · " + BuildVaultDetails();
         if (VaultStatus.StartsWith('[') ||
             (VaultStatus != "База закрыта" && VaultStatus != "База не открыта" &&
              !VaultStatus.StartsWith("KDBX ", StringComparison.Ordinal)))
@@ -277,6 +283,31 @@ public sealed partial class ShellViewModel
         }
     }
 
+    public void LoadDemo()
+    {
+        if (Busy) return;
+        // No KDBX reader or credential source is involved. The real database
+        // path/key-file remain intact for the next ordinary unlock.
+        ClearVault();
+        _snapshot = DemoVaultFactory.Create();
+        _isDemoMode = true;
+        Changed(nameof(IsDemoMode));
+        Changed(nameof(IsRealMode));
+        Changed(nameof(HasRecords));
+        Changed(nameof(CanRefreshRecords));
+        foreach (var record in _snapshot.Records)
+        {
+            record.PropertyChanged += RecordChanged;
+            VaultRecords.Add(record);
+        }
+        LoadPrintLedger(); // In-memory ledger; never reads or writes a real journal.
+        ApplyRecordFilters();
+        UpdateSelectedCount();
+        RebuildMapping();
+        ScheduleCardPreview();
+        VaultStatus = Localizer.Text(_settings.Language, "DemoActive");
+    }
+
     private void RecordChanged(object? sender, PropertyChangedEventArgs e)
     {
         if (e.PropertyName != nameof(VaultRecord.Selected)) return;
@@ -289,7 +320,7 @@ public sealed partial class ShellViewModel
             if (MappingScopeCurrent) RebuildMapping();
             ScheduleCardPreview();
         }
-        if (RememberSelection)
+        if (RememberSelection && !_isDemoMode)
         {
             _selectionSaveTimer.Stop();
             _selectionSaveTimer.Start();
@@ -320,7 +351,7 @@ public sealed partial class ShellViewModel
             if (MappingScopeCurrent) RebuildMapping();
             ScheduleCardPreview();
         }
-        SaveVaultPreferences();
+        if (!_isDemoMode) SaveVaultPreferences();
     }
 
     public void ClearVault()
@@ -338,6 +369,9 @@ public sealed partial class ShellViewModel
         VaultRecords.Clear();
         _printLedger=null;
         _snapshot = null;
+        _isDemoMode = false;
+        Changed(nameof(IsDemoMode));
+        Changed(nameof(IsRealMode));
         _lastVaultUsedPassword = false;
         // Reset modes upon closing/opening another database. During successful
         // refresh OpenVaultAsync restores the previous mode and search text.
@@ -345,6 +379,7 @@ public sealed partial class ShellViewModel
         _filterText = "";
         Changed(nameof(FilterText));
         NotifyRecordFilterState();
+        Changed(nameof(HasRecords));
         Changed(nameof(CanRefreshRecords));
         UpdateSelectedCount();
         RebuildMapping();
@@ -356,7 +391,8 @@ public sealed partial class ShellViewModel
     {
         try
         {
-            if (_snapshot is not null) PrivateUiState.CaptureSelection(_prefs, DatabasePath, VaultRecords.ToList());
+            if (_snapshot is not null && !_isDemoMode)
+                PrivateUiState.CaptureSelection(_prefs, DatabasePath, VaultRecords.ToList());
             PrivateUiState.Save(_prefs);
         }
         catch (IOException) { VaultStatus = "Не удалось сохранить настройки."; }

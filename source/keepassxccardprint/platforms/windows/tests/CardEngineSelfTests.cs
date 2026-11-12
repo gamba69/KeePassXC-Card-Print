@@ -332,6 +332,26 @@ internal static class CardEngineSelfTests
                 "preview P95 interpolates exact sample durations instead of nearest rank");
             Check(PreviewTelemetry.PercentileSorted(new double[] { 13 }, .95) == 13,
                 "preview P95 handles one collected sample");
+            var demo = DemoVaultFactory.Create();
+            var nextDemo = DemoVaultFactory.Create();
+            Check(demo.RootUuid != Guid.Empty && demo.RootUuid != nextDemo.RootUuid,
+                "demo uses a fresh in-memory database identity each time");
+            Check(demo.Records.Count >= 18 && demo.GroupCount >= 4 &&
+                  demo.Records.Select(r => r.Uuid).Distinct().Count() == demo.Records.Count,
+                "demo entries have unique identifiers across several groups");
+            Check(demo.Records.Any(r => r.Selected) &&
+                  demo.Records.Any(r => r.AdditionalFields.ContainsKey("Recovery Codes")) &&
+                  demo.Records.Any(r => r.AdditionalFields.ContainsKey("TOTP Secret")) &&
+                  demo.Records.Any(r => r.AdditionalFields.ContainsKey("Recovery Key")) &&
+                  demo.Records.Any(r => r.AdditionalUrls.Length > 0),
+                "demo exercises selection, recovery codes, TOTP, recovery keys and extra URLs");
+            Check(demo.Records.All(r => r.Url.Contains(".example", StringComparison.Ordinal) &&
+                  r.UserName.EndsWith("@example.com", StringComparison.Ordinal)),
+                "demo credentials use reserved example-only domains");
+            var demoLedger = new PrintTrackingLedger(demo.RootUuid, inMemory: true);
+            demoLedger.Mark(demo.Records[0].Uuid, "printed");
+            Check(demoLedger.IsFullyPrinted(demo.Records[0].Uuid),
+                "demo print tracking works without a persistent journal");
             TestPublicKdbxHeaderMetadata();
             TestXpsPathSyntax();
             TestSharedGlyphRuns();

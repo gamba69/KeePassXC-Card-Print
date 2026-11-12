@@ -12,7 +12,7 @@ public sealed partial class ShellViewModel
     {
         _printLedger=null;
         if(_snapshot is null)return;
-        _printLedger=new PrintTrackingLedger(_snapshot.RootUuid);
+        _printLedger=new PrintTrackingLedger(_snapshot.RootUuid, inMemory: _isDemoMode);
         RefreshPrintStatuses();
     }
     public void RefreshPrintStatuses()
