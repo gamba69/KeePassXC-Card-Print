@@ -57,6 +57,12 @@ internal static class UpdaterHost
                     {
                         try
                         {
+                            // The old helper launches this EXE while its own
+                            // window is still visible. Wait for that handoff,
+                            // then foreground the main window before opening
+                            // the result modal. This also works for the first
+                            // update from an unpatched 7.1.0 helper.
+                            await ActivateAfterUpdaterExitAsync(host);
                             await UpdateOperationWindow.ShowResultAsync(host,host.UpdateLanguage,result);
                             UpdateOperationResults.Consume(WindowsUpdateService.DefaultRoot,target);
                         }
@@ -92,6 +98,26 @@ internal static class UpdaterHost
         }
         await Service.CheckAsync(false);
     }
+    private static async Task ActivateAfterUpdaterExitAsync(MainWindow owner)
+    {
+        // The updater's Avalonia window is still foreground during Process.Start.
+        // Do not use persistent Topmost or change the user's normal focus policy.
+        await Task.Delay(450);
+        if (!owner.IsVisible) return;
+        bool previousTopmost = owner.Topmost;
+        try
+        {
+            owner.Topmost = true;
+            owner.Activate();
+            await Task.Delay(150);
+        }
+        finally
+        {
+            owner.Topmost = previousTopmost;
+        }
+        if (owner.IsVisible) owner.Activate();
+    }
+
     private static string Caption(MainWindow owner,string ru,string uk,string en) =>
         Localizer.ResolveLanguage(owner.UpdateLanguage) switch
         {"uk"=>uk,"en"=>en,_=>ru};

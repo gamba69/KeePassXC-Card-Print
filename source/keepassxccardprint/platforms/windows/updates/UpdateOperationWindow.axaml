@@ -1,6 +1,7 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         x:Class="KeePassXCCardPrint.Platforms.Windows.Updates.UpdateOperationWindow"
+        Title="KeePassXC Card Print"
         Width="470" MinWidth="420" Height="230" MinHeight="220"
         SizeToContent="Manual" CanResize="False" ShowInTaskbar="True"
         WindowStartupLocation="CenterScreen" WindowDecorations="Full"

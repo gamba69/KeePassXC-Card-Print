@@ -28,6 +28,9 @@ public sealed partial class UpdateOperationWindow : Window
         ActualThemeVariantChanged += (_, _) => UpdateIcon();
         Opened += (_, _) => UpdateIcon();
         OperationTitle.Text = Text(operation == "repair" ? "repair" : "update");
+        // The title-bar text must be explicit: otherwise Avalonia shows "Window".
+        // It is shared by the preparation, helper and result windows.
+        Title = "KeePassXC Card Print — " + OperationTitle.Text;
         OperationVersions.Text = fromVersion == toVersion
             ? fromVersion : fromVersion + " → " + toVersion;
         OperationButton.Content = Text("cancel");

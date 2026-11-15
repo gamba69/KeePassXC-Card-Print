@@ -3,6 +3,12 @@
 All notable changes to KeePassXC Card Print are documented **only in this file**.
 Other documentation describes the current release and must not contain a version-by-version history.
 
+## [7.1.1] - 2026-11-15
+
+### Fixed
+- Localized, branded title-bar captions for all update, repair and result windows instead of Avalonia's default "Window".
+- Foreground activation for the relaunched application after updates, repairs and rollbacks, including handoff from a 7.1.0 helper; no permanent always-on-top state.
+
 ## [7.1.0] - 2026-11-15
 
 ### Added
