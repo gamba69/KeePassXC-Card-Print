@@ -18,6 +18,7 @@ using KeePassXCCardPrint.Services;
 using KeePassXCCardPrint.Platforms;
 using KeePassXCCardPrint.Models;
 using KeePassXCCardPrint.ViewModels;
+using KeePassXCCardPrint.Platforms.Windows.Updates;
 
 namespace KeePassXCCardPrint;
 
@@ -138,6 +139,7 @@ public partial class MainWindow : Window
         // BrandArtwork.Apply is a no-op unless the nearest native frame changes.
         LayoutUpdated += (_, _) => UpdateAppIcon();
         SetTheme();
+        UpdaterHost.Attach(this);
     }
 
     // Compact, native-AOT-friendly mapping spinner. Keep the editor string model:
@@ -564,6 +566,10 @@ public partial class MainWindow : Window
 
     private bool _exitApproved;
     private bool _exitPromptOpen;
+    internal string UpdateLanguage => _settings.Language;
+    internal bool IsExportRunning => _printExportCancellation is not null;
+    internal Task<bool> ReadyForUpdateAsync() => ResolveUnsavedMappingAsync(exiting:true);
+    internal void CloseForUpdate() { _exitApproved=true; Close(); }
     private async Task<bool> ResolveUnsavedMappingAsync(bool exiting=false)
     {
         if(!_vm.MappingHasPendingChanges)return true;
@@ -607,6 +613,7 @@ public partial class MainWindow : Window
         _vm.ClearVault();
         CaptureLayout();
         Persist();
+        UpdaterHost.InstallOnExitIfReady();
         base.OnClosing(e);
     }
 

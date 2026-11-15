@@ -4,7 +4,7 @@
 
 ![KeePassXC Card Print — editor and printed-card collage](docs/images/hero-collage.png)
 
-**Version 6.2.5 · Windows x64 · .NET 10 Native AOT**
+**Version 7.0.3 · Windows x64 · .NET 10 Native AOT**
 
 KeePassXC Card Print is a portable desktop application for preparing and printing
 compact account-information cards from a KeePassXC-compatible KDBX database.
@@ -36,6 +36,9 @@ an official KeePassXC project**.
   English UI translations with light/dark/system appearance.
 - View compiled dependency versions, selected rendering details, and safe
   preview performance statistics on the **About** tab.
+- Check, download and install verified GitHub updates through **About**;
+  configure on-exit, prompted or manual installation and repair the current
+  immutable release with **Repair** or the `--reinstall` command-line switch.
 
 ## Screenshot gallery
 

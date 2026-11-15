@@ -58,7 +58,7 @@ try {
                 $generatedDirectory = $name -match '(?i)(?:^|/)(?:data|bin|obj|backups|print-tracking|templates|[.]git)/'
                 $debugFile = $name -match '(?i)[.](?:pdb|lib|exp|obj|ilk|log)$'
                 $privateConfig = $name -match '(?i)(?:^|/)(?:ui-shell|vault-state|mapping|domains|appearance|storage-mode)[.](?:json|txt)$'
-                $testArtifact = $name -match '(?i)(?:^|/)(?:layout|vault|mapping|xps)-selftest[.]txt$'
+                $testArtifact = $name -match '(?i)(?:^|/)(?:layout|vault|mapping|xps|updates)-selftest[.]txt$'
                 if ($privateName -or $privateExtension -or $generatedDirectory -or $debugFile -or $privateConfig -or $testArtifact) {
                     throw "Forbidden private/debug entry: $name"
                 }

@@ -169,11 +169,16 @@
           </StackPanel>
         </Grid>
 
-        <!-- A single narrow diagnostics section, with all four readings on one row. -->
-        <Border Classes="settings-card" Padding="10,9">
+        <!-- Two compact cards share the row; narrow panes reflow into two full-width rows. -->
+        <Grid x:Name="BottomCardsGrid" ColumnDefinitions="*,*" RowDefinitions="Auto"
+              ColumnSpacing="9" RowSpacing="9">
+        <Border Grid.Column="0" Grid.Row="0" Classes="settings-card" Padding="10,9"
+                VerticalAlignment="Top">
           <StackPanel Spacing="8">
             <TextBlock Classes="section-heading" Text="{Binding PerformanceTitle}"/>
-            <Grid ColumnDefinitions="*,*,*,*" ColumnSpacing="10">
+            <!-- Two columns of metrics keep labels readable at half pane width. -->
+            <Grid ColumnDefinitions="*,*" RowDefinitions="Auto,Auto"
+                  ColumnSpacing="10" RowSpacing="8">
               <StackPanel Grid.Column="0" Spacing="2">
                 <TextBlock Text="{Binding MedianLabel}" FontSize="10" TextWrapping="Wrap" Foreground="{DynamicResource KpSubtleBrush}"/>
                 <TextBlock Text="{Binding MedianValue}" FontSize="15" FontWeight="SemiBold"/>
@@ -182,30 +187,56 @@
                 <TextBlock Text="{Binding P95Label}" FontSize="10" TextWrapping="Wrap" Foreground="{DynamicResource KpSubtleBrush}"/>
                 <TextBlock Text="{Binding P95Value}" FontSize="15" FontWeight="SemiBold"/>
               </StackPanel>
-              <StackPanel Grid.Column="2" Spacing="2">
+              <StackPanel Grid.Row="1" Grid.Column="0" Spacing="2">
                 <TextBlock Text="{Binding CacheLabel}" FontSize="10" TextWrapping="Wrap" Foreground="{DynamicResource KpSubtleBrush}"/>
                 <TextBlock Text="{Binding CacheValue}" FontSize="15" FontWeight="SemiBold"/>
               </StackPanel>
-              <StackPanel Grid.Column="3" Spacing="2">
+              <StackPanel Grid.Row="1" Grid.Column="1" Spacing="2">
                 <TextBlock Text="{Binding MemoryLabel}" FontSize="10" TextWrapping="Wrap" Foreground="{DynamicResource KpSubtleBrush}"/>
                 <TextBlock Text="{Binding MemoryValue}" FontSize="15" FontWeight="SemiBold"/>
               </StackPanel>
             </Grid>
-            <Grid ColumnDefinitions="*,Auto" ColumnSpacing="10">
-              <CheckBox IsChecked="{Binding OverlaysEnabled, Mode=TwoWay}" Content="{Binding OverlaysLabel}"
-                        FontSize="11" VerticalAlignment="Center"/>
-              <Button Grid.Column="1" HorizontalAlignment="Right" Click="OnCopyDiagnostics" Padding="8,4">
+            <!-- These controls stack instead of being squeezed or clipped horizontally. -->
+            <StackPanel Spacing="6">
+              <CheckBox IsChecked="{Binding OverlaysEnabled, Mode=TwoWay}"
+                        FontSize="11" VerticalAlignment="Center">
+                <TextBlock Text="{Binding OverlaysLabel}" FontSize="11" TextWrapping="Wrap"/>
+              </CheckBox>
+              <Button HorizontalAlignment="Left" Click="OnCopyDiagnostics" Padding="8,4">
                 <StackPanel Orientation="Horizontal" Spacing="5">
                   <fi:FluentIcon Icon="Copy" IconSize="Size20" Width="15" Height="15"/>
                   <TextBlock Text="{Binding CopyLabel}" FontSize="11" VerticalAlignment="Center"/>
                 </StackPanel>
               </Button>
-            </Grid>
+            </StackPanel>
             <TextBlock Text="{Binding CopyStatus}" FontSize="10" IsVisible="{Binding HasCopyStatus}"
                        Foreground="{DynamicResource KpSubtleBrush}"/>
             <TextBlock Text="{Binding SafeHint}" FontSize="10" Foreground="{DynamicResource KpSubtleBrush}" TextWrapping="Wrap"/>
           </StackPanel>
         </Border>
+        <!-- Update controls wrap independently; nothing requires horizontal scrolling. -->
+        <Border x:Name="UpdatesCard" Grid.Column="1" Grid.Row="0"
+                Classes="settings-card" Padding="10,9" VerticalAlignment="Top">
+          <StackPanel Spacing="7">
+            <TextBlock x:Name="UpdateHeader" Classes="section-heading" Text="Обновления приложения"/>
+            <CheckBox x:Name="UpdateCheck" Content="Проверять обновления автоматически"/>
+            <CheckBox x:Name="UpdateDownload" Content="Скачивать обновления автоматически"/>
+            <TextBlock x:Name="UpdateModeCaption" Text="Установка обновлений" FontSize="11"/>
+            <ComboBox x:Name="UpdateMode" MinWidth="220" HorizontalAlignment="Left"
+                      SelectionChanged="OnUpdateModeChanged"/>
+            <TextBlock x:Name="UpdateStatus" FontSize="11" TextWrapping="Wrap"
+                       Foreground="{DynamicResource KpSubtleBrush}"/>
+            <WrapPanel Orientation="Horizontal" ItemSpacing="7" LineSpacing="5">
+              <Button x:Name="UpdateCheckButton" Content="Проверить обновления"
+                      Click="OnCheckUpdatesClicked"/>
+              <Button x:Name="UpdateInstallButton" Content="Установить сейчас"
+                      Click="OnInstallUpdateClicked"/>
+              <Button x:Name="UpdateRepairButton" Content="Восстановить…"
+                      Click="OnRepairUpdateClicked"/>
+            </WrapPanel>
+          </StackPanel>
+        </Border>
+        </Grid>
     </StackPanel>
   </ScrollViewer>
 </UserControl>

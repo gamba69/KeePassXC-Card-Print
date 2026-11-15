@@ -981,6 +981,17 @@ if ($pretest.ExitCode -ne 0 -or -not (Test-Path -LiteralPath $pretestLog)) {
 }
 Remove-Item -LiteralPath $pretestLog -Force
 Write-Host '[PASS] Pre-AOT managed layout self-tests passed.' -ForegroundColor Green
+$managedUpdateTestLog = Join-Path $managedDir 'updates-pre-aot-selftest.txt'
+$managedUpdateArgs = '--self-test-updates "' + $managedUpdateTestLog + '"'
+$managedUpdate = Start-Process -FilePath $managedExe -ArgumentList $managedUpdateArgs -PassThru -Wait
+if (Test-Path -LiteralPath $managedUpdateTestLog) {
+    Write-Host (Get-Content -LiteralPath $managedUpdateTestLog -Raw -Encoding UTF8)
+}
+if ($managedUpdate.ExitCode -ne 0 -or -not (Test-Path -LiteralPath $managedUpdateTestLog)) {
+    throw "Pre-AOT updater self-tests failed (exit $($managedUpdate.ExitCode))."
+}
+Remove-Item -LiteralPath $managedUpdateTestLog -Force
+Write-Host '[PASS] Pre-AOT updater self-tests passed.' -ForegroundColor Green
 
 Write-Host "Native AOT publish: $publish"
 & dotnet publish $project -c Release -r win-x64 --self-contained true -p:PublishAot=true --no-restore -o $publish
@@ -1112,6 +1123,18 @@ if (-not (Test-Path -LiteralPath $mappingTestLog)) {
 }
 Remove-Item -LiteralPath $mappingTestLog -Force
 Write-Host '[PASS] Native AOT mapping validation tests passed.' -ForegroundColor Green
+Write-Host 'Running updater filesystem/rollback self-tests in the Native AOT EXE ...'
+$updateTestLog = Join-Path $publish 'updates-selftest.txt'
+$updateTestArgs = '--self-test-updates "' + $updateTestLog + '"'
+$updateSmoke = Start-Process -FilePath $exe -ArgumentList $updateTestArgs -PassThru -Wait
+if (Test-Path -LiteralPath $updateTestLog) {
+    Write-Host (Get-Content -LiteralPath $updateTestLog -Raw -Encoding UTF8)
+}
+if ($updateSmoke.ExitCode -ne 0 -or -not (Test-Path -LiteralPath $updateTestLog)) {
+    throw "Native AOT updater self-tests failed (exit $($updateSmoke.ExitCode))."
+}
+Remove-Item -LiteralPath $updateTestLog -Force
+Write-Host '[PASS] Native AOT updater self-tests passed.' -ForegroundColor Green
 
 
 # Validate the actual Windows XPS OM COM parser in the published Native AOT
@@ -1147,7 +1170,7 @@ $files = @(Get-ChildItem -LiteralPath $publish -File -Recurse -Force |
     Where-Object {
         $_.Extension -notin $privateExtensions -and
         $_.Name -notin $privateNames -and
-        $_.Name -notmatch '^(?:layout|vault|mapping|xps)-selftest[.]txt$' -and
+        $_.Name -notmatch '^(?:layout|vault|mapping|xps|updates)-selftest[.]txt$' -and
         $_.FullName -notmatch '[\\/]data[\\/]|[\\/]print-tracking[\\/]|[\\/]templates[\\/]|[\\/]backups[\\/]'
     } | Sort-Object FullName)
 if ($files.Count -eq 0) { throw 'Portable payload is empty.' }

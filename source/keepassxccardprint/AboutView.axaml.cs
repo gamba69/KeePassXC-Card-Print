@@ -13,6 +13,7 @@ public partial class AboutView : UserControl
     public AboutView()
     {
         InitializeComponent();
+        InitializeUpdates();
         ActualThemeVariantChanged += (_, _) => UpdateAppIcon();
         AttachedToVisualTree += (_, _) => UpdateAppIcon();
         LayoutUpdated += (_, _) => UpdateAppIcon();
@@ -38,6 +39,11 @@ public partial class AboutView : UserControl
         DetailsGrid.RowDefinitions = new RowDefinitions(compact ? "Auto,Auto" : "Auto");
         Grid.SetColumn(TechColumn, compact ? 0 : 1);
         Grid.SetRow(TechColumn, compact ? 1 : 0);
+
+        BottomCardsGrid.ColumnDefinitions = new ColumnDefinitions(compact ? "*" : "*,*");
+        BottomCardsGrid.RowDefinitions = new RowDefinitions(compact ? "Auto,Auto" : "Auto");
+        Grid.SetColumn(UpdatesCard, compact ? 0 : 1);
+        Grid.SetRow(UpdatesCard, compact ? 1 : 0);
     }
 
     private async void OnRepositoryPointerPressed(object? sender, PointerPressedEventArgs e)

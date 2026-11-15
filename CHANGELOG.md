@@ -3,6 +3,40 @@
 All notable changes to KeePassXC Card Print are documented **only in this file**.
 Other documentation describes the current release and must not contain a version-by-version history.
 
+## [7.0.3] - 2026-11-15
+
+### Changed
+- Arrange preview performance and update controls side by side as compact cards.
+- Reflow both cards into stacked rows in narrow windows; present performance metrics in a two-by-two grid.
+- Prevent cramped diagnostics controls and preserve vertical reachability without horizontal scrolling.
+
+## [7.0.2] - 2026-11-15
+
+### Fixed
+- Refresh update and recovery controls immediately when the application language changes.
+- Observe About view-model localization changes without requiring a tab switch; detach event handlers when the view leaves the visual tree or changes DataContext.
+
+## [7.0.1] - 2026-11-15
+
+### Fixed
+- Wire automatic update preferences to Avalonia 12 `IsCheckedChanged` in code-behind,
+  avoiding unsupported `Checked` / `Unchecked` XAML members during compilation.
+
+## [7.0.0] - 2026-11-15
+
+### Added
+- Automatic GitHub Release checks (on startup and daily), optional downloads, and
+  installation on exit, after confirmation, or manually in the About page.
+- Explicit `--reinstall` recovery of the current immutable release, including
+  user confirmation, verification, and a clean restart.
+- GitHub Immutable Release attestation validation using pinned TUF trust roots,
+  Sigstore/Fulcio identity, signed timestamps, tag identity and SHA-256.
+- Recursive update of portable fonts, licenses and native runtime dependencies;
+  per-installation ownership manifests and removal of unchanged obsolete files.
+- Transactional installation with backups, rollback after failure, and recovery
+  following interrupted installs. Private settings and databases remain untouched.
+- Offline update policy, archive, nested-path, rollback and integrity self-tests.
+
 ## [6.2.5] - 2026-11-12
 
 ### Changed

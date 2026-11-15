@@ -55,6 +55,7 @@ public sealed class AboutViewModel : INotifyPropertyChanged
     public IReadOnlyList<AboutLibraryVersion> LibrariesRight { get; }
     public ObservableCollection<AboutLibraryVersion> Libraries { get; }
     private string T(string key) => Localizer.Text(_settings.Language, key);
+    public string UpdateLanguage => _settings.Language;
     public const string RepositoryAddress = "https://github.com/gamba69/KeePassXC-Card-Print";
     public string AppTitle => "KeePassXC Card Print";
     public string AppVersion => $"{AppBuildInfo.Version} · {PlatformServices.Current.PlatformLabel} · {RuntimeInformation.ProcessArchitecture} · " +
@@ -137,6 +138,7 @@ public sealed class AboutViewModel : INotifyPropertyChanged
     {
         _copyStatus = "";
         _repositoryStatus = "";
+        Changed(nameof(UpdateLanguage));
         Changed(nameof(CopyStatus));
         Changed(nameof(HasCopyStatus));
         Changed(nameof(RepositoryStatus));
