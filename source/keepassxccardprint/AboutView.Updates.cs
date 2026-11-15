@@ -137,7 +137,8 @@ public partial class AboutView
     }
     private async void OnCheckUpdatesClicked(object? sender,RoutedEventArgs e)
     {
-        await UpdaterHost.Service.CheckAsync(true);
+        if(TopLevel.GetTopLevel(this) is MainWindow owner)
+            await UpdaterHost.CheckInteractivelyAsync(owner);
         RefreshUpdates();
     }
     private async void OnInstallUpdateClicked(object? sender,RoutedEventArgs e)

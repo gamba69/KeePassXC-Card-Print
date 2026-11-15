@@ -121,13 +121,52 @@ internal static class UpdateSelfTests
                 WindowsUpdateService.VerifyPayloadManifest(stage);
                 Require(WindowsUpdateService.ReadManifest(Path.Combine(stage,"files.txt")).Count==21);
             });
+            Test("result journal stays installation-specific and is consumed once",()=>
+            {
+                var other=Path.Combine(root,"another portable copy");
+                Directory.CreateDirectory(other);
+                var outcome=new UpdateOperationResult("installed","update","7.0.3","7.1.0");
+                UpdateOperationResults.Save(updateRoot,target,outcome);
+                Require(UpdateOperationResults.Read(updateRoot,target)==outcome);
+                Require(UpdateOperationResults.Read(updateRoot,other) is null);
+                Require(UpdateOperationResults.PathFor(updateRoot,target)!=
+                    UpdateOperationResults.PathFor(updateRoot,other));
+                UpdateOperationResults.Consume(updateRoot,target);
+                Require(UpdateOperationResults.Read(updateRoot,target) is null);
+                UpdateOperationResults.Save(updateRoot,target,new("rolled-back","repair",
+                    "7.1.0","7.1.0","Injected failure"));
+                Require(UpdateOperationResults.Read(updateRoot,target)?.Status=="rolled-back");
+                UpdateOperationResults.Consume(updateRoot,target);
+                Reject(()=>UpdateOperationResults.Save(updateRoot,target,
+                    new("arbitrary","update","7.0.3","7.1.0")));
+            });
+            Test("7.0.x completion marker is migrated only for matching installation",()=>
+            {
+                var legacyStage=Path.Combine(updateRoot,"pending-7.1.0");
+                Directory.CreateDirectory(legacyStage);
+                File.WriteAllText(Path.Combine(legacyStage,"verified.txt"),"7.1.0");
+                File.WriteAllText(Path.Combine(legacyStage,"target.txt"),target);
+                Directory.CreateDirectory(updateRoot);
+                File.WriteAllText(Path.Combine(updateRoot,"completed.txt"),legacyStage);
+                UpdateOperationResults.CaptureLegacyCompleted(updateRoot,target,"7.1.0");
+                Require(UpdateOperationResults.Read(updateRoot,target)?.Status=="installed");
+                UpdateOperationResults.Consume(updateRoot,target);
+                UpdateOperationResults.CaptureLegacyCompleted(updateRoot,target,"7.2.0");
+                Require(UpdateOperationResults.Read(updateRoot,target) is null);
+                File.Delete(Path.Combine(updateRoot,"completed.txt"));
+            });
             Test("recursive apply / obsolete managed file / user data",()=>
             {
                 File.WriteAllText(Path.Combine(target,"KeePassXCCardPrint.exe"),"old exe");
                 File.WriteAllText(Path.Combine(target,"database.kdbx"),"SECRET");
                 Directory.CreateDirectory(Path.Combine(target,"fonts","licenses"));
                 File.WriteAllText(Path.Combine(target,"fonts","licenses","test0.txt"),"old license");
-                WindowsUpdateService.ApplyVerifiedFiles(stage,target,updateRoot);
+                var progress=new List<UpdateOperationProgress>();
+                WindowsUpdateService.ApplyVerifiedFiles(stage,target,updateRoot,
+                    onProgress:progress.Add);
+                Require(progress.Count==21);
+                Require(progress[^1].Percent==90);
+                Require(progress.Any(x=>x.Detail.StartsWith("fonts/licenses/",StringComparison.Ordinal)));
                 Require(File.ReadAllText(Path.Combine(target,"database.kdbx"))=="SECRET");
                 Require(File.ReadAllText(Path.Combine(target,"fonts","licenses","test0.txt"))
                     .Contains("license 0",StringComparison.Ordinal));
@@ -139,15 +178,18 @@ internal static class UpdateSelfTests
                 var nested=File.ReadAllText(Path.Combine(target,"fonts","licenses","test0.txt"));
                 var before=File.ReadAllText(WindowsUpdateService.OwnedManifestPath(updateRoot,target));
                 bool invoked=false;
+                var progress=new List<UpdateOperationProgress>();
                 try
                 {
                     WindowsUpdateService.ApplyVerifiedFiles(stage,target,updateRoot,
                         beforeReplace:path=>{if(path=="fonts/licenses/test0.txt")
-                        {invoked=true;throw new IOException("Injected failure");}});
+                        {invoked=true;throw new IOException("Injected failure");}},
+                        onProgress:progress.Add);
                     throw new Exception("Failure injection not reached.");
                 }
                 catch(IOException){}
                 Require(invoked);
+                Require(progress.Any(x=>x.Phase=="rollback"));
                 Require(File.ReadAllText(Path.Combine(target,"KeePassXCCardPrint.exe"))==old);
                 Require(File.ReadAllText(Path.Combine(target,"fonts","licenses","test0.txt"))==nested);
                 Require(File.ReadAllText(WindowsUpdateService.OwnedManifestPath(updateRoot,target))==before);

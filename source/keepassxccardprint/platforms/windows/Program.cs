@@ -14,15 +14,26 @@ internal static class Program
     [STAThread]
     public static void Main(string[] args)
     {
-        // The update helper runs without Avalonia or opening a database.
-        if(args.Length>0 && args[0]=="--apply-update")
+        // The temporary helper uses the same Native AOT/Avalonia runtime but
+        // instantiates only its progress window, never the database UI.
+        if(args.Length>0 && (args[0] is "--apply-update" or "--recover-update"))
         {
-            Environment.ExitCode=WindowsUpdateService.ApplyUpdate(args);
-            return;
-        }
-        if(args.Length>0 && args[0]=="--recover-update")
-        {
-            Environment.ExitCode=WindowsUpdateService.ApplyRecovery(args);
+            UpdateHelperBootstrap.Arguments=args;
+            try
+            {
+                WindowsHost.Configure();
+                WindowsHost.BuildAvaloniaApp().StartWithClassicDesktopLifetime(Array.Empty<string>());
+            }
+            catch(Exception)
+            {
+                // If Avalonia cannot initialize, complete the same filesystem
+                // transaction headlessly. Never retry once the worker started.
+                if(!UpdateHelperBootstrap.WorkStarted)
+                    Environment.ExitCode=args[0]=="--apply-update"
+                        ?WindowsUpdateService.ApplyUpdate(args)
+                        :WindowsUpdateService.ApplyRecovery(args);
+                else Environment.ExitCode=1;
+            }
             return;
         }
         // The new EXE must be smoke-testable during an active update journal.

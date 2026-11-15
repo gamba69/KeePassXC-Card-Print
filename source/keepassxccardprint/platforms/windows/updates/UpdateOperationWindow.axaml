@@ -1,0 +1,31 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Class="KeePassXCCardPrint.Platforms.Windows.Updates.UpdateOperationWindow"
+        Width="470" MinWidth="420" Height="230" MinHeight="220"
+        SizeToContent="Manual" CanResize="False" ShowInTaskbar="True"
+        WindowStartupLocation="CenterScreen" WindowDecorations="Full"
+        Icon="avares://KeePassXCCardPrint/assets/CardPrint_white.ico"
+        Background="{DynamicResource KpWindowBrush}">
+  <Border Margin="12" Padding="14,12" Classes="settings-card">
+    <Grid RowDefinitions="Auto,Auto,Auto,Auto,*" RowSpacing="12">
+      <StackPanel Orientation="Horizontal" Spacing="10">
+        <Image x:Name="OperationIcon" Width="28" Height="28" Source="avares://KeePassXCCardPrint/assets/CardPrint_black_32.png"/>
+        <StackPanel Spacing="2" VerticalAlignment="Center">
+          <TextBlock x:Name="OperationTitle" FontWeight="SemiBold" FontSize="15"
+                     Text="KeePassXC Card Print"/>
+          <TextBlock x:Name="OperationVersions" FontSize="11"
+                     Foreground="{DynamicResource KpSubtleBrush}"/>
+        </StackPanel>
+      </StackPanel>
+      <TextBlock x:Name="OperationPhase" Grid.Row="1" FontSize="12" TextWrapping="Wrap"/>
+      <ProgressBar x:Name="OperationBar" Grid.Row="2" Minimum="0" Maximum="100"
+                   Height="7" IsIndeterminate="True"/>
+      <TextBlock x:Name="OperationDetail" Grid.Row="3" FontSize="11"
+                 TextWrapping="Wrap" MaxHeight="42"
+                 Foreground="{DynamicResource KpSubtleBrush}"/>
+      <Button x:Name="OperationButton" Grid.Row="4" HorizontalAlignment="Right"
+              VerticalAlignment="Bottom" MinWidth="92" Click="OnOperationButton"
+              Content="Cancel"/>
+    </Grid>
+  </Border>
+</Window>

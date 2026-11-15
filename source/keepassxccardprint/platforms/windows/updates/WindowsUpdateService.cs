@@ -107,7 +107,8 @@ internal sealed class WindowsUpdateService : IDisposable
             InvalidDataException or OverflowException) { /* Never trust broken staging. */ }
     }
 
-    internal async Task CheckAsync(bool manual,CancellationToken ct=default,bool reinstall=false)
+    internal async Task CheckAsync(bool manual,CancellationToken ct=default,bool reinstall=false,
+        IProgress<UpdateOperationProgress>? progress=null)
     {
         if(reinstall && !manual)throw new ArgumentException("Repair must be requested interactively.",nameof(reinstall));
         if(!manual && !Preferences.CheckAutomatically)return;
@@ -117,6 +118,7 @@ internal sealed class WindowsUpdateService : IDisposable
         {
             var cached=IsReady && Snapshot.Status=="ready"?Snapshot:null;
             Publish(new("checking"));
+            progress?.Report(new("checking"));
             using var release=await GetJsonAsync(Latest,ct);
             var json=release.RootElement;
             if(json.GetProperty("draft").GetBoolean() || json.GetProperty("prerelease").GetBoolean())
@@ -158,10 +160,12 @@ internal sealed class WindowsUpdateService : IDisposable
             try
             {
                 var archivePath=Path.Combine(stage,archive);
-                await DownloadAsync(zipUrl,archivePath,CardPrintUpdatePolicy.MaxZipBytes,ct);
+                progress?.Report(new("downloading"));
+                await DownloadAsync(zipUrl,archivePath,CardPrintUpdatePolicy.MaxZipBytes,ct,progress);
                 var checksumText=Encoding.UTF8.GetString(await GetBytesAsync(shaUrl,4096,ct));
                 var digest=zip.TryGetProperty("digest",out var item) && item.ValueKind==JsonValueKind.String
                     ?item.GetString():null;
+                progress?.Report(new("verifying"));
                 CardPrintUpdatePolicy.CheckChecksum(archivePath,checksumText,archive,digest);
                 if(immutable)
                 {
@@ -169,6 +173,7 @@ internal sealed class WindowsUpdateService : IDisposable
                     catch(Exception ex) when(ex is not OperationCanceledException)
                     {throw new InvalidDataException("GitHub attestation verification failed: "+ex.Message,ex);}
                 }
+                progress?.Report(new("extracting"));
                 CardPrintUpdatePolicy.Extract(archivePath,Path.Combine(stage,"payload"));
                 WritePayloadManifest(stage);
                 if(!immutable)File.WriteAllText(Path.Combine(stage,"unverified.txt"),"mutable");
@@ -212,11 +217,13 @@ internal sealed class WindowsUpdateService : IDisposable
         }
         return result.ToArray();
     }
-    private async Task DownloadAsync(Uri url,string path,long limit,CancellationToken ct)
+    private async Task DownloadAsync(Uri url,string path,long limit,CancellationToken ct,
+        IProgress<UpdateOperationProgress>? progress=null)
     {
         using var response=await _http.GetAsync(url,HttpCompletionOption.ResponseHeadersRead,ct);
         response.EnsureSuccessStatusCode();
-        if(response.Content.Headers.ContentLength is {} size && size>limit)
+        var contentLength=response.Content.Headers.ContentLength;
+        if(contentLength is {} size && size>limit)
             throw new InvalidDataException("Archive too large.");
         await using var source=await response.Content.ReadAsStreamAsync(ct);
         await using var destination=new FileStream(path,FileMode.CreateNew,FileAccess.Write,FileShare.None);
@@ -225,6 +232,8 @@ internal sealed class WindowsUpdateService : IDisposable
         {
             if(destination.Length+count>limit)throw new InvalidDataException("Archive too large.");
             await destination.WriteAsync(buffer.AsMemory(0,count),ct);
+            progress?.Report(new("downloading",contentLength is >0
+                ?(int)Math.Clamp(destination.Length*100/contentLength.Value,0,100):null));
         }
     }
 
@@ -367,7 +376,7 @@ internal sealed class WindowsUpdateService : IDisposable
         finally{if(File.Exists(probe))File.Delete(probe);}
     }
 
-    internal void LaunchInstaller(bool restart,bool confirmedRepair)
+    internal void LaunchInstaller(bool restart,bool confirmedRepair,string language="auto")
     {
         if(IsRepairReady && !confirmedRepair)
             throw new InvalidOperationException("Repair needs explicit confirmation.");
@@ -377,6 +386,10 @@ internal sealed class WindowsUpdateService : IDisposable
             StringComparison.Ordinal))throw new InvalidDataException("Staged version mismatch.");
         var current=Environment.ProcessPath!;
         var target=Path.GetDirectoryName(current)!;
+        // Recovery reads the original operation metadata, not a guess made
+        // from the version of the temporarily copied executable.
+        File.WriteAllText(Path.Combine(stage,"operation.txt"),_readyRepair?"repair":"update");
+        File.WriteAllText(Path.Combine(stage,"source-version.txt"),AppBuildInfo.Version);
         var helper=Path.Combine(stage,"update-helper.exe");
         File.Copy(current,helper,true);
         foreach(var file in Directory.GetFiles(target,"*.dll"))
@@ -386,11 +399,12 @@ internal sealed class WindowsUpdateService : IDisposable
                 File.Copy(file,Path.Combine(stage,name),true);
         }
         using var process=Process.GetCurrentProcess();
-        var psi=new ProcessStartInfo(helper){UseShellExecute=false,CreateNoWindow=true};
+        var psi=new ProcessStartInfo(helper){UseShellExecute=false,CreateNoWindow=false};
         foreach(var arg in new[]{"--apply-update",target,stage,
             process.Id.ToString(CultureInfo.InvariantCulture),
             process.StartTime.ToUniversalTime().Ticks.ToString(CultureInfo.InvariantCulture),
-            restart?"1":"0"})psi.ArgumentList.Add(arg);
+            restart?"1":"0",AppBuildInfo.Version,_readyRepair?"repair":"update",language})
+            psi.ArgumentList.Add(arg);
         if(Process.Start(psi) is null)throw new IOException("Cannot start update helper.");
     }
 
@@ -410,24 +424,71 @@ internal sealed class WindowsUpdateService : IDisposable
     private static bool StageInsideRoot(string stage,string root) =>
         Path.GetFullPath(stage).StartsWith(Path.GetFullPath(root).TrimEnd(Path.DirectorySeparatorChar)+
             Path.DirectorySeparatorChar,StringComparison.OrdinalIgnoreCase);
-    internal static int ApplyUpdate(string[] args)
+    internal static int ApplyUpdate(string[] args,Action<UpdateOperationProgress>? progress=null)
     {
-        if(args.Length!=6 || args[0]!="--apply-update" || args[5] is not ("0" or "1"))return 2;
+        if(args.Length is not (6 or 9) || args[0]!="--apply-update" ||
+            args[5] is not ("0" or "1") ||
+            (args.Length==9 && args[7] is not ("update" or "repair")))return 2;
+        var target=Path.GetFullPath(args[1]);var stage=Path.GetFullPath(args[2]);
+        var root=DefaultRoot;
+        var operation=args.Length>7?args[7]:"update";
+        var from=args.Length>6?args[6]:AppBuildInfo.Version;
+        var to=AppBuildInfo.Version;
+        var validStage=false;var applying=false;
         try
         {
-            var target=Path.GetFullPath(args[1]);var stage=Path.GetFullPath(args[2]);
-            var root=DefaultRoot;
             if(!StageInsideRoot(stage,root) ||
                 !File.Exists(Path.Combine(target,CardPrintUpdatePolicy.Executable)))return 3;
+            to=CardPrintUpdatePolicy.ParseVersion(
+                File.ReadAllText(Path.Combine(stage,"verified.txt")).Trim()).ToString(3);
+            validStage=true;
+            progress?.Invoke(new("waiting"));
             WaitForOwner(args[3],args[4]);
+            applying=true;
+            progress?.Invoke(new("installing",0));
             ApplyVerifiedFiles(stage,target,root,validateNew:()=>
-                SmokeTest(Path.Combine(target,CardPrintUpdatePolicy.Executable)));
-            if(args[5]=="1")Process.Start(new ProcessStartInfo(
-                Path.Combine(target,CardPrintUpdatePolicy.Executable)){UseShellExecute=false});
+            {
+                progress?.Invoke(new("testing"));
+                return SmokeTest(Path.Combine(target,CardPrintUpdatePolicy.Executable));
+            },onProgress:progress);
+            // Installation has already committed. A failed relaunch cannot
+            // change this into a failed installation or trigger a second apply.
+            TrySaveResult(root,target,new("installed",operation,from,to));
+            progress?.Invoke(new("starting",100));
+            if(args[5]=="1")
+            {
+                try {Process.Start(new ProcessStartInfo(
+                    Path.Combine(target,CardPrintUpdatePolicy.Executable)){UseShellExecute=false});}
+                catch(Exception) { return 6; }
+            }
             return 0;
         }
-        catch(Exception){return 1;}
+        catch(Exception ex)
+        {
+            progress?.Invoke(new("failed",null,ex.Message));
+            if(validStage)
+            {
+                bool restored=applying && !File.Exists(Path.Combine(root,"installing.txt"));
+                TrySaveResult(root,target,new(restored?"rolled-back":"failed",operation,
+                    from,to,ex.GetType().Name+": "+ex.Message));
+                if(args[5]=="1" && !File.Exists(Path.Combine(root,"installing.txt")))
+                {
+                    try {Process.Start(new ProcessStartInfo(
+                        Path.Combine(target,CardPrintUpdatePolicy.Executable)){UseShellExecute=false});}
+                    catch(Exception) { /* Recovery status remains available next launch. */ }
+                }
+            }
+            return 1;
+        }
     }
+
+    private static void TrySaveResult(string root,string target,UpdateOperationResult result)
+    {
+        try { UpdateOperationResults.Save(root,target,result); }
+        catch(Exception e) when(e is IOException or UnauthorizedAccessException or ArgumentException or InvalidDataException)
+        { /* A UI result must never compromise a verified install or rollback. */ }
+    }
+
     internal static bool LaunchInterruptedRecovery(string[] startupArgs)
     {
         var root=DefaultRoot;var journal=Path.Combine(root,"installing.txt");
@@ -441,7 +502,7 @@ internal sealed class WindowsUpdateService : IDisposable
         var helper=Path.Combine(stage,"update-helper.exe");
         if(!File.Exists(helper))throw new IOException("Recovery helper missing.");
         using var process=Process.GetCurrentProcess();
-        var psi=new ProcessStartInfo(helper){UseShellExecute=false,CreateNoWindow=true};
+        var psi=new ProcessStartInfo(helper){UseShellExecute=false,CreateNoWindow=false};
         foreach(var arg in new[]{"--recover-update",stage,target,
             process.Id.ToString(CultureInfo.InvariantCulture),
             process.StartTime.ToUniversalTime().Ticks.ToString(CultureInfo.InvariantCulture)})
@@ -449,26 +510,53 @@ internal sealed class WindowsUpdateService : IDisposable
         foreach(var arg in startupArgs)if(arg!="--reinstall")psi.ArgumentList.Add(arg);
         return Process.Start(psi) is not null;
     }
-    internal static int ApplyRecovery(string[] args)
+    internal static int ApplyRecovery(string[] args,Action<UpdateOperationProgress>? progress=null)
     {
         if(args.Length<5 || args[0]!="--recover-update")return 2;
+        var stage=Path.GetFullPath(args[1]);var target=Path.GetFullPath(args[2]);
+        var root=DefaultRoot;
+        var validStage=false;
         try
         {
-            var stage=Path.GetFullPath(args[1]);var target=Path.GetFullPath(args[2]);
-            var root=DefaultRoot;
             if(!StageInsideRoot(stage,root) ||
                 !string.Equals(File.ReadAllText(Path.Combine(stage,"target.txt")).Trim(),target,
                     StringComparison.OrdinalIgnoreCase))return 3;
+            validStage=true;
+            progress?.Invoke(new("waiting"));
             WaitForOwner(args[3],args[4]);
+            progress?.Invoke(new("rollback"));
             RestoreBackup(stage,target,root);
             File.Delete(Path.Combine(root,"installing.txt"));
             File.WriteAllText(Path.Combine(root,"completed.txt"),stage);
+            var to=File.ReadAllText(Path.Combine(stage,"verified.txt")).Trim();
+            var kind=File.Exists(Path.Combine(stage,"operation.txt")) &&
+                File.ReadAllText(Path.Combine(stage,"operation.txt")).Trim()=="repair"
+                ?"repair":"update";
+            var from=File.Exists(Path.Combine(stage,"source-version.txt"))
+                ?File.ReadAllText(Path.Combine(stage,"source-version.txt")).Trim()
+                :AppBuildInfo.Version;
+            TrySaveResult(root,target,new("rolled-back",kind,from,
+                CardPrintUpdatePolicy.ParseVersion(to).ToString(3)));
+            progress?.Invoke(new("starting",100));
             var psi=new ProcessStartInfo(Path.Combine(target,CardPrintUpdatePolicy.Executable))
                 {UseShellExecute=false};
             foreach(var arg in args.Skip(5))psi.ArgumentList.Add(arg);
             return Process.Start(psi) is null?6:0;
         }
-        catch(Exception){return 1;}
+        catch(Exception ex)
+        {
+            progress?.Invoke(new("failed",null,ex.Message));
+            if(validStage)
+            {
+                string to;
+                try {to=CardPrintUpdatePolicy.ParseVersion(File.ReadAllText(
+                    Path.Combine(stage,"verified.txt")).Trim()).ToString(3);}
+                catch(Exception) {to=AppBuildInfo.Version;}
+                TrySaveResult(root,target,new("failed","update",AppBuildInfo.Version,to,
+                    ex.GetType().Name+": "+ex.Message));
+            }
+            return 1;
+        }
     }
     private static bool SmokeTest(string exe)
     {
@@ -520,7 +608,7 @@ internal sealed class WindowsUpdateService : IDisposable
 
     internal static void ApplyVerifiedFiles(string stage,string target,string root,
         Action<string>? beforeReplace=null,Func<bool>? validateNew=null,
-        Action<string>? beforeDelete=null)
+        Action<string>? beforeDelete=null,Action<UpdateOperationProgress>? onProgress=null)
     {
         VerifyPayloadManifest(stage);
         stage=Path.GetFullPath(stage);target=Path.GetFullPath(target);root=Path.GetFullPath(root);
@@ -560,6 +648,8 @@ internal sealed class WindowsUpdateService : IDisposable
         File.WriteAllText(Path.Combine(root,"installing.txt"),stage);
         try
         {
+            int completedCount=0;
+            var totalCount=files.Count+obsolete.Length;
             foreach(var name in files.Keys)
             {
                 beforeReplace?.Invoke(name);
@@ -570,11 +660,13 @@ internal sealed class WindowsUpdateService : IDisposable
                     ".kpc-update-"+Guid.NewGuid().ToString("N")+".tmp");
                 try{File.Copy(from,temporary);File.Move(temporary,destination,true);}
                 finally{if(File.Exists(temporary))File.Delete(temporary);}
+                onProgress?.Invoke(new("installing",++completedCount*90/Math.Max(1,totalCount),name));
             }
             foreach(var name in obsolete)
             {
                 beforeDelete?.Invoke(name);
                 if(Unmodified(target,name,owned[name]))File.Delete(CardPrintUpdatePolicy.SafePath(target,name));
+                onProgress?.Invoke(new("installing",++completedCount*90/Math.Max(1,totalCount),name));
             }
             if(validateNew is not null && !validateNew())
                 throw new IOException("Updated binary failed startup smoke test.");
@@ -587,6 +679,7 @@ internal sealed class WindowsUpdateService : IDisposable
         }
         catch
         {
+            onProgress?.Invoke(new("rollback"));
             // Leave installing.txt in place if rollback fails. Startup will
             // launch the old, separately cached helper to retry recovery.
             RestoreBackup(stage,target,root);

@@ -3,6 +3,15 @@
 All notable changes to KeePassXC Card Print are documented **only in this file**.
 Other documentation describes the current release and must not contain a version-by-version history.
 
+## [7.1.0] - 2026-11-15
+
+### Added
+- Unified Avalonia progress dialogs for manual release checks, update preparation and recovery.
+- A standalone Avalonia progress window in the temporary updater, with live file-level progress and rollback status.
+- Per-installation, one-time results displayed after the updated application successfully starts.
+- Compatibility notice on the first successful upgrade from a 7.0.x updater.
+- Visual feedback for automatic on-exit installations without interrupting background downloads.
+
 ## [7.0.3] - 2026-11-15
 
 ### Changed
