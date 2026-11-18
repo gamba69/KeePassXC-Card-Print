@@ -30,6 +30,9 @@ public partial class MainWindow : Window
     private const double MinEditorPane = 490;
     private const double MinPreviewPane = 420;
     private bool _switchingStorage;
+    private readonly CloudConfigurationSync _cloudSync = new();
+    public CloudConfigurationSync CloudSync => _cloudSync;
+    public void SelectStorageFromSettings(OptionItem option) => StorageCombo.SelectedItem = option;
     private readonly IPasswordInputLanguageScope _passwordLayout = PlatformServices.Current.CreatePasswordInputLanguageScope();
     private CancellationTokenSource? _printExportCancellation;
     private long _vaultGeneration;
@@ -68,6 +71,11 @@ public partial class MainWindow : Window
         _settings.ActiveTab = 0;
         _vm = new ShellViewModel(_settings);
         InitializeComponent();
+        _cloudSync.BeforeRemoteApplyAsync = async () => await Dispatcher.UIThread.InvokeAsync(() =>
+            !_vm.Busy && !_vm.MappingHasPendingChanges && !_vm.CanSaveTemplateChanges &&
+            _printExportCancellation is null);
+        _cloudSync.RemoteApplied = () => Dispatcher.UIThread.Post(OnCloudRemoteApplied);
+        Closed += (_, _) => _cloudSync.Dispose();
         Title = "KeePassXC Card Print  " + AppBuildInfo.Version;
         DataContext = _vm;
         UiText.Language = _settings.Language;
@@ -336,7 +344,12 @@ public partial class MainWindow : Window
     {
         if (_switchingStorage || sender is not ComboBox combo ||
             combo.SelectedItem is not OptionItem selected || _vm is null) return;
-        var target = selected.Code == "local" ? ConfigurationStorage.Local : ConfigurationStorage.AppData;
+        var target = selected.Code switch
+        {
+            "local" => ConfigurationStorage.Local,
+            "cloud" => ConfigurationStorage.Cloud,
+            _ => ConfigurationStorage.AppData
+        };
         if (target == SettingsLocation.Mode) return;
         _switchingStorage = true;
         try
@@ -344,6 +357,23 @@ public partial class MainWindow : Window
             if (_vm.Busy)
             {
                 _vm.VaultStatus = "Дождитесь завершения открытия базы.";
+                return;
+            }
+            if (target == ConfigurationStorage.Cloud && !CloudConnectionStore.IsCurrentVerified())
+            {
+                var lang = Localizer.ResolveLanguage(_settings.Language);
+                var message = lang switch
+                {
+                    "uk" => "Хмарне підключення не налаштовано або не перевірено. Налаштуйте й перевірте його на вкладці «Налаштування».",
+                    "en" => "Cloud connection is not configured or verified. Configure and test it in Settings.",
+                    _ => "Облачное подключение не настроено или не проверено. Настройте и проверьте его на вкладке «Настройки»."
+                };
+                _vm.VaultStatus = "[CLOUD] " + message;
+                _vm.ActiveTab = 4;
+                await AppConfirmations.AskAsync(this,
+                    lang switch { "uk" => "Хмарне зберігання", "en" => "Cloud storage", _ => "Облачное хранение" },
+                    message, lang switch { "uk" => "Зрозуміло", "en" => "OK", _ => "Понятно" },
+                    cancelText: lang switch { "uk" => "Закрити", "en" => "Close", _ => "Закрыть" });
                 return;
             }
             var answer = await new StorageSwitchDialog(_settings.Language, target)
@@ -358,11 +388,22 @@ public partial class MainWindow : Window
             _store.Save(_settings);
             var previous = SettingsLocation.DirectoryPath;
             var destination = SettingsLocation.RootFor(target);
-            if (answer == StorageSwitchAnswer.Yes)
+            if (target == ConfigurationStorage.Cloud)
+            {
+                // Always seed the machine-local cache, including private settings.
+                // Download only overwrites the explicit portable allow-list.
+                ConfigurationTransfer.CopyCurrent(previous, destination);
+                if (answer == StorageSwitchAnswer.Yes)
+                    await _cloudSync.UploadCurrentAsync();
+                else await _cloudSync.DownloadExistingAsync();
+            }
+            else if (answer == StorageSwitchAnswer.Yes)
                 ConfigurationTransfer.CopyCurrent(previous, destination);
             else Directory.CreateDirectory(destination);
 
             SettingsLocation.Activate(target);
+            if (target == ConfigurationStorage.Cloud) _cloudSync.Start();
+            else _cloudSync.Stop();
             // Reload ALL preferences from the selected folder. This includes UI
             // theme/language, mapping, YubiKey choices and selection tokens.
             _vm.PreferencesChanged -= PreferencesChanged;
@@ -397,8 +438,7 @@ public partial class MainWindow : Window
                 if(viewport is not null)EnsurePreviewOrigin(viewport);
             },DispatcherPriority.Loaded);
         }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or
-                                   System.Security.SecurityException)
+        catch (Exception)
         {
             // Never disclose filesystem details or a copied configuration's contents.
             _vm.VaultStatus = "[STORAGE] Не удалось переключить хранение. Проверьте права записи и свободное место.";
@@ -409,6 +449,29 @@ public partial class MainWindow : Window
             combo.SelectedItem = _vm.SelectedStorage;
             _switchingStorage = false;
         }
+    }
+
+    private void OnCloudRemoteApplied()
+    {
+        if (SettingsLocation.Mode != ConfigurationStorage.Cloud || _switchingStorage) return;
+        // The pre-apply gate prevented replacing a dirty mapping or an active export.
+        // Discard the old view-model after saving local-only vault preferences.
+        _vm.PreferencesChanged -= PreferencesChanged;
+        _vm.PropertyChanged -= OnShellPropertyChanged;
+        _vm.ClearVault();
+        var active = _vm.ActiveTab;
+        _store = new UiSettingsStore();
+        _settings = _store.Load();
+        _settings.ActiveTab = active;
+        _vm = new ShellViewModel(_settings);
+        _vm.PreferencesChanged += PreferencesChanged;
+        _vm.PropertyChanged += OnShellPropertyChanged;
+        _vm.About.OverlayChangeRequested += SetAvaloniaDiagnostics;
+        DataContext = _vm;
+        UiText.Language = _settings.Language;
+        UiText.Apply(this, translateText: false);
+        ApplyPreviewToolbarDock();
+        SetTheme();
     }
 
     private void InitializeComponent() => AvaloniaXamlLoader.Load(this);
@@ -462,6 +525,37 @@ public partial class MainWindow : Window
         RestorePanelRatio();
         _restored = true;
         UpdateAboutRefresh();
+        if (SettingsLocation.Mode == ConfigurationStorage.Cloud) _cloudSync.Start();
+        // Proton CLI release checks run while the application is open,
+        // regardless of which tab the user is viewing. Never install silently.
+        var protonTimer = new DispatcherTimer { Interval = TimeSpan.FromHours(24) };
+        string lastProtonUpdate = "";
+        async Task CheckProtonUpdateAsync()
+        {
+            try
+            {
+                var config = CloudConnectionStore.Load();
+                if (config.Provider != "ProtonDrive" || !config.CheckProtonCliAutomatically) return;
+                var status = await PlatformServices.Current.Cloud.CheckProtonCliAsync(
+                    config.ProtonExecutable, CancellationToken.None);
+                if (status.State == "available" && status.Latest != lastProtonUpdate)
+                {
+                    lastProtonUpdate = status.Latest;
+                    _vm.VaultStatus = "[CLOUD] Proton Drive CLI " + status.Latest + " — " +
+                        (Localizer.ResolveLanguage(_settings.Language) switch
+                        {
+                            "uk" => "Доступне оновлення. Відкрийте «Налаштування».",
+                            "en" => "Update available. Open Settings.",
+                            _ => "Доступно обновление. Откройте «Настройки»."
+                        });
+                }
+            }
+            catch (Exception) { /* A failed optional check never prevents startup. */ }
+        }
+        protonTimer.Tick += async (_, _) => await CheckProtonUpdateAsync();
+        Closed += (_, _) => protonTimer.Stop();
+        protonTimer.Start();
+        _ = CheckProtonUpdateAsync();
 
         // A remembered database path is enough to make password entry the
         // primary startup action. Do not open the vault or persist a secret.
@@ -613,6 +707,7 @@ public partial class MainWindow : Window
         _vm.ClearVault();
         CaptureLayout();
         Persist();
+        if (SettingsLocation.Mode == ConfigurationStorage.Cloud) _cloudSync.MarkPending();
         UpdaterHost.InstallOnExitIfReady();
         base.OnClosing(e);
     }

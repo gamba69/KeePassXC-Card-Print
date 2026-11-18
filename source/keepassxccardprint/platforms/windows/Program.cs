@@ -42,6 +42,15 @@ internal static class Program
             Environment.ExitCode=0;
             return;
         }
+        if (args.Contains("--self-test-cloud", StringComparer.Ordinal))
+        {
+            int status = CloudArchiveSelfTests.Run();
+            int index = Array.IndexOf(args, "--self-test-cloud");
+            if (index >= 0 && index + 1 < args.Length && !args[index + 1].StartsWith("--", StringComparison.Ordinal))
+                File.WriteAllText(args[index + 1], CloudArchiveSelfTests.Report);
+            Environment.ExitCode = status;
+            return;
+        }
         // A failed/interrupted install is recovered using the previously
         // copied, known-good helper before normal application initialization.
         if(WindowsUpdateService.LaunchInterruptedRecovery(args))return;

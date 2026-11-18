@@ -3,6 +3,54 @@
 All notable changes to KeePassXC Card Print are documented **only in this file**.
 Other documentation describes the current release and must not contain a version-by-version history.
 
+## [8.0.3] - 2026-11-18
+
+### Added
+- Preconfigured KeePassXC Card Print Google OAuth Desktop client with optional
+  advanced override; OAuth tokens remain in Windows Credential Manager.
+- Configurable cloud folder (default KeePassXC-Card-Print) across all providers,
+  with path validation and separate read/write/delete connection preflight.
+- Proton Drive CLI auto-discovery, official SHA-512 validated download/update,
+  idle lease, transactional binary replacement, local rollback and daily checks.
+
+### Fixed
+- Reject unconfigured and unverified cloud storage transitions without crashing.
+- Invalidate the verified connection after edits or authentication changes;
+  suspend cloud sync until another successful verification.
+- For an active cloud profile reconfiguration, require an explicit user choice
+  before importing or replacing any pre-existing configuration.zip.
+
+## [8.0.2] - 2026-11-18
+
+### Fixed
+- Replace obsolete Avalonia TextBox.Watermark with PlaceholderText on the
+  Settings cloud endpoint field (AVLN5001).
+- Make the existing About update-control refresh guard effective, removing
+  the unused-field compiler warning (CS0414).
+- Expose a public default XAML constructor for UpdateOperationWindow while
+  retaining its explicit operation constructor (AVLN3001).
+
+## [8.0.1] - 2026-11-18
+
+### Fixed
+- Move Windows Credential Manager P/Invoke, browser integration and Proton CLI
+  process launching into platforms/windows; shared synchronization now obtains
+  cloud host services through the platform abstraction.
+- Restore the strict platform-boundary build check without weakening build.ps1.
+
+## [8.0.0] - 2026-11-18
+
+### Added
+- Cloud configuration cache and one-archive Last Write Wins synchronization through
+  pinned KeePassXC.CloudTransport 1.0.2 (Google Drive, Proton Drive, WebDAV, S3/R2).
+- SHA-256 manifest, bounded extraction, strict allow-list, upload verification,
+  transactional remote apply and rollback; local pending journal and offline retries.
+- Synchronization of appearance, mappings, domains, templates, and print-tracking
+  history without exporting machine-bound UI settings, local vault paths or secrets.
+- Cloud-first storage selector, new right-anchored Settings tab and the application
+  auto-update preferences moved out of About; RU/UK/EN captions.
+- Native AOT executable self-test entry point `--self-test-cloud`.
+
 ## [7.1.1] - 2026-11-15
 
 ### Fixed

@@ -1,0 +1,69 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:KeePassXCCardPrint.ViewModels"
+             x:Class="KeePassXCCardPrint.SettingsView"
+             x:DataType="vm:ShellViewModel"
+             Background="{DynamicResource KpSurfaceBrush}">
+  <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" MinHeight="0">
+    <StackPanel Margin="11" Spacing="10">
+      <Border Classes="settings-card" Padding="11">
+        <StackPanel Spacing="8">
+          <TextBlock x:Name="StorageTitle" Classes="section-heading" Text="Хранение конфигурации"/>
+          <TextBlock x:Name="StorageCaption" Text="Способ хранения"/>
+          <ComboBox x:Name="StoragePicker" HorizontalAlignment="Stretch"
+                    ItemsSource="{Binding StorageOptions}" SelectedItem="{Binding SelectedStorage, Mode=OneWay}"
+                    SelectionChanged="OnStorageChanged">
+            <ComboBox.ItemTemplate>
+              <DataTemplate x:DataType="vm:OptionItem"><TextBlock Text="{Binding Label}"/></DataTemplate>
+            </ComboBox.ItemTemplate>
+          </ComboBox>
+          <TextBlock x:Name="ProviderCaption" Text="Облачный провайдер"/>
+          <ComboBox x:Name="ProviderPicker" HorizontalAlignment="Stretch"
+                    SelectionChanged="OnProviderChanged"/>
+          <TextBlock x:Name="FolderCaption" Text="Папка в облаке"/>
+          <TextBox x:Name="FolderBox" PlaceholderText="KeePassXC-Card-Print"/>
+          <TextBlock x:Name="EndpointCaption" Text="Адрес сервера (WebDAV / S3 / R2)"/>
+          <TextBox x:Name="EndpointBox" PlaceholderText="https://"/>
+          <TextBlock x:Name="BucketCaption" Text="Bucket (S3 / R2)"/>
+          <TextBox x:Name="BucketBox"/>
+          <TextBlock x:Name="RegionCaption" Text="Region (S3 / R2)"/>
+          <TextBox x:Name="RegionBox"/>
+          <CheckBox x:Name="AdvancedGoogleCheck" Content="Дополнительные параметры Google OAuth"/>
+          <TextBlock x:Name="ClientIdCaption" Text="Google OAuth Client ID"/>
+          <TextBox x:Name="ClientIdBox"/>
+          <TextBlock x:Name="ProtonCaption" Text="Путь к Proton CLI"/>
+          <TextBox x:Name="ProtonBox" PlaceholderText="Автоматический поиск"/>
+          <Button x:Name="BrowseProtonButton" HorizontalAlignment="Left"
+                  Content="Обзор…" Click="OnBrowseProton"/>
+          <CheckBox x:Name="AutoProtonCheck" Content="Проверять обновления Proton CLI автоматически"/>
+          <TextBlock x:Name="ProtonStatus" TextWrapping="Wrap" FontSize="11"/>
+          <WrapPanel x:Name="ProtonActions" Orientation="Horizontal" ItemSpacing="6" LineSpacing="6">
+            <Button x:Name="CheckProtonButton" Click="OnCheckProton" Content="Проверить версию"/>
+            <Button x:Name="InstallProtonButton" Click="OnInstallProton" Content="Скачать / обновить Proton CLI"/>
+          </WrapPanel>
+          <TextBlock x:Name="UsernameCaption" Text="Имя пользователя / Access Key"/>
+          <TextBox x:Name="UsernameBox"/>
+          <TextBlock x:Name="SecretCaption" Text="Пароль / Secret Key / OAuth Client Secret (если изменяется)" TextWrapping="Wrap"/>
+          <TextBox x:Name="SecretBox" PasswordChar="●"/>
+          <WrapPanel Orientation="Horizontal" ItemSpacing="6" LineSpacing="6">
+            <Button x:Name="SaveCloudButton" Click="OnSaveConnection" Content="Сохранить подключение"/>
+            <Button x:Name="LoginCloudButton" Click="OnAuthenticate" Content="Авторизоваться"/>
+            <Button x:Name="TestCloudButton" Click="OnTestConnection" Content="Проверить"/>
+            <Button x:Name="SyncCloudButton" Click="OnSyncNow" Content="Синхронизировать сейчас"/>
+          </WrapPanel>
+          <TextBlock x:Name="CloudStatus" TextWrapping="Wrap" FontSize="11"/>
+          <TextBlock x:Name="LastSync" FontSize="11" TextWrapping="Wrap"/>
+        </StackPanel>
+      </Border>
+      <Border Classes="settings-card" Padding="11">
+        <StackPanel Spacing="8">
+          <TextBlock x:Name="UpdatesCaption" Classes="section-heading" Text="Обновления программы"/>
+          <CheckBox x:Name="AutoCheck" Content="Проверять обновления автоматически"/>
+          <CheckBox x:Name="AutoDownload" Content="Автоматически скачивать обновления"/>
+          <TextBlock x:Name="InstallModeCaption" Text="Установка обновлений"/>
+          <ComboBox x:Name="InstallMode" HorizontalAlignment="Stretch" SelectionChanged="OnInstallModeChanged"/>
+        </StackPanel>
+      </Border>
+    </StackPanel>
+  </ScrollViewer>
+</UserControl>

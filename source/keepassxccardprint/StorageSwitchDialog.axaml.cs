@@ -19,7 +19,9 @@ public partial class StorageSwitchDialog : Window
         PrintWindowIcons.Attach(this);
         var lang = Localizer.ResolveLanguage(language);
         var dest = target == ConfigurationStorage.AppData ? "AppData" :
-                   lang == "en" ? "Local (Data)" : lang == "uk" ? "Локально (Data)" : "Локально (Data)";
+                   target == ConfigurationStorage.Cloud ? (lang switch
+                   { "uk" => "Хмара", "en" => "Cloud", _ => "Облако" }) :
+                   lang == "en" ? "Local (Data)" : "Локально (Data)";
         var heading = lang switch
         {
             "uk" => "Змінити сховище налаштувань",
@@ -28,9 +30,9 @@ public partial class StorageSwitchDialog : Window
         };
         var question = lang switch
         {
-            "uk" => $"Перейти на «{dest}»?\n\nТак — скопіювати поточні налаштування.\nНі — використати налаштування нової папки.\nСкасувати — залишити все як є.",
-            "en" => $"Switch to {dest}?\n\nYes — copy current settings.\nNo — use settings already at the destination.\nCancel — keep the current storage.",
-            _ => $"Переключить хранение на «{dest}»?\n\nДа — скопировать текущие настройки.\nНет — использовать настройки выбранной папки.\nОтмена — ничего не менять."
+            "uk" => $"Перейти на «{dest}»?\n\nТак — замінити вміст цільового сховища поточними налаштуваннями.\nНі — використати існуючі налаштування сховища.\nСкасувати — залишити все як є.",
+            "en" => $"Switch to {dest}?\n\nYes — replace destination with current settings.\nNo — use existing destination settings.\nCancel — keep the current storage.",
+            _ => $"Переключить хранение на «{dest}»?\n\nДа — заменить данные хранилища текущими настройками.\nНет — использовать существующие данные хранилища.\nОтмена — ничего не менять."
         };
         this.FindControl<TextBlock>("DialogHeading")!.Text = heading;
         this.FindControl<TextBlock>("DialogQuestion")!.Text = question;

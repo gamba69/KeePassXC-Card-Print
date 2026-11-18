@@ -2,7 +2,7 @@ using KeePassXCCardPrint.Platforms;
 
 namespace KeePassXCCardPrint.Services;
 
-public enum ConfigurationStorage { AppData, Local }
+public enum ConfigurationStorage { AppData, Local, Cloud }
 
 /// <summary>OS-independent location facade. The platform host owns persistence
 /// of the mode selector; all stores continue using the same configuration roots.</summary>
@@ -14,8 +14,13 @@ public static class SettingsLocation
     public static string FilePath(string name) => Path.Combine(DirectoryPath, name);
     public static string AppDataRoot => PlatformServices.Current.Configuration.AppDataRoot;
     public static string LocalRoot => PlatformServices.Current.Configuration.LocalRoot;
-    public static string RootFor(ConfigurationStorage mode) =>
-        mode == ConfigurationStorage.Local ? LocalRoot : AppDataRoot;
+    public static string CloudRoot => Path.Combine(AppDataRoot, "cloud-cache");
+    public static string RootFor(ConfigurationStorage mode) => mode switch
+    {
+        ConfigurationStorage.Local => LocalRoot,
+        ConfigurationStorage.Cloud => CloudRoot,
+        _ => AppDataRoot
+    };
 
     public static void Activate(ConfigurationStorage mode)
     {

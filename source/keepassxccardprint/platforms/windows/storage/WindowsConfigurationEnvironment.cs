@@ -38,6 +38,7 @@ internal sealed class WindowsConfigurationEnvironment : IConfigurationEnvironmen
                 var mode = File.ReadAllText(ModeFile).Trim();
                 if (mode == "local") return ConfigurationStorage.Local;
                 if (mode == "appdata") return ConfigurationStorage.AppData;
+                if (mode == "cloud") return ConfigurationStorage.Cloud;
             }
         }
         catch (Exception e) when (e is IOException or UnauthorizedAccessException) { }
@@ -50,7 +51,12 @@ internal sealed class WindowsConfigurationEnvironment : IConfigurationEnvironmen
         var temp = ModeFile + "." + Guid.NewGuid().ToString("N") + ".tmp";
         try
         {
-            File.WriteAllText(temp, mode == ConfigurationStorage.Local ? "local" : "appdata");
+            File.WriteAllText(temp, mode switch
+            {
+                ConfigurationStorage.Local => "local",
+                ConfigurationStorage.Cloud => "cloud",
+                _ => "appdata"
+            });
             File.Move(temp, ModeFile, true);
         }
         finally { if (File.Exists(temp)) File.Delete(temp); }

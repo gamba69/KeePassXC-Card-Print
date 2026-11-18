@@ -20,6 +20,10 @@ public sealed partial class UpdateOperationWindow : Window
     private bool _resultMode;
     private bool _error;
 
+    // Avalonia XAML runtime loader requires a public default constructor.
+    // Production callers continue using the explicit operation constructor.
+    public UpdateOperationWindow() : this("auto", "update", "", "") { }
+
     internal UpdateOperationWindow(string language, string operation,
         string fromVersion, string toVersion)
     {

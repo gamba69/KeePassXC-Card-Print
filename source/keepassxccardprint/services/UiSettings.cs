@@ -139,7 +139,7 @@ public sealed class UiSettingsStore
         if (data.WindowY is < -40000 or > 40000) data.WindowY = null;
         if (!double.IsFinite(data.LeftPaneWidth) || data.LeftPaneWidth < 490 || data.LeftPaneWidth > 10000)
             data.LeftPaneWidth = 950;
-        data.ActiveTab = Math.Clamp(data.ActiveTab, 0, 4);
+        data.ActiveTab = Math.Clamp(data.ActiveTab, 0, 5);
         if (data.PreviewZoom is not ("fit" or "width" or "100" or "card")) data.PreviewZoom = "fit";
         return data;
     }

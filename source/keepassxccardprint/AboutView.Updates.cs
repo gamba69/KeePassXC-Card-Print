@@ -11,13 +11,9 @@ public partial class AboutView
     private bool _updatingControls;
     private bool _updatesAttached;
     private AboutViewModel? _observedUpdateLanguage;
-    private static readonly string[] UpdateModes={"exit","ask","manual"};
 
     private void InitializeUpdates()
     {
-        // Avalonia 12 exposes IsCheckedChanged, not XAML Checked/Unchecked events.
-        UpdateCheck.IsCheckedChanged += (_, _) => OnUpdateCheckChanged();
-        UpdateDownload.IsCheckedChanged += (_, _) => OnUpdateDownloadChanged();
         AttachedToVisualTree+=(_,_)=>
         {
             _updatesAttached=true;
@@ -65,25 +61,12 @@ public partial class AboutView
 
     private void RefreshUpdates()
     {
+        if (_updatingControls) return;
         _updatingControls=true;
         try
         {
             var updater=UpdaterHost.Service;
-            var prefs=updater.Preferences;
-            UpdateCheck.IsChecked=prefs.CheckAutomatically;
-            UpdateDownload.IsChecked=prefs.DownloadAutomatically;
-            UpdateDownload.IsEnabled=prefs.CheckAutomatically;
-            UpdateMode.ItemsSource=new[]{
-                L("При выходе","Під час виходу","On exit"),
-                L("Предлагать перезапуск","Пропонувати перезапуск","Offer restart"),
-                L("Только вручную","Лише вручну","Manual only")};
-            UpdateMode.SelectedIndex=Array.IndexOf(UpdateModes,prefs.Installation);
             UpdateHeader.Text=L("Обновления приложения","Оновлення програми","Application updates");
-            UpdateCheck.Content=L("Проверять обновления автоматически",
-                "Перевіряти оновлення автоматично","Check for updates automatically");
-            UpdateDownload.Content=L("Скачивать обновления автоматически",
-                "Автоматично завантажувати оновлення","Download updates automatically");
-            UpdateModeCaption.Text=L("Установка обновлений","Установлення оновлень","Install updates");
             UpdateCheckButton.Content=L("Проверить обновления","Перевірити оновлення","Check for updates");
             UpdateInstallButton.Content=L("Установить сейчас","Установити зараз","Install now");
             UpdateRepairButton.Content=L("Восстановить…","Відновити…","Repair…");
@@ -115,25 +98,6 @@ public partial class AboutView
             UpdateRepairButton.IsEnabled=offerRepair && !UpdaterHost.IsInstalling;
         }
         finally{_updatingControls=false;}
-    }
-    private void OnUpdateCheckChanged()
-    {
-        if(_updatingControls)return;
-        UpdaterHost.Service.SavePreferences(UpdaterHost.Service.Preferences with
-        {CheckAutomatically=UpdateCheck.IsChecked==true});
-        RefreshUpdates();
-    }
-    private void OnUpdateDownloadChanged()
-    {
-        if(_updatingControls)return;
-        UpdaterHost.Service.SavePreferences(UpdaterHost.Service.Preferences with
-        {DownloadAutomatically=UpdateDownload.IsChecked==true});
-    }
-    private void OnUpdateModeChanged(object? sender,SelectionChangedEventArgs e)
-    {
-        if(_updatingControls || UpdateMode.SelectedIndex is <0 or >2)return;
-        UpdaterHost.Service.SavePreferences(UpdaterHost.Service.Preferences with
-        {Installation=UpdateModes[UpdateMode.SelectedIndex]});
     }
     private async void OnCheckUpdatesClicked(object? sender,RoutedEventArgs e)
     {

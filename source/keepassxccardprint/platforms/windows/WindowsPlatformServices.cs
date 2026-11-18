@@ -31,5 +31,6 @@ internal sealed class WindowsPlatformServices : IPlatformServices
     public IPrinterService Printing { get; } = new WindowsPrinterService();
     public IConfigurationEnvironment Configuration { get; } = new WindowsConfigurationEnvironment();
     public ISecurityKeyService SecurityKeys { get; } = new WindowsSecurityKeyService();
+    public ICloudPlatformServices Cloud { get; } = new WindowsCloudPlatformServices();
     public IPasswordInputLanguageScope CreatePasswordInputLanguageScope() => new WindowsPasswordInputLanguage();
 }

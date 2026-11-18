@@ -13,7 +13,7 @@
     <ApplicationIcon>assets\CardPrint_white.ico</ApplicationIcon>
     <AssemblyName>KeePassXCCardPrint</AssemblyName>
     <RootNamespace>KeePassXCCardPrint</RootNamespace>
-    <Version>7.1.1</Version>
+    <Version>8.0.3</Version>
     <WarningsAsErrors>$(WarningsAsErrors);CA1416;IL2026;IL2070;IL2072;IL2075;IL3050;IL3053;AVLN5001</WarningsAsErrors>
   </PropertyGroup>
   <ItemGroup>
@@ -33,6 +33,7 @@
     <!-- Version 4 of SkiaSharp.HarfBuzz requires HarfBuzz 14; do not leave Avalonia's older minimum in charge. -->
     <PackageReference Include="HarfBuzzSharp" Version="14.2.1.400" />
     <PackageReference Include="QRCoder" Version="1.8.1" />
+    <PackageReference Include="KeePassXC.CloudTransport" Version="1.0.2" />
     <!-- Application branding: each ICO contains native sizes from 16 to 256 px. -->
     <AvaloniaResource Include="assets/CardPrint_black.ico" />
     <AvaloniaResource Include="assets/CardPrint_white.ico" />

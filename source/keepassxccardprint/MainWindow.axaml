@@ -799,6 +799,15 @@
           </Grid>
           </ScrollViewer>
         </TabItem>
+        <TabItem ClipToBounds="True" ToolTip.Tip="{Binding TabSettings}">
+          <TabItem.Header>
+            <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+              <fi:FluentIcon Icon="Settings" IconVariant="Regular" IconSize="Size20" Width="16" Height="16" FontSize="16"/>
+              <TextBlock Text="{Binding TabSettings}" VerticalAlignment="Center"/>
+            </StackPanel>
+          </TabItem.Header>
+          <views:SettingsView/>
+        </TabItem>
         <TabItem ClipToBounds="True" ToolTip.Tip="{Binding TabAbout}">
           <TabItem.Header>
             <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">

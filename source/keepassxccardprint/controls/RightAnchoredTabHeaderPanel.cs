@@ -4,9 +4,9 @@ using Avalonia.Controls;
 namespace KeePassXCCardPrint.Controls;
 
 /// <summary>
-/// Arranges ordinary TabItems with the final tab anchored to the right edge.
-/// At narrow widths the left tabs contract proportionally, so the final tab
-/// stays accessible rather than overlapping it. Not platform-specific.
+/// The final TWO tabs form one right-aligned group. Unused width becomes a
+/// flexible gap before Settings; no gap is inserted between Settings and About.
+/// Extremely narrow sizes contract left headers first, then both right headers.
 /// </summary>
 public sealed class RightAnchoredTabHeaderPanel : Panel
 {
@@ -22,33 +22,41 @@ public sealed class RightAnchoredTabHeaderPanel : Panel
             width += child.DesiredSize.Width;
             height = Math.Max(height, child.DesiredSize.Height);
         }
-        if (Children.Count > 1) width += Separator;
-        // The tab bar stretches to the entire available pane width.
+        if (Children.Count > 2) width += Separator;
         return new Size(double.IsFinite(availableSize.Width) ? availableSize.Width : width, height);
     }
 
     protected override Size ArrangeOverride(Size finalSize)
     {
         if (Children.Count == 0) return finalSize;
-        var last = Children.Count - 1;
-        var right = Children[last];
-        var rightWidth = right.DesiredSize.Width;
-        var totalLeft = 0d;
-        for (var i = 0; i < last; i++) totalLeft += Children[i].DesiredSize.Width;
-
-        var leftWidth = Math.Max(0d, finalSize.Width - rightWidth - Separator);
-        // Contraction matters only when the panes are dragged unusually narrow.
-        var factor = totalLeft > 0d ? Math.Min(1d, leftWidth / totalLeft) : 1d;
+        var rightStart = Math.Max(0, Children.Count - 2);
+        var leftTotal = 0d;
+        var rightTotal = 0d;
+        for (var i = 0; i < Children.Count; ++i)
+            if (i < rightStart) leftTotal += Children[i].DesiredSize.Width;
+            else rightTotal += Children[i].DesiredSize.Width;
+        // Preserve the two right headings as long as possible. Do not overlap
+        // even if the parent is forced narrower than their combined width.
+        var rightScale = rightTotal > finalSize.Width && rightTotal > 0
+            ? Math.Max(0, finalSize.Width) / rightTotal : 1d;
+        var rightWidth = rightTotal * rightScale;
+        var leftAvailable = Math.Max(0d, finalSize.Width - rightWidth -
+            (rightStart > 0 ? Separator : 0));
+        var leftScale = leftTotal > 0 ? Math.Min(1d, leftAvailable / leftTotal) : 1d;
         var x = 0d;
-        for (var i = 0; i < last; i++)
+        for (var i = 0; i < rightStart; ++i)
         {
-            var child = Children[i];
-            var width = child.DesiredSize.Width * factor;
-            child.Arrange(new Rect(x, 0, width, finalSize.Height));
+            var width = Children[i].DesiredSize.Width * leftScale;
+            Children[i].Arrange(new Rect(x, 0, width, finalSize.Height));
             x += width;
         }
-        right.Arrange(new Rect(Math.Max(x, finalSize.Width - rightWidth), 0,
-                               Math.Min(rightWidth, finalSize.Width), finalSize.Height));
+        x = Math.Max(x, finalSize.Width - rightWidth);
+        for (var i = rightStart; i < Children.Count; ++i)
+        {
+            var width = Children[i].DesiredSize.Width * rightScale;
+            Children[i].Arrange(new Rect(x, 0, width, finalSize.Height));
+            x += width;
+        }
         return finalSize;
     }
 }

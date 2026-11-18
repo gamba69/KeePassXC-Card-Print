@@ -1,5 +1,6 @@
 using KeePassXCCardPrint.Rendering;
 using KeePassXCCardPrint.Services;
+using KeePassXC.CloudTransport;
 
 namespace KeePassXCCardPrint.Platforms;
 
@@ -63,6 +64,20 @@ public interface ISecurityKeyService
     byte[] ComputeChallengeResponse(byte[] challenge, int slot, bool shortChallenge, string? serial);
 }
 
+/// <summary>CloudTransport host dependencies supplied by the current OS.
+/// No P/Invoke or platform credential storage lives in shared code.</summary>
+public sealed record ProtonCliStatus(string State = "idle", string Current = "",
+    string Latest = "", string Path = "", string Error = "");
+
+public interface ICloudPlatformServices
+{
+    ICloudSecretStore Secrets { get; }
+    CloudTransportServices CreateServices();
+    string ResolveProtonExecutable(string? configured);
+    Task<ProtonCliStatus> CheckProtonCliAsync(string? configured, CancellationToken ct);
+    Task<string> InstallProtonCliAsync(string? configured, IProgress<int>? progress, CancellationToken ct);
+}
+
 /// <summary>Only OS-dependent capabilities belong here. Avalonia/Skia services stay shared.</summary>
 public readonly record struct WindowFrameInsets(int WidthPx, int HeightPx);
 
@@ -83,6 +98,7 @@ public interface IPlatformServices
     IPrinterService Printing { get; }
     IConfigurationEnvironment Configuration { get; }
     ISecurityKeyService SecurityKeys { get; }
+    ICloudPlatformServices Cloud { get; }
     IPasswordInputLanguageScope CreatePasswordInputLanguageScope();
 }
 

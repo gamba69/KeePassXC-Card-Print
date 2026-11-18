@@ -45,7 +45,8 @@ public sealed partial class ShellViewModel : INotifyPropertyChanged
     public OptionItem SelectedStorage => _selectedStorage;
     public void SetStorageMode(ConfigurationStorage mode)
     {
-        _selectedStorage = StorageOptions.First(o => o.Code == (mode == ConfigurationStorage.Local ? "local" : "appdata"));
+        _selectedStorage = StorageOptions.First(o => o.Code ==
+            (mode == ConfigurationStorage.Local ? "local" : mode == ConfigurationStorage.Cloud ? "cloud" : "appdata"));
         Changed(nameof(SelectedStorage));
     }
 
@@ -57,9 +58,12 @@ public sealed partial class ShellViewModel : INotifyPropertyChanged
             ThemeOptions.Add(new OptionItem(code, key, settings.Language));
         foreach (var (code, key) in new [] { ("auto", "AutoLanguage"), ("ru", "Russian"), ("uk", "Ukrainian"), ("en", "English") })
             LanguageOptions.Add(new OptionItem(code, key, settings.Language));
-        foreach (var (code, key) in new [] { ("appdata", "StorageAppData"), ("local", "StorageLocal") })
+        foreach (var (code, key) in new []
+            { ("cloud", "StorageCloud"), ("appdata", "StorageAppData"), ("local", "StorageLocal") })
             StorageOptions.Add(new OptionItem(code, key, settings.Language));
-        _selectedStorage = StorageOptions.First(o => o.Code == (SettingsLocation.Mode == ConfigurationStorage.Local ? "local" : "appdata"));
+        _selectedStorage = StorageOptions.First(o => o.Code ==
+            (SettingsLocation.Mode == ConfigurationStorage.Local ? "local" :
+             SettingsLocation.Mode == ConfigurationStorage.Cloud ? "cloud" : "appdata"));
         _selectedTheme = ThemeOptions.First(o => o.Code == settings.Theme);
         _selectedLanguage = LanguageOptions.First(o => o.Code == settings.Language);
         _activeTab = settings.ActiveTab;
@@ -125,7 +129,7 @@ public sealed partial class ShellViewModel : INotifyPropertyChanged
         get => _activeTab;
         set
         {
-            if (value == _activeTab || value is < 0 or > 4) return;
+            if (value == _activeTab || value is < 0 or > 5) return;
             _activeTab = value;
             _settings.ActiveTab = value;
             Changed();
@@ -163,6 +167,7 @@ public sealed partial class ShellViewModel : INotifyPropertyChanged
         nameof(TabMapping),
         nameof(TabDesign),
         nameof(TabDuplex),
+        nameof(TabSettings),
         nameof(TabAbout),
         nameof(SourceTitle),
         nameof(Database),
@@ -318,6 +323,7 @@ public sealed partial class ShellViewModel : INotifyPropertyChanged
     public string TabMapping => Localizer.Text(_settings.Language, "TabMapping");
     public string TabDesign => Localizer.Text(_settings.Language, "TabDesign");
     public string TabDuplex => Localizer.Text(_settings.Language, "TabDuplex");
+    public string TabSettings => Localizer.Text(_settings.Language, "TabSettings");
     public string TabAbout => Localizer.Text(_settings.Language, "TabAbout");
     public string SourceTitle => Localizer.Text(_settings.Language, "SourceTitle");
     public string Database => Localizer.Text(_settings.Language, "Database");

@@ -219,11 +219,6 @@
                 Classes="settings-card" Padding="10,9" VerticalAlignment="Top">
           <StackPanel Spacing="7">
             <TextBlock x:Name="UpdateHeader" Classes="section-heading" Text="Обновления приложения"/>
-            <CheckBox x:Name="UpdateCheck" Content="Проверять обновления автоматически"/>
-            <CheckBox x:Name="UpdateDownload" Content="Скачивать обновления автоматически"/>
-            <TextBlock x:Name="UpdateModeCaption" Text="Установка обновлений" FontSize="11"/>
-            <ComboBox x:Name="UpdateMode" MinWidth="220" HorizontalAlignment="Left"
-                      SelectionChanged="OnUpdateModeChanged"/>
             <TextBlock x:Name="UpdateStatus" FontSize="11" TextWrapping="Wrap"
                        Foreground="{DynamicResource KpSubtleBrush}"/>
             <WrapPanel Orientation="Horizontal" ItemSpacing="7" LineSpacing="5">
