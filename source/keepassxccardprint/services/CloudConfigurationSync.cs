@@ -502,14 +502,19 @@ internal static class CloudTransportAdapter
             catch (IOException) { }
         }
     }
-    public static async Task AuthenticateAsync(CloudConnectionProfile profile, CancellationToken ct)
+    public static async Task AuthenticateAsync(CloudConnectionProfile profile, CancellationToken ct,
+        string language = "auto", bool darkTheme = true)
     {
         var options = Options(profile);
         CloudConnectionStore.InvalidateVerification();
         if (options.Provider == CloudProvider.GoogleDrive)
         {
             using var http = new HttpClient { Timeout = options.Timeout };
-            await new GoogleOAuthSession(options, Services(), http).LoginAsync(ct);
+            var services = Services() with
+            {
+                GoogleOAuthCallbackPages = CloudOAuthCallbackPages.Create(language, darkTheme)
+            };
+            await new GoogleOAuthSession(options, services, http).LoginAsync(ct);
         }
         else if (options.Provider == CloudProvider.ProtonDrive)
         {

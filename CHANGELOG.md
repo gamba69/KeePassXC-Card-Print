@@ -3,6 +3,28 @@
 All notable changes to KeePassXC Card Print are documented **only in this file**.
 Other documentation describes the current release and must not contain a version-by-version history.
 
+## [8.0.5] - 2026-11-18
+
+### Fixed
+- Diagnose incompatible `mapping.json` structures during cloud snapshot validation,
+  including a format-tagged JSON envelope at `$.format`, instead of surfacing
+  an unhelpful JSON-to-FieldRule conversion exception.
+- Keep malformed mapping files untouched and refuse an unsafe upload or
+  replacement while their format remains incompatible.
+- Distinguish successful cloud connection verification from synchronization
+  errors; localize the actionable mapping-format diagnostic in RU/UK/EN.
+- Preflight portable configuration before a connection test on an active cloud
+  profile can trigger further archive operations.
+- Add Native AOT cloud self-test coverage for unsupported mapping envelopes.
+
+## [8.0.4] - 2026-11-18
+
+### Added
+- Host-owned, branded Google OAuth callback pages matching Card Print theme and
+  RU/UK/EN localization for successful and failed authorizations.
+- Upgrade the pinned KeePassXC.CloudTransport dependency to 1.0.3 for external
+  OAuth callback HTML support, without duplicating the OAuth loopback listener.
+
 ## [8.0.3] - 2026-11-18
 
 ### Added

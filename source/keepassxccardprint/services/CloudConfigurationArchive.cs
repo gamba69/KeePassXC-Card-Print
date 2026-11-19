@@ -116,6 +116,10 @@ public static class CloudConfigurationArchive
         return files;
     }
 
+    // Validates a pending local snapshot before any remote configuration object
+    // can be written. This must not repair or discard unknown mapping formats.
+    public static void ValidateLocal(string root) => _ = Collect(root);
+
     private static void ValidateJson(string name, byte[] content)
     {
         using var doc = JsonDocument.Parse(content, new JsonDocumentOptions { MaxDepth = 64 });
@@ -136,10 +140,31 @@ public static class CloudConfigurationArchive
         }
         else if (name == "mapping.json")
         {
-            var map = JsonSerializer.Deserialize(content, VaultJsonContext.Default.DictionaryStringFieldRule)
-                ?? throw new InvalidDataException("Invalid mapping.");
-            foreach (var rule in map.Values)
-                if (rule is null) throw new InvalidDataException("Invalid field rule.");
+            // The application's FieldMappingStore uses a bare dictionary:
+            // { "field": { "Role": "text", ... } }. Some unrelated JSON
+            // envelopes start with { "format": "..." }; interpreting their
+            // metadata as a FieldRule raises a low-level JsonException at
+            // $.format. Never upload a partially converted or empty mapping.
+            foreach (var field in doc.RootElement.EnumerateObject())
+                if (field.Value.ValueKind != JsonValueKind.Object)
+                    throw new InvalidDataException(
+                        "mapping.json: unsupported field mapping structure (" +
+                        (field.Name == "format" ? "$.format is metadata, not a rule" :
+                            "a field value is not a rule object") +
+                        "). Preserve the file and restore a compatible mapping before syncing.");
+            try
+            {
+                var map = JsonSerializer.Deserialize(content, VaultJsonContext.Default.DictionaryStringFieldRule)
+                    ?? throw new InvalidDataException("mapping.json: missing field rules.");
+                foreach (var rule in map.Values)
+                    if (rule is null) throw new InvalidDataException("mapping.json: invalid field rule.");
+            }
+            catch (JsonException e)
+            {
+                throw new InvalidDataException(
+                    "mapping.json: a rule does not match the supported field mapping schema. " +
+                    "Preserve the original file; it has not been replaced.", e);
+            }
         }
         else if (name == "domains.json")
         {

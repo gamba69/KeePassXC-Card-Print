@@ -44,6 +44,27 @@ public static class CloudArchiveSelfTests
             var tracking = new string('a', 64) + ".json";
             File.WriteAllText(Path.Combine(source, "print-tracking", tracking),
                 "{\"Version\":1,\"History\":[{\"Result\":\"printed\"}]}");
+            // A format-tagged JSON document is not a FieldMappingStore mapping.
+            // The old path raised JsonException at $.format and left an opaque
+            // sync error after a successful cloud connection check.
+            File.WriteAllText(Path.Combine(source, "mapping.json"),
+                "{\"format\":\"KeePassCardPrint-template-v1\",\"settings\":{}}");
+            var originalMapping = File.ReadAllText(Path.Combine(source, "mapping.json"));
+            try
+            {
+                CloudConfigurationArchive.ValidateLocal(source);
+                throw new InvalidOperationException("[FAIL] Incompatible mapping was accepted");
+            }
+            catch (InvalidDataException ex)
+            {
+                Assert(ex.Message.Contains("mapping.json", StringComparison.Ordinal) &&
+                    ex.Message.Contains("$.format", StringComparison.Ordinal),
+                    "invalid mapping error identifies file and schema mismatch");
+                Assert(File.ReadAllText(Path.Combine(source, "mapping.json")) == originalMapping,
+                    "invalid mapping remains unmodified");
+            }
+            log.AppendLine("[PASS] Incompatible mapping format rejected without data loss");
+            File.WriteAllText(Path.Combine(source, "mapping.json"), "{\"email\":{\"role\":\"text\"}}");
             var archive = Path.Combine(scratch, "config.zip");
             var manifest = CloudConfigurationArchive.Create(source, archive,
                 Guid.NewGuid(), DateTime.UtcNow);
@@ -72,6 +93,20 @@ public static class CloudArchiveSelfTests
             }
             catch (ArgumentException) { /* Expected. */ }
             log.AppendLine("[PASS] Custom folder and remote path traversal rejection");
+            foreach (var language in new[] { "ru", "uk", "en" })
+            foreach (var darkTheme in new[] { true, false })
+            {
+                var pages = CloudOAuthCallbackPages.Create(language, darkTheme);
+                Assert(pages.SuccessHtml.Contains("KeePassXC Card Print", StringComparison.Ordinal) &&
+                    pages.SuccessHtml.Contains("Google Drive", StringComparison.Ordinal) &&
+                    pages.FailureHtml.Contains("Google Drive", StringComparison.Ordinal) &&
+                    !pages.SuccessHtml.Contains("<script", StringComparison.OrdinalIgnoreCase) &&
+                    !pages.FailureHtml.Contains("<script", StringComparison.OrdinalIgnoreCase) &&
+                    Encoding.UTF8.GetByteCount(pages.SuccessHtml) <= 128 * 1024 &&
+                    Encoding.UTF8.GetByteCount(pages.FailureHtml) <= 128 * 1024,
+                    "OAuth result HTML is localized, standalone and bounded");
+            }
+            log.AppendLine("[PASS] OAuth result pages RU/UK/EN, dark/light, no scripts");
             var tie = new CloudSyncJournal { SavedAtUtc = manifest.SavedAtUtc };
             Assert(CloudConfigurationSync.RemoteWins(manifest, tie), "tie must favor cloud");
             Assert(!CloudConfigurationSync.RemoteWins(manifest, tie, forceUpload: true),

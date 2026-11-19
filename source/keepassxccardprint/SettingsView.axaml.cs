@@ -166,11 +166,13 @@ public partial class SettingsView : UserControl
                 "Error" => L("Ошибка", "Помилка", "Error"),
                 _ => L("Ожидание", "Очікування", "Pending")
             };
-            CloudStatus.Text = L("Состояние", "Стан", "Status") + ": " + state +
-                "\n" + (CloudConnectionStore.IsCurrentVerified()
-                    ? L("Подключение проверено", "Підключення перевірено", "Connection verified")
-                    : L("Подключение не проверено", "Підключення не перевірено", "Connection not verified")) +
-                (string.IsNullOrEmpty(engine?.Detail) ? "" : " — " + engine.Detail) +
+            // A successful network test and a failed portable-config validation
+            // are independent states; do not present them as one result.
+            CloudStatus.Text = (CloudConnectionStore.IsCurrentVerified()
+                    ? L("Подключение: проверено", "Підключення: перевірено", "Connection: verified")
+                    : L("Подключение: не проверено", "Підключення: не перевірено", "Connection: not verified")) +
+                "\n" + L("Синхронизация", "Синхронізація", "Synchronization") + ": " + state +
+                (string.IsNullOrEmpty(engine?.Detail) ? "" : " — " + LocalizeSyncError(engine.Detail)) +
                 (_unsavedConnection ? "\n" + L("Изменения не проверены; сохраните и проверьте подключение.",
                     "Зміни не перевірені; збережіть і перевірте підключення.",
                     "Changes not verified; save and test the connection.") : "") +
@@ -181,6 +183,17 @@ public partial class SettingsView : UserControl
         }
         finally { _updating = false; }
     }
+    private string LocalizeSyncError(string detail)
+    {
+        // Keep the internal exception stable and display one actionable error
+        // in every supported language. The filename is safe to expose.
+        if (detail.StartsWith("mapping.json:", StringComparison.Ordinal))
+            return L("Файл mapping.json имеет несовместимую структуру. Сохраните его копию и восстановите корректный маппинг перед синхронизацией. Данные не перезаписаны.",
+                "Файл mapping.json має несумісну структуру. Збережіть його копію та відновіть коректний мапінг перед синхронізацією. Дані не перезаписані.",
+                "mapping.json has an incompatible structure. Keep a backup and restore a valid mapping before synchronization. Data has not been overwritten.");
+        return detail;
+    }
+
     private CloudConnectionProfile ReadProfile()
     {
         if (ProviderPicker.SelectedIndex is < 0 or >= 5)
@@ -292,7 +305,9 @@ public partial class SettingsView : UserControl
         => await PerformAsync(async () =>
         {
             PersistProfile();
-            await CloudTransportAdapter.AuthenticateAsync(ReadProfile(), CancellationToken.None);
+            await CloudTransportAdapter.AuthenticateAsync(ReadProfile(), CancellationToken.None,
+                (DataContext as ShellViewModel)?.Settings.Language ?? "auto",
+                ActualThemeVariant == Avalonia.Styling.ThemeVariant.Dark);
         });
     private async void OnTestConnection(object? sender, RoutedEventArgs e)
         => await PerformAsync(async () =>
@@ -302,6 +317,10 @@ public partial class SettingsView : UserControl
             await CloudTransportAdapter.VerifyAsync(profile, CancellationToken.None);
             if (SettingsLocation.Mode == ConfigurationStorage.Cloud && Owner is { } owner)
             {
+                // The connection may be sound while local mapping.json is not.
+                // Reject the pending snapshot before even reading remote state;
+                // never let a connection test overwrite or delete user data.
+                CloudConfigurationArchive.ValidateLocal(SettingsLocation.CloudRoot);
                 // Re-pointing an active cache must never silently merge or overwrite
                 // an existing archive at the new destination.
                 using var remote = CloudTransportFactory.Create(
@@ -328,7 +347,8 @@ public partial class SettingsView : UserControl
                 else await owner.CloudSync.UploadCurrentAsync();
                 owner.CloudSync.Start();
             }
-        });
+        }, L("Проверка подключения завершена.", "Перевірку підключення завершено.",
+            "Connection test completed."));
     private async void OnSyncNow(object? sender, RoutedEventArgs e)
         => await PerformAsync(async () =>
         {
@@ -340,13 +360,13 @@ public partial class SettingsView : UserControl
                 throw new InvalidOperationException("Switch to cloud storage first.");
             await sync.SynchronizeAsync();
         });
-    private async Task PerformAsync(Func<Task> operation)
+    private async Task PerformAsync(Func<Task> operation, string? successMessage = null)
     {
         SaveCloudButton.IsEnabled = LoginCloudButton.IsEnabled = TestCloudButton.IsEnabled = SyncCloudButton.IsEnabled = false;
         try
         {
             await operation();
-            _lastOperationMessage = L("Операция выполнена.", "Операцію виконано.", "Operation completed.");
+            _lastOperationMessage = successMessage ?? L("Операция выполнена.", "Операцію виконано.", "Operation completed.");
         }
         catch (Exception ex) { _lastOperationMessage = ex.Message; }
         finally
