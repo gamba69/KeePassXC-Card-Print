@@ -51,6 +51,18 @@
             <Button x:Name="TestCloudButton" Click="OnTestConnection" Content="Проверить"/>
             <Button x:Name="SyncCloudButton" Click="OnSyncNow" Content="Синхронизировать сейчас"/>
           </WrapPanel>
+          <Border x:Name="CloudActivity" Classes="settings-card" Padding="10,9" IsVisible="False">
+            <StackPanel Spacing="7">
+              <TextBlock x:Name="CloudActivityTitle" FontWeight="SemiBold" FontSize="12"
+                         Text="Облачная операция" TextWrapping="Wrap"/>
+              <!-- Stage position only: no sweeping animation or fabricated byte progress. -->
+              <ProgressBar x:Name="CloudActivityBar" Height="4" Minimum="0" Maximum="100"
+                           Value="0" Opacity="0.55"/>
+              <TextBlock x:Name="CloudActivityStep" FontSize="11" TextWrapping="Wrap"/>
+            </StackPanel>
+          </Border>
+          <Button x:Name="CloudDestinationButton" IsVisible="False" HorizontalAlignment="Left"
+                  Click="OnConfirmDestination" Content="Подтвердить новое облачное хранилище"/>
           <TextBlock x:Name="CloudStatus" TextWrapping="Wrap" FontSize="11"/>
           <TextBlock x:Name="LastSync" FontSize="11" TextWrapping="Wrap"/>
         </StackPanel>

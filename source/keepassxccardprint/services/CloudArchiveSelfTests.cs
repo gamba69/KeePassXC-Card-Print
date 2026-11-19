@@ -1,12 +1,47 @@
 using System.IO.Compression;
 using System.Security.Cryptography;
 using System.Text;
+using KeePassXC.CloudTransport;
 
 namespace KeePassXCCardPrint.Services;
 
 // Executed inside the published Native AOT EXE: KeePassXCCardPrint.exe --self-test-cloud
 public static class CloudArchiveSelfTests
 {
+    // The explicit probe must not inspect or touch the production ZIP. Its
+    // isolated network substitute stores only the random verification object.
+    private sealed class CloudProbeStore : ICloudTransport
+    {
+        public readonly Dictionary<string, byte[]> Objects = new(StringComparer.Ordinal);
+        public readonly List<string> Operations = [];
+        public CloudProvider Provider => CloudProvider.WebDav;
+        public CloudCapabilities Capabilities => new(false, false, false);
+        public Task<bool> CheckConnectionAsync(CancellationToken ct) => Task.FromResult(true);
+        public Task<bool> DownloadAsync(string path, string destination, CancellationToken ct)
+        {
+            Operations.Add("download:" + path);
+            if (!Objects.TryGetValue(path, out var bytes)) return Task.FromResult(false);
+            File.WriteAllBytes(destination, bytes);
+            return Task.FromResult(true);
+        }
+        public Task UploadAsync(string source, string path, CloudWriteMode mode, CancellationToken ct)
+        {
+            Operations.Add("upload:" + path);
+            if (mode == CloudWriteMode.CreateNew && Objects.ContainsKey(path))
+                throw new IOException("Cloud test object exists");
+            Objects[path] = File.ReadAllBytes(source);
+            return Task.CompletedTask;
+        }
+        public Task<IReadOnlyList<CloudObjectInfo>> ListAsync(string directory, CancellationToken ct)
+            => Task.FromResult<IReadOnlyList<CloudObjectInfo>>([]);
+        public Task<CloudObjectInfo?> GetInfoAsync(string path, CancellationToken ct)
+            => Task.FromResult<CloudObjectInfo?>(null);
+        public Task EnsureDirectoryAsync(string directory, CancellationToken ct)
+        { Operations.Add("directory:" + directory); return Task.CompletedTask; }
+        public Task DeleteAsync(string path, CancellationToken ct)
+        { Operations.Add("delete:" + path); Objects.Remove(path); return Task.CompletedTask; }
+        public void Dispose() { }
+    }
     public static string Report { get; private set; } = "";
     private static void Assert(bool condition, string name)
     {
@@ -93,6 +128,52 @@ public static class CloudArchiveSelfTests
             }
             catch (ArgumentException) { /* Expected. */ }
             log.AppendLine("[PASS] Custom folder and remote path traversal rejection");
+            var configured = new CloudConnectionProfile
+            {
+                Provider = "GoogleDrive", RemoteFolder = "KeePassXC-Card-Print"
+            };
+            var bound = new CloudSyncJournal
+            {
+                SnapshotId = manifest.SnapshotId,
+                RemoteTargetHash = CloudConnectionStore.TargetFingerprint(configured)
+            };
+            Assert(CloudConfigurationSync.DestinationMatches(bound, configured, manifest),
+                "retesting the same verified destination keeps the existing binding");
+            var displayOnly = new CloudConnectionProfile
+            {
+                Provider = "GoogleDrive", RemoteFolder = configured.RemoteFolder,
+                CheckProtonCliAutomatically = false, ProtonExecutable = "different-cli.exe"
+            };
+            Assert(CloudConfigurationSync.DestinationMatches(bound, displayOnly, manifest),
+                "CLI preferences cannot change the remote destination");
+            var moved = new CloudConnectionProfile
+            {
+                Provider = "GoogleDrive", RemoteFolder = "Backups/New-Destination"
+            };
+            Assert(!CloudConfigurationSync.DestinationMatches(bound, moved, manifest),
+                "a changed remote folder requires explicit confirmation");
+            var legacy = new CloudSyncJournal { SnapshotId = manifest.SnapshotId };
+            Assert(CloudConfigurationSync.DestinationMatches(legacy, configured, manifest),
+                "8.0.5 journal matches its original snapshot without a prompt");
+            Assert(!CloudConfigurationSync.DestinationMatches(legacy, configured,
+                new CloudArchiveManifest { SnapshotId = Guid.NewGuid() }) &&
+                !CloudConfigurationSync.DestinationMatches(legacy, configured, null),
+                "legacy journal cannot silently adopt a different or missing archive");
+            log.AppendLine("[PASS] Connection retest has no implicit transfer; destination binding and legacy safety");
+            var cloudProbe = new CloudProbeStore();
+            var originalArchive = Encoding.UTF8.GetBytes("must-not-be-modified");
+            var archiveKey = CloudConnectionStore.RemoteFilePath(configured);
+            cloudProbe.Objects[archiveKey] = originalArchive.ToArray();
+            CloudTransportAdapter.VerifyWithTransportAsync(configured, cloudProbe,
+                CancellationToken.None).GetAwaiter().GetResult();
+            Assert(cloudProbe.Objects.Count == 1 &&
+                cloudProbe.Objects[archiveKey].AsSpan().SequenceEqual(originalArchive) &&
+                cloudProbe.Operations.Any(x => x.StartsWith("upload:", StringComparison.Ordinal)) &&
+                cloudProbe.Operations.Any(x => x.StartsWith("download:", StringComparison.Ordinal)) &&
+                cloudProbe.Operations.Any(x => x.StartsWith("delete:", StringComparison.Ordinal)) &&
+                !cloudProbe.Operations.Any(x => x.Contains("configuration.zip", StringComparison.Ordinal)),
+                "connection probe leaves the real archive completely untouched");
+            log.AppendLine("[PASS] Real-archive isolation during connection probe");
             foreach (var language in new[] { "ru", "uk", "en" })
             foreach (var darkTheme in new[] { true, false })
             {

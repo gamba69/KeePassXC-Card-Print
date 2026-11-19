@@ -10,10 +10,26 @@ namespace KeePassXCCardPrint;
 
 internal static class Program
 {
+    // Last-resort local diagnostics for intermittent managed crashes. Logging
+    // does not suppress a fatal exception and never records exception messages.
+    private static void InstallFailureDiagnostics()
+    {
+        AppDomain.CurrentDomain.UnhandledException += (_, eventArgs) =>
+        {
+            if (eventArgs.ExceptionObject is Exception error)
+                CloudSyncDiagnostics.Record("unhandled-managed-exception", error);
+        };
+        TaskScheduler.UnobservedTaskException += (_, eventArgs) =>
+        {
+            CloudSyncDiagnostics.Record("unobserved-task", eventArgs.Exception);
+            eventArgs.SetObserved();
+        };
+    }
 
     [STAThread]
     public static void Main(string[] args)
     {
+        InstallFailureDiagnostics();
         // The temporary helper uses the same Native AOT/Avalonia runtime but
         // instantiates only its progress window, never the database UI.
         if(args.Length>0 && (args[0] is "--apply-update" or "--recover-update"))

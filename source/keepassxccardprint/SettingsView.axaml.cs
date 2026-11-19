@@ -25,6 +25,10 @@ public partial class SettingsView : UserControl
     private ProtonCliStatus _protonStatus = new();
     private readonly DispatcherTimer _protonTimer = new() { Interval = TimeSpan.FromHours(24) };
     private bool _protonChecking;
+    private bool _cloudCommandRunning;
+    private string _cloudCommand = "";
+    private string _cloudStep = "";
+    private CancellationTokenSource? _cloudCommandCancellation;
 
     public SettingsView()
     {
@@ -50,6 +54,7 @@ public partial class SettingsView : UserControl
         };
         DetachedFromVisualTree += (_, _) =>
         {
+            _cloudCommandCancellation?.Cancel();
             _protonTimer.Stop();
             UpdaterHost.Changed -= RefreshOnUi;
             if (_languageOwner is not null)
@@ -94,7 +99,87 @@ public partial class SettingsView : UserControl
         _observed = Owner?.CloudSync;
         if (_observed is not null) _observed.Changed += RefreshOnUi;
     }
-    private void RefreshOnUi() => Dispatcher.UIThread.Post(Refresh);
+    private void RefreshOnUi()
+    {
+        try { Dispatcher.UIThread.Post(() =>
+        {
+            try { if (TopLevel.GetTopLevel(this) is not null) Refresh(); }
+            catch (Exception ex) { CloudSyncDiagnostics.Record("ui-refresh", ex); }
+        }); }
+        catch (Exception ex) { CloudSyncDiagnostics.Record("ui-status-dispatch", ex); }
+    }
+    private string CloudStepText(string step) => step switch
+    {
+        "test.connect" => L("Подключение и создание тестовой папки…", "Підключення та створення тестової папки…", "Connecting and preparing test folder…"),
+        "test.upload" => L("Отправка тестового файла…", "Надсилання тестового файлу…", "Uploading test object…"),
+        "test.download" => L("Загрузка и проверка SHA-256…", "Завантаження та перевірка SHA-256…", "Downloading and verifying SHA-256…"),
+        "test.cleanup" => L("Удаление тестового файла…", "Видалення тестового файлу…", "Removing test object…"),
+        "test.complete" => L("Доступ подтверждён", "Доступ підтверджено", "Access verified"),
+        "sync.prepare" => L("Проверка локальной конфигурации…", "Перевірка локальної конфігурації…", "Inspecting local configuration…"),
+        "sync.remote" => L("Проверка облачного архива…", "Перевірка хмарного архіву…", "Checking cloud archive…"),
+        "sync.apply" => L("Проверка и применение архива…", "Перевірка та застосування архіву…", "Validating and applying archive…"),
+        "sync.upload" => L("Создание архива и отправка…", "Створення архіву та надсилання…", "Creating and uploading archive…"),
+        "sync.confirm" => L("Повторное скачивание и проверка SHA-256…", "Повторне завантаження та перевірка SHA-256…", "Downloading again to verify SHA-256…"),
+        "sync.destination" => L("Требуется подтверждение новой папки", "Потрібне підтвердження нової папки", "New destination requires confirmation"),
+        "auth.open" => L("Авторизация в браузере…", "Авторизація в браузері…", "Authorizing in browser…"),
+        _ => L("Ожидание ответа облака…", "Очікування відповіді хмари…", "Waiting for the cloud…")
+    };
+    // The transport reports named operations, not byte counts. Present phases
+    // rather than pretending to know transfer speed or a remaining duration.
+    private static (int Current, int Total) CloudActivityStage(string step) => step switch
+    {
+        "test.connect" => (1, 4),
+        "test.upload" => (2, 4),
+        "test.download" => (3, 4),
+        "test.cleanup" or "test.complete" => (4, 4),
+        "sync.prepare" => (1, 4),
+        "sync.remote" => (2, 4),
+        "sync.apply" or "sync.upload" => (3, 4),
+        "sync.confirm" => (4, 4),
+        _ => (0, 0)
+    };
+    private void SetCloudStep(string step)
+    {
+        if (!_cloudCommandRunning) return;
+        _cloudStep = step;
+        try { RefreshCloudActivity(); }
+        catch (Exception ex) { CloudSyncDiagnostics.Record("ui-progress", ex); }
+    }
+    private void RefreshCloudActivity()
+    {
+        TestCloudButton.Content = _cloudCommandRunning && _cloudCommand ==
+            L("Проверка подключения", "Перевірка підключення", "Connection test")
+            ? L("Проверяется…", "Перевіряється…", "Checking…")
+            : L("Проверить подключение", "Перевірити підключення", "Test connection");
+        SyncCloudButton.Content = _cloudCommandRunning && _cloudCommand ==
+            L("Синхронизация", "Синхронізація", "Synchronization")
+            ? L("Синхронизация…", "Синхронізація…", "Synchronizing…")
+            : L("Синхронизировать сейчас", "Синхронізувати зараз", "Sync now");
+        var engine = _observed;
+        var background = engine?.Status is "Checking" or "Uploading" or "Downloading";
+        CloudActivity.IsVisible = _cloudCommandRunning || background;
+        CloudActivityTitle.Text = _cloudCommandRunning ? _cloudCommand :
+            L("Фоновая синхронизация", "Фонова синхронізація", "Background synchronization");
+        var (current, total) = _cloudCommandRunning ? CloudActivityStage(_cloudStep) : (0, 0);
+        CloudActivityBar.IsVisible = _cloudCommandRunning && total > 0;
+        CloudActivityBar.Value = total == 0 ? 0 : 100d * current / total;
+        CloudActivityStep.Text = _cloudCommandRunning
+            ? (total == 0 ? "" : L("Этап", "Етап", "Step") + $" {current}/{total} · ") + CloudStepText(_cloudStep)
+            : engine?.Status switch
+        {
+            "Uploading" => L("Отправка конфигурации…", "Надсилання конфігурації…", "Uploading configuration…"),
+            "Downloading" => L("Получение и проверка конфигурации…", "Отримання та перевірка конфігурації…", "Downloading and verifying configuration…"),
+            _ => L("Проверка подключения…", "Перевірка підключення…", "Checking connection…")
+        };
+    }
+    private void SetCloudControlsEnabled(bool enabled)
+    {
+        foreach (Control item in new Control[] { StoragePicker, ProviderPicker, FolderBox,
+            EndpointBox, BucketBox, RegionBox, ClientIdBox, ProtonBox, UsernameBox,
+            SecretBox, AdvancedGoogleCheck, AutoProtonCheck, BrowseProtonButton,
+            SaveCloudButton, LoginCloudButton, TestCloudButton, SyncCloudButton,
+            CloudDestinationButton }) item.IsEnabled = enabled;
+    }
     private void Refresh()
     {
         _updating = true;
@@ -162,6 +247,7 @@ public partial class SettingsView : UserControl
                 "Synced" => L("Синхронизировано", "Синхронізовано", "Synced"),
                 "Uploading" => L("Загрузка в облако", "Завантаження у хмару", "Uploading"),
                 "Downloading" => L("Загрузка из облака", "Завантаження з хмари", "Downloading"),
+                "Checking" => L("Проверка подключения", "Перевірка підключення", "Checking connection"),
                 "Offline" => L("Нет соединения", "Немає з'єднання", "Offline"),
                 "Error" => L("Ошибка", "Помилка", "Error"),
                 _ => L("Ожидание", "Очікування", "Pending")
@@ -177,6 +263,13 @@ public partial class SettingsView : UserControl
                     "Зміни не перевірені; збережіть і перевірте підключення.",
                     "Changes not verified; save and test the connection.") : "") +
                 (string.IsNullOrEmpty(_lastOperationMessage) ? "" : "\n" + _lastOperationMessage);
+            CloudDestinationButton.Content = L("Подтвердить новую папку облака…",
+                "Підтвердити нову хмарну папку…", "Confirm new cloud destination…");
+            CloudDestinationButton.IsVisible = !_cloudCommandRunning &&
+                SettingsLocation.Mode == ConfigurationStorage.Cloud &&
+                CloudConnectionStore.IsCurrentVerified() &&
+                engine is not null && engine.RequiresDestinationChoice(CloudConnectionStore.Load());
+            RefreshCloudActivity();
             var last = engine?.LastSuccessfulUtc ?? default;
             LastSync.Text = L("Последняя синхронизация", "Остання синхронізація", "Last sync") + ": " +
                 (last == default ? "—" : last.ToLocalTime().ToString("g"));
@@ -238,7 +331,8 @@ public partial class SettingsView : UserControl
     }
     private async void OnStorageChanged(object? sender, SelectionChangedEventArgs e)
     {
-        if (_updating || StoragePicker.SelectedItem is not OptionItem option) return;
+        if (_updating || _cloudCommandRunning ||
+            StoragePicker.SelectedItem is not OptionItem option) return;
         if (option.Code == "cloud" && (_unsavedConnection ||
             !CloudConnectionStore.IsCurrentVerified()))
         {
@@ -296,83 +390,111 @@ public partial class SettingsView : UserControl
     }
     private void OnSaveConnection(object? sender, RoutedEventArgs e)
     {
+        if (_cloudCommandRunning) return;
         try { PersistProfile(); _lastOperationMessage = L("Подключение сохранено.",
             "Підключення збережено.", "Connection saved."); }
         catch (Exception ex) { _lastOperationMessage = ex.Message; }
         Refresh();
     }
     private async void OnAuthenticate(object? sender, RoutedEventArgs e)
-        => await PerformAsync(async () =>
+        => await PerformAsync(async (ct, progress) =>
         {
             PersistProfile();
-            await CloudTransportAdapter.AuthenticateAsync(ReadProfile(), CancellationToken.None,
+            if (Owner is not { } owner) throw new InvalidOperationException("Cloud window is unavailable.");
+            progress.Report("auth.open");
+            await owner.CloudSync.AuthenticateConnectionAsync(ReadProfile(),
                 (DataContext as ShellViewModel)?.Settings.Language ?? "auto",
-                ActualThemeVariant == Avalonia.Styling.ThemeVariant.Dark);
-        });
+                ActualThemeVariant == Avalonia.Styling.ThemeVariant.Dark, ct);
+        }, L("Авторизация", "Авторизація", "Authorization"));
+
     private async void OnTestConnection(object? sender, RoutedEventArgs e)
-        => await PerformAsync(async () =>
+        => await PerformAsync(async (ct, progress) =>
         {
             PersistProfile();
-            var profile = ReadProfile();
-            await CloudTransportAdapter.VerifyAsync(profile, CancellationToken.None);
-            if (SettingsLocation.Mode == ConfigurationStorage.Cloud && Owner is { } owner)
-            {
-                // The connection may be sound while local mapping.json is not.
-                // Reject the pending snapshot before even reading remote state;
-                // never let a connection test overwrite or delete user data.
-                CloudConfigurationArchive.ValidateLocal(SettingsLocation.CloudRoot);
-                // Re-pointing an active cache must never silently merge or overwrite
-                // an existing archive at the new destination.
-                using var remote = CloudTransportFactory.Create(
-                    CloudTransportAdapter.Options(profile), CloudTransportAdapter.Services());
-                var scratch = Path.Combine(Path.GetTempPath(), "kpc-existing-" + Guid.NewGuid().ToString("N") + ".zip");
-                bool exists;
-                try { exists = await remote.DownloadAsync(CloudConnectionStore.RemoteFilePath(profile),
-                    scratch, CancellationToken.None); }
-                finally { if (File.Exists(scratch)) File.Delete(scratch); }
-                if (exists)
-                {
-                    var choice = await new StorageSwitchDialog(
-                        (DataContext as ShellViewModel)?.Settings.Language ?? "auto",
-                        ConfigurationStorage.Cloud).ShowDialog<StorageSwitchAnswer>(owner);
-                    if (choice == StorageSwitchAnswer.Cancel)
-                    {
-                        CloudConnectionStore.InvalidateVerification();
-                        throw new OperationCanceledException(L("Выбор источника отменён.",
-                            "Вибір джерела скасовано.", "Source selection cancelled."));
-                    }
-                    if (choice == StorageSwitchAnswer.Yes) await owner.CloudSync.UploadCurrentAsync();
-                    else await owner.CloudSync.DownloadExistingAsync();
-                }
-                else await owner.CloudSync.UploadCurrentAsync();
-                owner.CloudSync.Start();
-            }
-        }, L("Проверка подключения завершена.", "Перевірку підключення завершено.",
-            "Connection test completed."));
+            if (Owner is not { } owner) throw new InvalidOperationException("Cloud window is unavailable.");
+            // Testing verifies only connectivity/read/write/delete. It MUST NOT
+            // download configuration.zip or ask which copy wins.
+            await owner.CloudSync.VerifyConnectionAsync(ReadProfile(), progress, ct);
+            if (SettingsLocation.Mode == ConfigurationStorage.Cloud)
+                owner.CloudSync.Start(); // Safe destination guard runs before any write.
+        }, L("Проверка подключения", "Перевірка підключення", "Connection test"),
+        L("Подключение проверено.", "Підключення перевірено.", "Connection verified."));
+
     private async void OnSyncNow(object? sender, RoutedEventArgs e)
-        => await PerformAsync(async () =>
+        => await PerformAsync(async (ct, progress) =>
         {
             if (Owner?.CloudSync is not { } sync) throw new InvalidOperationException("Cloud sync is unavailable.");
             if (!CloudConnectionStore.IsCurrentVerified())
                 throw new InvalidOperationException(L("Сначала проверьте подключение.",
                     "Спочатку перевірте підключення.", "Test the connection first."));
             if (SettingsLocation.Mode != ConfigurationStorage.Cloud)
-                throw new InvalidOperationException("Switch to cloud storage first.");
-            await sync.SynchronizeAsync();
-        });
-    private async Task PerformAsync(Func<Task> operation, string? successMessage = null)
+                throw new InvalidOperationException(L("Сначала включите облачное хранение.",
+                    "Спочатку увімкніть хмарне зберігання.", "Switch to cloud storage first."));
+            if (sync.RequiresDestinationChoice(CloudConnectionStore.Load()))
+                throw new InvalidOperationException(L("Сначала подтвердите новую папку облака.",
+                    "Спочатку підтвердьте нову хмарну папку.", "Confirm the new cloud destination first."));
+            await sync.SynchronizeAsync(ct, progress);
+        }, L("Синхронизация", "Синхронізація", "Synchronization"));
+
+    private async void OnConfirmDestination(object? sender, RoutedEventArgs e)
+        => await PerformAsync(async (ct, progress) =>
+        {
+            if (Owner is not { } owner) throw new InvalidOperationException("Cloud window is unavailable.");
+            if (SettingsLocation.Mode != ConfigurationStorage.Cloud ||
+                !CloudConnectionStore.IsCurrentVerified())
+                throw new InvalidOperationException("Cloud connection must be verified first.");
+            if (!owner.CloudSync.RequiresDestinationChoice(CloudConnectionStore.Load())) return;
+            // Only an explicit choice can replace an archive at another destination.
+            var answer = await new StorageSwitchDialog(
+                (DataContext as ShellViewModel)?.Settings.Language ?? "auto",
+                ConfigurationStorage.Cloud).ShowDialog<StorageSwitchAnswer>(owner);
+            if (answer == StorageSwitchAnswer.Cancel) throw new OperationCanceledException();
+            if (answer == StorageSwitchAnswer.Yes)
+                await owner.CloudSync.UploadCurrentAsync(ct, progress);
+            else
+                await owner.CloudSync.DownloadExistingAsync(ct, progress);
+            owner.CloudSync.Start();
+        }, L("Выбор облачной конфигурации", "Вибір хмарної конфігурації", "Choose cloud configuration"));
+
+    private async Task PerformAsync(Func<CancellationToken, IProgress<string>, Task> operation,
+        string title, string? successMessage = null)
     {
-        SaveCloudButton.IsEnabled = LoginCloudButton.IsEnabled = TestCloudButton.IsEnabled = SyncCloudButton.IsEnabled = false;
+        if (_cloudCommandRunning) return;
+        _cloudCommandRunning = true;
+        _cloudCommand = title;
+        _cloudStep = "";
+        using var cancellation = new CancellationTokenSource();
+        _cloudCommandCancellation = cancellation;
+        var progress = new Progress<string>(SetCloudStep);
         try
         {
-            await operation();
-            _lastOperationMessage = successMessage ?? L("Операция выполнена.", "Операцію виконано.", "Operation completed.");
+            SetCloudControlsEnabled(false);
+            RefreshCloudActivity();
+            await operation(cancellation.Token, progress);
+            _lastOperationMessage = successMessage ?? L("Операция завершена.",
+                "Операцію завершено.", "Operation completed.");
         }
-        catch (Exception ex) { _lastOperationMessage = ex.Message; }
+        catch (OperationCanceledException)
+        {
+            _lastOperationMessage = L("Операция отменена.", "Операцію скасовано.", "Operation cancelled.");
+        }
+        catch (Exception ex)
+        {
+            CloudSyncDiagnostics.Record("interactive-cloud-command", ex);
+            _lastOperationMessage = ex.Message;
+        }
         finally
         {
-            SaveCloudButton.IsEnabled = LoginCloudButton.IsEnabled = TestCloudButton.IsEnabled = SyncCloudButton.IsEnabled = true;
-            Refresh();
+            _cloudCommandCancellation = null;
+            _cloudCommandRunning = false;
+            _cloudCommand = "";
+            _cloudStep = "";
+            try
+            {
+                SetCloudControlsEnabled(true);
+                Refresh();
+            }
+            catch (Exception ex) { CloudSyncDiagnostics.Record("ui-command-complete", ex); }
         }
     }
     private async Task CheckProtonAsync(bool automatic)

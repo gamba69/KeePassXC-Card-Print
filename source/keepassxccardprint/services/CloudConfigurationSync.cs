@@ -34,6 +34,8 @@ public sealed class CloudSyncJournal
     public string LocalSignature { get; set; } = "";
     public DateTime LastSuccessfulUtc { get; set; }
     public bool Pending { get; set; }
+    // Bound destination. A connectivity check must never select a new upload target.
+    public string RemoteTargetHash { get; set; } = "";
 }
 
 [JsonSourceGenerationOptions(WriteIndented = true)]
@@ -67,6 +69,17 @@ public static class CloudConnectionStore
         return raw;
     }
     public static string RemoteFilePath(CloudConnectionProfile profile) => RemoteFolder(profile) + "/configuration.zip";
+
+    // Identity of the remote storage location, not presentation/CLI/update options.
+    // Credentials and tokens are deliberately never part of this fingerprint.
+    public static string TargetFingerprint(CloudConnectionProfile profile)
+    {
+        var location = string.Join("\n", profile.Provider, profile.Endpoint.Trim().TrimEnd('/'),
+            profile.Bucket.Trim(), profile.Region.Trim(), RemoteFolder(profile),
+            string.IsNullOrWhiteSpace(profile.GoogleClientId)
+                ? DefaultGoogleClientId : profile.GoogleClientId.Trim());
+        return Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(location)));
+    }
     private static string Fingerprint(CloudConnectionProfile profile)
         => Convert.ToHexString(SHA256.HashData(JsonSerializer.SerializeToUtf8Bytes(
             profile, CloudSyncJsonContext.Default.CloudConnectionProfile)));
@@ -157,6 +170,7 @@ public sealed class CloudConfigurationSync : IDisposable
     private CloudSyncJournal _journal;
     private volatile bool _applying;
     private bool _disposed;
+    private volatile bool _started;
     private string _status = "Pending";
     private string _detail = "";
     public string Status => _status;
@@ -184,6 +198,12 @@ public sealed class CloudConfigurationSync : IDisposable
         _watcher.Created += OnFileChanged;
         _watcher.Deleted += OnFileChanged;
         _watcher.Renamed += OnFileRenamed;
+        _watcher.Error += (_, e) =>
+        {
+            if (_disposed) return;
+            CloudSyncDiagnostics.Record("file-watcher", e.GetException());
+            SetStatus("Error", "File watcher reported an error; use Sync now to retry.");
+        };
         _watcher.EnableRaisingEvents = true;
         // Start after the MainWindow has installed its pre-apply safety gate.
     }
@@ -216,7 +236,8 @@ public sealed class CloudConfigurationSync : IDisposable
     {
         _status = status;
         _detail = detail;
-        Changed?.Invoke();
+        try { Changed?.Invoke(); }
+        catch (Exception ex) { CloudSyncDiagnostics.Record("status-notification", ex); }
     }
     public void MarkPending()
     {
@@ -240,32 +261,46 @@ public sealed class CloudConfigurationSync : IDisposable
     private void OnFileChanged(object sender, FileSystemEventArgs e)
     {
         if (_disposed || _applying || SettingsLocation.Mode != ConfigurationStorage.Cloud) return;
-        var name = Path.GetRelativePath(_root, e.FullPath).Replace('\\', '/');
-        if (!CloudConfigurationArchive.IsPortableChange(name)) return;
-        // The next synchronization computes the full portable signature. A crash
-        // before debounce is also detected by signature comparison at startup.
-        SetStatus("Pending");
-        _debounce.Change(TimeSpan.FromMilliseconds(900), Timeout.InfiniteTimeSpan);
+        try
+        {
+            var name = Path.GetRelativePath(_root, e.FullPath).Replace('\\', '/');
+            if (!CloudConfigurationArchive.IsPortableChange(name)) return;
+            // A crash before debounce is also detected by signature comparison.
+            SetStatus("Pending");
+            if (_started)
+                _debounce.Change(TimeSpan.FromMilliseconds(900), Timeout.InfiniteTimeSpan);
+        }
+        catch (Exception ex) when (ex is ObjectDisposedException or IOException or
+            UnauthorizedAccessException or ArgumentException)
+        { CloudSyncDiagnostics.Record("file-change", ex); }
     }
     public void Start()
     {
         if (_disposed) return;
-        _poll.Change(TimeSpan.FromSeconds(90), TimeSpan.FromSeconds(90));
+        _started = true;
+        try { _poll.Change(TimeSpan.FromSeconds(90), TimeSpan.FromSeconds(90)); }
+        catch (ObjectDisposedException) { return; }
         RunBackground();
     }
     public void Stop()
     {
-        _poll.Change(Timeout.InfiniteTimeSpan, Timeout.InfiniteTimeSpan);
-        _debounce.Change(Timeout.InfiniteTimeSpan, Timeout.InfiniteTimeSpan);
+        _started = false;
+        if (_disposed) return;
+        try
+        {
+            _poll.Change(Timeout.InfiniteTimeSpan, Timeout.InfiniteTimeSpan);
+            _debounce.Change(Timeout.InfiniteTimeSpan, Timeout.InfiniteTimeSpan);
+        }
+        catch (ObjectDisposedException) { /* Window is closing. */ }
     }
     private void RunBackground()
     {
-        if (_disposed || SettingsLocation.Mode != ConfigurationStorage.Cloud) return;
+        if (_disposed || !_started || SettingsLocation.Mode != ConfigurationStorage.Cloud) return;
         _ = Task.Run(async () =>
         {
-            try { await SynchronizeAsync(_lifetime.Token); }
-            catch (OperationCanceledException) when (_lifetime.IsCancellationRequested) { }
-            catch (Exception) { /* ExecuteAsync already published Offline/Error. */ }
+            try { await ExecuteAsync(false, false, _lifetime.Token, null, background: true); }
+            catch (OperationCanceledException) when (_disposed || !_started || _lifetime.IsCancellationRequested) { }
+            catch (Exception ex) { CloudSyncDiagnostics.Record("background-sync", ex); }
         });
     }
     private void UpdateLocalJournal(string signature)
@@ -281,16 +316,87 @@ public sealed class CloudConfigurationSync : IDisposable
         }
     }
 
-    public Task SynchronizeAsync(CancellationToken ct = default) => ExecuteAsync(false, false, ct);
-    public Task UploadCurrentAsync(CancellationToken ct = default) => ExecuteAsync(true, false, ct);
-    public Task DownloadExistingAsync(CancellationToken ct = default) => ExecuteAsync(false, true, ct);
+    public Task SynchronizeAsync(CancellationToken ct = default, IProgress<string>? progress = null)
+        => ExecuteAsync(false, false, ct, progress);
+    public Task UploadCurrentAsync(CancellationToken ct = default, IProgress<string>? progress = null)
+        => ExecuteAsync(true, false, ct, progress);
+    public Task DownloadExistingAsync(CancellationToken ct = default, IProgress<string>? progress = null)
+        => ExecuteAsync(false, true, ct, progress);
 
-    private async Task ExecuteAsync(bool forceUpload, bool forceDownload, CancellationToken ct)
+    public bool RequiresDestinationChoice(CloudConnectionProfile profile)
     {
-        await _gate.WaitAsync(ct);
+        if (profile.Provider.Length == 0) return false;
+        var journal = LoadJournal();
+        return journal.RemoteTargetHash != CloudConnectionStore.TargetFingerprint(profile);
+    }
+
+    // A 8.0.5 journal has no destination fingerprint. Trust it only when the
+    // remote archive actually has the same random snapshot ID, never by time.
+    internal static bool DestinationMatches(CloudSyncJournal journal,
+        CloudConnectionProfile profile, CloudArchiveManifest? remote)
+    {
+        var expected = CloudConnectionStore.TargetFingerprint(profile);
+        return journal.RemoteTargetHash == expected ||
+            (journal.RemoteTargetHash.Length == 0 && journal.SnapshotId != Guid.Empty &&
+             remote is not null && remote.SnapshotId == journal.SnapshotId);
+    }
+
+    // Test/authentication and all uploads/downloads share the same gate. A second
+    // command can never alter the target while a network operation is running.
+    public async Task VerifyConnectionAsync(CloudConnectionProfile profile,
+        IProgress<string>? progress = null, CancellationToken ct = default)
+    {
+        using var linked = CancellationTokenSource.CreateLinkedTokenSource(ct, _lifetime.Token);
+        await _gate.WaitAsync(linked.Token);
+        try
+        {
+            if (_disposed) throw new OperationCanceledException(linked.Token);
+            SetStatus("Checking");
+            await CloudTransportAdapter.VerifyAsync(profile, linked.Token, progress);
+            SetStatus("Pending");
+        }
+        catch (OperationCanceledException) when (linked.IsCancellationRequested) { throw; }
+        catch (Exception ex)
+        {
+            SetStatus("Error", "Cloud connection test failed: " + ex.GetType().Name);
+            CloudSyncDiagnostics.Record("connection-test", ex);
+            throw;
+        }
+        finally { _gate.Release(); }
+    }
+    public async Task AuthenticateConnectionAsync(CloudConnectionProfile profile,
+        string language, bool darkTheme, CancellationToken ct = default)
+    {
+        using var linked = CancellationTokenSource.CreateLinkedTokenSource(ct, _lifetime.Token);
+        await _gate.WaitAsync(linked.Token);
+        try
+        {
+            if (_disposed) throw new OperationCanceledException(linked.Token);
+            SetStatus("Checking");
+            await CloudTransportAdapter.AuthenticateAsync(profile, linked.Token, language, darkTheme);
+            SetStatus("Pending");
+        }
+        catch (OperationCanceledException) when (linked.IsCancellationRequested) { throw; }
+        catch (Exception ex)
+        {
+            SetStatus("Error", "Cloud authentication failed: " + ex.GetType().Name);
+            CloudSyncDiagnostics.Record("authentication", ex);
+            throw;
+        }
+        finally { _gate.Release(); }
+    }
+
+    private async Task ExecuteAsync(bool forceUpload, bool forceDownload, CancellationToken ct,
+        IProgress<string>? progress, bool background = false)
+    {
+        using var linked = CancellationTokenSource.CreateLinkedTokenSource(ct, _lifetime.Token);
+        await _gate.WaitAsync(linked.Token);
+        ct = linked.Token;
         var scratch = Path.Combine(Path.GetTempPath(), "kpc-cloud-" + Guid.NewGuid().ToString("N"));
         try
         {
+            if (_disposed || background && !_started) return;
+            progress?.Report("sync.prepare");
             Directory.CreateDirectory(scratch);
             var profile = CloudConnectionStore.Load();
             if (!CloudConnectionStore.IsVerified(profile))
@@ -304,10 +410,19 @@ public sealed class CloudConfigurationSync : IDisposable
                 throw new InvalidOperationException("Cloud provider is not configured.");
             }
             _journal = LoadJournal();
+            // A new destination must never receive the old archive automatically.
+            if (!forceUpload && !forceDownload && _journal.RemoteTargetHash.Length > 0 &&
+                _journal.RemoteTargetHash != CloudConnectionStore.TargetFingerprint(profile))
+            {
+                SetStatus("Pending", "Cloud destination requires explicit selection in Settings.");
+                progress?.Report("sync.destination");
+                return;
+            }
             var signature = CloudConfigurationArchive.Signature(_root);
-            UpdateLocalJournal(signature);
             using var transport = CloudTransportFactory.Create(CloudTransportAdapter.Options(profile),
                 CloudTransportAdapter.Services());
+            progress?.Report("sync.remote");
+            SetStatus("Downloading");
             var remoteFile = Path.Combine(scratch, "remote.zip");
             var remoteStage = Path.Combine(scratch, "stage");
             CloudArchiveManifest? remote = null;
@@ -320,10 +435,21 @@ public sealed class CloudConfigurationSync : IDisposable
             }
             if (forceDownload && remote is null)
                 throw new FileNotFoundException("Cloud configuration does not exist.");
+            if (!forceUpload && !forceDownload && !DestinationMatches(_journal, profile, remote))
+            {
+                SetStatus("Pending", "Cloud destination requires explicit selection in Settings.");
+                progress?.Report("sync.destination");
+                return;
+            }
+            // Keep the original ID until the old remote was identified. In
+            // 8.0.5 journals a local edit could otherwise erase the evidence
+            // needed to recognize a legitimate pre-upgrade destination.
+            UpdateLocalJournal(signature);
             var same = remote is not null && remote.SnapshotId == _journal.SnapshotId &&
                 !_journal.Pending;
             if (same && !forceUpload)
             {
+                _journal.RemoteTargetHash = CloudConnectionStore.TargetFingerprint(profile);
                 _journal.LastSuccessfulUtc = DateTime.UtcNow;
                 SaveJournal();
                 SetStatus("Synced");
@@ -338,6 +464,7 @@ public sealed class CloudConfigurationSync : IDisposable
                     return;
                 }
                 SetStatus("Downloading");
+                progress?.Report("sync.apply");
                 _applying = true;
                 try
                 {
@@ -346,6 +473,7 @@ public sealed class CloudConfigurationSync : IDisposable
                     _journal.SavedAtUtc = remote.SavedAtUtc;
                     _journal.LocalSignature = CloudConfigurationArchive.Signature(_root);
                     _journal.Pending = false;
+                    _journal.RemoteTargetHash = CloudConnectionStore.TargetFingerprint(profile);
                     _journal.LastSuccessfulUtc = DateTime.UtcNow;
                     SaveJournal();
                 }
@@ -355,6 +483,7 @@ public sealed class CloudConfigurationSync : IDisposable
                 return;
             }
             SetStatus("Uploading");
+            progress?.Report("sync.upload");
             var outgoing = Path.Combine(scratch, "outgoing.zip");
             var published = CloudConfigurationArchive.Create(_root, outgoing,
                 _journal.SnapshotId, _journal.SavedAtUtc);
@@ -365,6 +494,7 @@ public sealed class CloudConfigurationSync : IDisposable
                     CloudWriteMode.Replace, ct);
                 return true;
             }, ct);
+            progress?.Report("sync.confirm");
             var confirmation = Path.Combine(scratch, "confirmation.zip");
             if (!await RetryAsync(() => transport.DownloadAsync(
                 CloudConnectionStore.RemoteFilePath(profile), confirmation, ct), ct))
@@ -381,6 +511,7 @@ public sealed class CloudConfigurationSync : IDisposable
                 _journal.Pending = false;
                 _journal.LocalSignature = signature;
             }
+            _journal.RemoteTargetHash = CloudConnectionStore.TargetFingerprint(profile);
             _journal.LastSuccessfulUtc = DateTime.UtcNow;
             SaveJournal();
             SetStatus(_journal.Pending ? "Pending" : "Synced");
@@ -397,7 +528,8 @@ public sealed class CloudConfigurationSync : IDisposable
         finally
         {
             try { if (Directory.Exists(scratch)) Directory.Delete(scratch, recursive: true); }
-            catch (IOException) { }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            { CloudSyncDiagnostics.Record("temporary-cleanup", ex); }
             _gate.Release();
         }
     }
@@ -423,6 +555,7 @@ public sealed class CloudConfigurationSync : IDisposable
     {
         if (_disposed) return;
         _disposed = true;
+        _started = false;
         _watcher.Dispose();
         _debounce.Dispose();
         _poll.Dispose();
@@ -466,13 +599,23 @@ internal static class CloudTransportAdapter
 
     // Never touch configuration.zip while testing. A random independent object
     // verifies authentication, folder creation, upload, download and deletion.
-    public static async Task VerifyAsync(CloudConnectionProfile profile, CancellationToken ct)
+    public static async Task VerifyAsync(CloudConnectionProfile profile, CancellationToken ct,
+        IProgress<string>? progress = null)
     {
+        using var transport = CloudTransportFactory.Create(Options(profile), Services());
+        await VerifyWithTransportAsync(profile, transport, ct, progress, recordVerification: true);
+    }
+    // Test seam: an isolated in-memory store proves the check never reads or
+    // modifies configuration.zip, without real cloud credentials or network.
+    internal static async Task VerifyWithTransportAsync(CloudConnectionProfile profile,
+        ICloudTransport transport, CancellationToken ct, IProgress<string>? progress = null,
+        bool recordVerification = false)
+    {
+        progress?.Report("test.connect");
         var folder = CloudConnectionStore.RemoteFolder(profile);
         var testFile = folder + "/.connection-test-" + Guid.NewGuid().ToString("N") + ".bin";
         var scratch = Path.Combine(Path.GetTempPath(), "kpc-cloud-test-" + Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(scratch);
-        using var transport = CloudTransportFactory.Create(Options(profile), Services());
         var uploaded = false;
         try
         {
@@ -480,15 +623,19 @@ internal static class CloudTransportAdapter
             var result = Path.Combine(scratch, "result.bin");
             File.WriteAllBytes(source, RandomNumberGenerator.GetBytes(1024));
             await transport.EnsureDirectoryAsync(folder, ct);
+            progress?.Report("test.upload");
             await transport.UploadAsync(source, testFile, CloudWriteMode.CreateNew, ct);
             uploaded = true;
+            progress?.Report("test.download");
             if (!await transport.DownloadAsync(testFile, result, ct) || !File.Exists(result) ||
                 !CryptographicOperations.FixedTimeEquals(
                     SHA256.HashData(File.ReadAllBytes(source)), SHA256.HashData(File.ReadAllBytes(result))))
                 throw new InvalidDataException("Cloud connection verification failed (SHA-256).");
+            progress?.Report("test.cleanup");
             await transport.DeleteAsync(testFile, ct);
             uploaded = false;
-            CloudConnectionStore.MarkVerified(profile);
+            if (recordVerification) CloudConnectionStore.MarkVerified(profile);
+            progress?.Report("test.complete");
         }
         finally
         {

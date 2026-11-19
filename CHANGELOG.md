@@ -3,6 +3,36 @@
 All notable changes to KeePassXC Card Print are documented **only in this file**.
 Other documentation describes the current release and must not contain a version-by-version history.
 
+## [8.0.7] - 2026-11-19
+
+### Improved
+- Replace the fast indeterminate cloud progress animation with a subtle,
+  non-animated four-stage indicator for explicit tests and manual sync.
+- Show localized stage numbers without inventing byte-transfer percentages.
+- Suppress the progress bar when the operation has no measurable stage
+  (background synchronization and interactive authorization).
+
+## [8.0.6] - 2026-11-19
+
+### Fixed
+- Separate connection verification from configuration transfer: testing a cloud
+  connection never opens a migration dialog or reads/writes configuration.zip.
+- Serialize authentication, connection probes and archive synchronization with
+  the same engine gate, guard against repeated UI commands and handle shutdown.
+- Bind the sync journal to a cloud destination: rechecking the existing cloud
+  resumes LWW without a migration prompt; changing the destination requires an
+  explicit upload/download choice before any automatic write.
+- Recognize 8.0.5 journals by their matching remote snapshot identifier, without
+  silently adopting unrelated or missing cloud archives.
+- Protect file-watcher, background sync and UI progress callbacks from uncaught
+  exceptions. Log diagnostics locally without tokens or archive contents.
+
+### Improved
+- Show a visible, localized progress indicator with actual test phases and
+  manual/background synchronization stages.
+- Add Native AOT self-tests for destination binding and a mock connection probe
+  that proves configuration.zip is not read or modified.
+
 ## [8.0.5] - 2026-11-18
 
 ### Fixed
