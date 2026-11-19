@@ -173,8 +173,22 @@ public sealed class CloudConfigurationSync : IDisposable
     private volatile bool _started;
     private string _status = "Pending";
     private string _detail = "";
+    private CloudTransferProgress? _lastTransferProgress;
     public string Status => _status;
     public string Detail => _detail;
+    public CloudTransferProgress? LastTransferProgress => Volatile.Read(ref _lastTransferProgress);
+
+    private sealed class TransferObserver(CloudConfigurationSync owner) : IProgress<CloudTransferProgress>
+    {
+        public void Report(CloudTransferProgress progress) => owner.OnTransferProgress(progress);
+    }
+    private void OnTransferProgress(CloudTransferProgress progress)
+    {
+        if (_disposed) return;
+        Volatile.Write(ref _lastTransferProgress, progress);
+        try { Changed?.Invoke(); }
+        catch (Exception ex) { CloudSyncDiagnostics.Record("transfer-notification", ex); }
+    }
     public DateTime LastSuccessfulUtc => _journal.LastSuccessfulUtc;
     public Func<Task<bool>>? BeforeRemoteApplyAsync { get; set; }
     public Action? RemoteApplied { get; set; }
@@ -351,8 +365,10 @@ public sealed class CloudConfigurationSync : IDisposable
         try
         {
             if (_disposed) throw new OperationCanceledException(linked.Token);
+            Volatile.Write(ref _lastTransferProgress, null);
             SetStatus("Checking");
-            await CloudTransportAdapter.VerifyAsync(profile, linked.Token, progress);
+            await CloudTransportAdapter.VerifyAsync(profile, linked.Token, progress,
+                new TransferObserver(this));
             SetStatus("Pending");
         }
         catch (OperationCanceledException) when (linked.IsCancellationRequested) { throw; }
@@ -396,6 +412,7 @@ public sealed class CloudConfigurationSync : IDisposable
         try
         {
             if (_disposed || background && !_started) return;
+            Volatile.Write(ref _lastTransferProgress, null);
             progress?.Report("sync.prepare");
             Directory.CreateDirectory(scratch);
             var profile = CloudConnectionStore.Load();
@@ -420,7 +437,7 @@ public sealed class CloudConfigurationSync : IDisposable
             }
             var signature = CloudConfigurationArchive.Signature(_root);
             using var transport = CloudTransportFactory.Create(CloudTransportAdapter.Options(profile),
-                CloudTransportAdapter.Services());
+                CloudTransportAdapter.Services(new TransferObserver(this)));
             progress?.Report("sync.remote");
             SetStatus("Downloading");
             var remoteFile = Path.Combine(scratch, "remote.zip");
@@ -594,15 +611,19 @@ internal static class CloudTransportAdapter
             : profile.ProtonExecutable,
         Timeout = TimeSpan.FromSeconds(75)
     };
-    public static CloudTransportServices Services() =>
-        PlatformServices.Current.Cloud.CreateServices();
+    public static CloudTransportServices Services(IProgress<CloudTransferProgress>? progress = null)
+    {
+        var services = PlatformServices.Current.Cloud.CreateServices();
+        return progress is null ? services : services with { TransferProgress = progress };
+    }
 
     // Never touch configuration.zip while testing. A random independent object
     // verifies authentication, folder creation, upload, download and deletion.
     public static async Task VerifyAsync(CloudConnectionProfile profile, CancellationToken ct,
-        IProgress<string>? progress = null)
+        IProgress<string>? progress = null,
+        IProgress<CloudTransferProgress>? transferProgress = null)
     {
-        using var transport = CloudTransportFactory.Create(Options(profile), Services());
+        using var transport = CloudTransportFactory.Create(Options(profile), Services(transferProgress));
         await VerifyWithTransportAsync(profile, transport, ct, progress, recordVerification: true);
     }
     // Test seam: an isolated in-memory store proves the check never reads or

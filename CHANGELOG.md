@@ -3,6 +3,13 @@
 All notable changes to KeePassXC Card Print are documented **only in this file**.
 Other documentation describes the current release and must not contain a version-by-version history.
 
+## [8.0.8] - 2026-11-19
+
+### Improved
+- Upgrade KeePassXC.CloudTransport to 1.0.4 to display real byte-transfer progress for HTTP cloud providers during manual and background synchronization, including connection tests.
+- Keep the thin, subdued progress bar. Show transferred/total payload bytes and percentages only when the transport supplies a known total; use non-animated stage text for Proton CLI and show actual final transferred bytes.
+- Avoid stale progress from preceding uploads or downloads using per-operation transfer identities and phase/direction filtering. Retain RU/UK/EN labels and Native AOT self-test coverage.
+
 ## [8.0.7] - 2026-11-19
 
 ### Improved

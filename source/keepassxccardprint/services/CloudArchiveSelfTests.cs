@@ -188,6 +188,21 @@ public static class CloudArchiveSelfTests
                     "OAuth result HTML is localized, standalone and bounded");
             }
             log.AppendLine("[PASS] OAuth result pages RU/UK/EN, dark/light, no scripts");
+            var id = Guid.NewGuid();
+            var live = new CloudTransferProgress(id, CloudProvider.WebDav,
+                CloudTransferDirection.Upload, CloudTransferPhase.Transferring, 2048, 4096, true);
+            Assert(CloudTransferPresentation.Matches(live, "sync.upload", "Uploading", true) &&
+                !CloudTransferPresentation.Matches(live, "sync.remote", "Uploading", true) &&
+                CloudTransferPresentation.Percent(live) == 50d,
+                "display only matching real byte progress");
+            var proton = live with { Provider = CloudProvider.ProtonDrive, HasLiveByteProgress = false };
+            Assert(CloudTransferPresentation.Percent(proton) is null &&
+                !CloudTransferPresentation.Describe(proton, "en").Contains("%", StringComparison.Ordinal),
+                "never display fake Proton CLI percent");
+            var unknownLength = live with { TotalBytes = null };
+            Assert(CloudTransferPresentation.Percent(unknownLength) is null,
+                "unknown content length is indeterminate");
+            log.AppendLine("[PASS] Transport bytes, phase filtering and Proton progress presentation");
             var tie = new CloudSyncJournal { SavedAtUtc = manifest.SavedAtUtc };
             Assert(CloudConfigurationSync.RemoteWins(manifest, tie), "tie must favor cloud");
             Assert(!CloudConfigurationSync.RemoteWins(manifest, tie, forceUpload: true),

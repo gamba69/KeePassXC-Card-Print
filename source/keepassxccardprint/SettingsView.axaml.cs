@@ -161,9 +161,13 @@ public partial class SettingsView : UserControl
         CloudActivityTitle.Text = _cloudCommandRunning ? _cloudCommand :
             L("Фоновая синхронизация", "Фонова синхронізація", "Background synchronization");
         var (current, total) = _cloudCommandRunning ? CloudActivityStage(_cloudStep) : (0, 0);
-        CloudActivityBar.IsVisible = _cloudCommandRunning && total > 0;
-        CloudActivityBar.Value = total == 0 ? 0 : 100d * current / total;
-        CloudActivityStep.Text = _cloudCommandRunning
+        var item = engine?.LastTransferProgress;
+        if (item is not null && !CloudTransferPresentation.Matches(item, _cloudStep,
+                engine?.Status ?? "", _cloudCommandRunning)) item = null;
+        var percentage = item is null ? null : CloudTransferPresentation.Percent(item);
+        CloudActivityBar.IsVisible = percentage.HasValue || _cloudCommandRunning && total > 0;
+        CloudActivityBar.Value = percentage ?? (total == 0 ? 0 : 100d * current / total);
+        var description = _cloudCommandRunning
             ? (total == 0 ? "" : L("Этап", "Етап", "Step") + $" {current}/{total} · ") + CloudStepText(_cloudStep)
             : engine?.Status switch
         {
@@ -171,6 +175,9 @@ public partial class SettingsView : UserControl
             "Downloading" => L("Получение и проверка конфигурации…", "Отримання та перевірка конфігурації…", "Downloading and verifying configuration…"),
             _ => L("Проверка подключения…", "Перевірка підключення…", "Checking connection…")
         };
+        var language = ViewModels.Localizer.ResolveLanguage((DataContext as ShellViewModel)?.Settings.Language ?? "auto");
+        CloudActivityStep.Text = item is null ? description :
+            description + " · " + CloudTransferPresentation.Describe(item, language);
     }
     private void SetCloudControlsEnabled(bool enabled)
     {
