@@ -39,7 +39,8 @@ public static class ConfigurationTransfer
         Directory.CreateDirectory(destinationRoot);
         var transaction = Guid.NewGuid().ToString("N");
         var staging = Path.Combine(destinationRoot, ".storage-stage-" + transaction);
-        var backup = Path.Combine(destinationRoot, "backups", "storage-switch-" + DateTime.UtcNow.ToString("yyyyMMdd-HHmmss") + "-" + transaction[..6]);
+        if (entries.Count > 0) ConfigurationMaintenance.CreateFullBackup();
+        var rollback = Path.Combine(staging, "rollback");
         Directory.CreateDirectory(staging);
         var changed = new List<(string Destination, bool Existed)>();
         try
@@ -63,7 +64,7 @@ public static class ConfigurationTransfer
                 if (existed)
                 {
                     if (!SafeFile(target)) throw new IOException("Unsafe configuration destination.");
-                    var saved = Path.Combine(backup, relative);
+                    var saved = Path.Combine(rollback, relative);
                     Directory.CreateDirectory(Path.GetDirectoryName(saved)!);
                     File.Copy(target, saved, false);
                 }
@@ -80,7 +81,7 @@ public static class ConfigurationTransfer
                 if (existed)
                 {
                     var relative = Path.GetRelativePath(destinationRoot, target);
-                    File.Copy(Path.Combine(backup, relative), target, true);
+                    File.Copy(Path.Combine(rollback, relative), target, true);
                 }
                 else if (File.Exists(target)) File.Delete(target);
             }
@@ -90,8 +91,5 @@ public static class ConfigurationTransfer
         {
             if (Directory.Exists(staging)) Directory.Delete(staging, true);
         }
-        // Keep a backup ONLY when there actually were overwritten target files.
-        if (Directory.Exists(backup) && !Directory.EnumerateFiles(backup, "*", SearchOption.AllDirectories).Any())
-            Directory.Delete(backup, true);
     }
 }

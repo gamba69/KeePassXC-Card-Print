@@ -234,7 +234,8 @@ public static class CloudConfigurationArchive
     }
 
     // Parses and validates EVERY entry before touching the destination.
-    public static CloudArchiveManifest ReadVerified(string zipPath, string stageRoot)
+    public static CloudArchiveManifest ReadVerified(string zipPath, string stageRoot,
+        bool validateConfiguration = true)
     {
         if (new FileInfo(zipPath).Length > MaxArchiveBytes)
             throw new InvalidDataException("Cloud archive exceeds the size limit.");
@@ -288,7 +289,8 @@ public static class CloudConfigurationArchive
             if (!CryptographicOperations.FixedTimeEquals(
                     SHA256.HashData(data), Convert.FromHexString(file.Sha256)))
                 throw new InvalidDataException("Cloud SHA-256 verification failed.");
-            ValidateJson(file.Path, data);
+            if (validateConfiguration || file.Path.StartsWith("print-tracking/", StringComparison.Ordinal))
+                ValidateJson(file.Path, data);
         }
         if (!seen.Contains("portable-ui.json"))
             throw new InvalidDataException("Missing portable UI configuration.");
@@ -341,9 +343,10 @@ public static class CloudConfigurationArchive
             var target = Path.Combine(destinationRoot, name.Replace('/', Path.DirectorySeparatorChar));
             if (File.Exists(target)) CheckFile(target);
         }
-        var backup = Path.Combine(backupBase ?? Path.Combine(SettingsLocation.AppDataRoot, "backups"), "cloud-" +
-            DateTime.UtcNow.ToString("yyyyMMdd-HHmmss") + "-" + Guid.NewGuid().ToString("N"));
-        Directory.CreateDirectory(backup);
+        if (backupBase is null) ConfigurationMaintenance.CreateFullBackup();
+        // The rollback is transient, never a permanent partial backup.
+        var rollback = Path.Combine(Path.GetTempPath(), "kpc-cloud-rollback-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(rollback);
         var changed = new List<string>();
         try
         {
@@ -351,7 +354,7 @@ public static class CloudConfigurationArchive
             {
                 var source = Path.Combine(destinationRoot, name.Replace('/', Path.DirectorySeparatorChar));
                 CheckFile(source);
-                var target = Path.Combine(backup, name.Replace('/', Path.DirectorySeparatorChar));
+                var target = Path.Combine(rollback, name.Replace('/', Path.DirectorySeparatorChar));
                 Directory.CreateDirectory(Path.GetDirectoryName(target)!);
                 File.Copy(source, target);
             }
@@ -383,11 +386,15 @@ public static class CloudConfigurationArchive
             {
                 var name = changed[i];
                 var target = Path.Combine(destinationRoot, name.Replace('/', Path.DirectorySeparatorChar));
-                var saved = Path.Combine(backup, name.Replace('/', Path.DirectorySeparatorChar));
+                var saved = Path.Combine(rollback, name.Replace('/', Path.DirectorySeparatorChar));
                 if (originals.Contains(name)) File.Copy(saved, target, overwrite: true);
                 else if (File.Exists(target)) File.Delete(target);
             }
             throw;
+        }
+        finally
+        {
+            if (Directory.Exists(rollback)) Directory.Delete(rollback, recursive: true);
         }
     }
 }

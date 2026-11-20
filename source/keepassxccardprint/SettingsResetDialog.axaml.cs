@@ -13,7 +13,7 @@ public partial class SettingsResetDialog : Window
 
     public SettingsResetDialog(string language)
     {
-        AvaloniaXamlLoader.Load(this);
+        InitializeComponent();
         PrintWindowIcons.Attach(this);
         var lang = Localizer.ResolveLanguage(language);
         Title = lang switch
@@ -29,6 +29,8 @@ public partial class SettingsResetDialog : Window
             "en" => "Choose which local settings to reset. A verified backup is created before anything is removed.",
             _ => "Выберите, какие локальные настройки сбросить. До очистки будет создана проверенная резервная копия."
         };
+        CurrentOption.IsVisible = false;
+        AllOption.IsChecked = true;
         CurrentOption.Content = SettingsLocation.Mode == ConfigurationStorage.Cloud ? lang switch
         {
             "uk" => "Поточне сховище (хмарний кеш і системні налаштування запуску)",
@@ -40,32 +42,32 @@ public partial class SettingsResetDialog : Window
         };
         AllOption.Content = lang switch
         {
-            "uk" => "Усі локальні сховища та налаштування підключення",
-            "en" => "All local storages and connection settings",
-            _ => "Все локальные хранилища и настройки подключения"
+            "uk" => "Усі сховища, кеш і віддалена хмара",
+            "en" => "All storages, cache and remote cloud",
+            _ => "Все хранилища, кэш и удалённое облако"
         };
         ClearHistory.Content = lang switch
         {
-            "uk" => "Очистити історію друку", "en" => "Clear print history", _ => "Очистить историю печати"
+            "uk" => "Видалити всю папку print-tracking", "en" => "Delete entire print-tracking folder", _ => "Удалить всю папку print-tracking"
         };
         HistoryHelp.Text = lang switch
         {
-            "uk" => "За замовчуванням вимкнено. Історія та відмітки надрукованих карток залишаться без змін.",
-            "en" => "Off by default. Print history and per-card printed states are preserved unless checked.",
-            _ => "По умолчанию выключено. История печати и отметки напечатанных карточек сохранятся."
+            "uk" => "За замовчуванням зберігається вся папка: історія і всі статуси друку.",
+            "en" => "By default the whole folder is kept, including history and every card status.",
+            _ => "По умолчанию сохраняется вся папка: история и все статусы карточек."
         };
         SafetyText.Text = lang switch
         {
-            "uk" => "Бази KeePassXC, ключові файли та архів configuration.zip у хмарі не видаляються. Після скидання програму буде перезапущено.",
-            "en" => "KeePassXC databases, key files and the remote configuration.zip are not deleted. The application will restart.",
-            _ => "Базы KeePassXC, ключевые файлы и облачный configuration.zip не удаляются. Программа перезапустится."
+            "uk" => "Віддалений configuration.zip буде замінено чистим. Бази KeePassXC та ключові файли не зачіпаються. Програму буде перезапущено.",
+            "en" => "Remote configuration.zip is replaced with a clean snapshot. KeePassXC databases and key files are untouched. The application will restart.",
+            _ => "Облачный configuration.zip заменяется чистым. Базы KeePassXC и файлы ключей не затрагиваются. Программа перезапустится."
         };
         ContinueText.Text = lang switch { "uk" => "Продовжити…", "en" => "Continue…", _ => "Продолжить…" };
         CancelText.Text = lang switch { "uk" => "Скасувати", "en" => "Cancel", _ => "Отмена" };
     }
 
     private void OnContinue(object? sender, RoutedEventArgs e) =>
-        Close(new SettingsResetOptions(AllOption.IsChecked == true, ClearHistory.IsChecked == true));
+        Close(new SettingsResetOptions(true, ClearHistory.IsChecked == true));
     private void OnCancel(object? sender, RoutedEventArgs e) => Close(null);
     protected override void OnKeyDown(KeyEventArgs e)
     {

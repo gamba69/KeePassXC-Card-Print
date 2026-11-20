@@ -21,7 +21,7 @@ internal static class WindowsSettingsResetHost
         };
         info.ArgumentList.Add("--reset-settings-worker");
         info.ArgumentList.Add(Environment.ProcessId.ToString(CultureInfo.InvariantCulture));
-        info.ArgumentList.Add(options.AllStorages ? "all" : "current");
+        info.ArgumentList.Add("all");
         info.ArgumentList.Add(options.ClearPrintHistory ? "clear-history" : "keep-history");
         using var started = Process.Start(info);
         if (started is null) throw new IOException("Could not start the settings reset worker.");
@@ -31,7 +31,7 @@ internal static class WindowsSettingsResetHost
     {
         if (args.Length != 4 || args[0] != "--reset-settings-worker" ||
             !int.TryParse(args[1], NumberStyles.None, CultureInfo.InvariantCulture, out var parentId) ||
-            parentId <= 0 || args[2] is not ("all" or "current") ||
+            parentId <= 0 || args[2] != "all" ||
             args[3] is not ("clear-history" or "keep-history")) return 2;
         try
         {
@@ -43,15 +43,17 @@ internal static class WindowsSettingsResetHost
             }
             catch (ArgumentException) { /* Original process already exited. */ }
             WindowsHost.Configure();
-            var options = new SettingsResetOptions(args[2] == "all", args[3] == "clear-history");
-            var result = SettingsResetService.Execute(options);
+            var clearTracking = args[3] == "clear-history";
+            var result = ConfigurationMaintenance.ResetAllAsync(clearTracking).GetAwaiter().GetResult();
+            WindowsCloudSecrets.DeleteApplicationCredentials();
             SettingsResetService.StoreOutcome(true, result.BackupDirectory);
         }
         catch (Exception ex)
         {
-            // The failure is reported after reopening the UI; never include
-            // configuration contents or cloud credentials in the result.
-            try { SettingsResetService.StoreOutcome(false, ex.GetType().Name); }
+            CloudSyncDiagnostics.Record("settings-reset-worker", ex);
+            // Keep cloud tokens and paths out of the user-visible result.
+            try { SettingsResetService.StoreOutcome(false,
+                ex.GetType().Name + "; see cloud-sync-errors.log"); }
             catch (Exception) { }
         }
         try

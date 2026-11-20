@@ -99,6 +99,23 @@ internal sealed class WindowsCloudSecrets : ICloudSecretStore
     private static extern bool WriteNative(ref Credential credential, uint flags);
     [DllImport("advapi32.dll", EntryPoint = "CredFree")]
     private static extern void FreeNative(IntPtr ptr);
+    [DllImport("advapi32.dll", EntryPoint = "CredDeleteW", CharSet = CharSet.Unicode, SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static extern bool DeleteNative(string target, uint type, uint flags);
+
+    internal static void DeleteApplicationCredentials()
+    {
+        foreach (var target in new[]
+        {
+            KeePassXCCardPrint.Services.CloudConnectionStore.CredentialTarget,
+            KeePassXCCardPrint.Services.CloudConnectionStore.GoogleSecretTarget,
+            KeePassXCCardPrint.Services.CloudConnectionStore.GoogleRefreshTarget
+        })
+        {
+            if (!DeleteNative(target, 1, 0) && Marshal.GetLastWin32Error() != 1168)
+                throw new IOException("Unable to remove a Card Print credential.");
+        }
+    }
 
     public (string User, string Password) Read(string target)
     {

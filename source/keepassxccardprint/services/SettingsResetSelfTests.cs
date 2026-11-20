@@ -8,7 +8,6 @@ internal static class SettingsResetSelfTests
         var workspace = Path.Combine(Path.GetTempPath(), "kpc-reset-selftest-" + Guid.NewGuid().ToString("N"));
         var system = Path.Combine(workspace, "system");
         var local = Path.Combine(workspace, "local");
-        var backups = Path.Combine(workspace, "backups");
         Directory.CreateDirectory(system);
         Directory.CreateDirectory(local);
         try
@@ -22,30 +21,47 @@ internal static class SettingsResetSelfTests
                 File.WriteAllText(Path.Combine(root, "print-tracking", "one.json"), "{\"History\":[]}");
                 File.WriteAllText(Path.Combine(root, "do-not-touch.txt"), "unchanged");
             }
-            var fallback = Path.Combine(workspace, "fallback");
-            var moved = SettingsResetService.PreserveHistoryForSystem(local, fallback);
-            Assert(moved == 1 && File.Exists(Path.Combine(fallback, "print-tracking", "one.json")),
-                "print tracking stays visible after a storage-mode fallback");
-            // Existing files must not be silently overwritten on a second transfer.
-            File.WriteAllText(Path.Combine(fallback, "print-tracking", "one.json"), "previous history");
-            Assert(SettingsResetService.PreserveHistoryForSystem(local, fallback) == 0 &&
-                File.ReadAllText(Path.Combine(fallback, "print-tracking", "one.json")) == "previous history",
-                "conflicting print tracking data remains intact");
-            var first = SettingsResetService.ExecuteForRoots([system], backups, false);
-            Assert(first.FileCount == 2 && !File.Exists(Path.Combine(system, "mapping.json")),
-                "current settings deleted");
-            Assert(File.Exists(Path.Combine(system, "print-tracking", "one.json")) &&
-                File.ReadAllText(Path.Combine(system, "do-not-touch.txt")) == "unchanged" &&
-                File.Exists(Path.Combine(local, "mapping.json")), "history and other storages preserved");
-            Assert(File.Exists(Path.Combine(first.BackupDirectory, "storage-0", "mapping.json")),
-                "verified settings backup exists");
-            var second = SettingsResetService.ExecuteForRoots([system, local], backups, true);
-            Assert(!File.Exists(Path.Combine(system, "print-tracking", "one.json")) &&
-                !File.Exists(Path.Combine(local, "print-tracking", "one.json")) &&
-                !File.Exists(Path.Combine(local, "mapping.json")), "explicit history clear applies to all roots");
-            Assert(File.Exists(Path.Combine(second.BackupDirectory, "storage-1", "print-tracking", "one.json")),
-                "print history backed up before deletion");
-            Assert(File.Exists(Path.Combine(local, "do-not-touch.txt")), "unrelated user file untouched");
+            Assert(File.Exists(Path.Combine(local, "do-not-touch.txt")),
+                "existing test files are initially present");
+            Directory.CreateDirectory(Path.Combine(local, "print-tracking"));
+            File.WriteAllText(Path.Combine(local, "print-tracking", "status.json"), "status");
+            Directory.CreateDirectory(Path.Combine(local, "obsolete"));
+            File.WriteAllText(Path.Combine(local, "obsolete", "stale.tmp"), "old");
+            ConfigurationMaintenance.CleanRoot(local, fullReset: false, clearTracking: false);
+            Assert(!Directory.Exists(Path.Combine(local, "obsolete")) &&
+                !File.Exists(Path.Combine(local, "do-not-touch.txt")) &&
+                File.Exists(Path.Combine(local, "print-tracking", "status.json")),
+                "startup removes unknown files without changing print-tracking");
+            ConfigurationMaintenance.CleanRoot(local, fullReset: true, clearTracking: false);
+            Assert(Directory.Exists(Path.Combine(local, "print-tracking")),
+                "reset without explicit tracking deletion preserves the entire directory");
+            ConfigurationMaintenance.CleanRoot(local, fullReset: true, clearTracking: true);
+            Assert(!Directory.Exists(Path.Combine(local, "print-tracking")),
+                "explicit tracking deletion removes the entire directory");
+            var retention = Path.Combine(workspace, "retention");
+            Directory.CreateDirectory(retention);
+            for (var i = 0; i < 5; i++)
+            {
+                var dir = Path.Combine(retention, $"2026-11-20_12-00-0{i}");
+                Directory.CreateDirectory(dir);
+                foreach (var name in new[] { "system", "local", "cloud-cache" })
+                    Directory.CreateDirectory(Path.Combine(dir, name));
+                File.WriteAllText(Path.Combine(dir, "system", "settings.json"), "good-" + i);
+                ConfigurationMaintenance.SealBackup(dir);
+            }
+            var partial = Path.Combine(retention, "old-storage-switch-partial");
+            Directory.CreateDirectory(partial);
+            File.WriteAllText(Path.Combine(partial, "mapping.json"), "partial");
+            ConfigurationMaintenance.PruneBackups(retention);
+            Assert(Directory.EnumerateDirectories(retention).Count() == 3 &&
+                !Directory.Exists(partial) &&
+                Directory.Exists(Path.Combine(retention, "2026-11-20_12-00-04")),
+                "only three latest verified full backups remain; partial backups are removed");
+            var damaged = Path.Combine(retention, "2026-11-20_12-00-04", "system", "settings.json");
+            File.WriteAllText(damaged, "corrupted");
+            ConfigurationMaintenance.PruneBackups(retention);
+            Assert(!Directory.Exists(Path.GetDirectoryName(Path.GetDirectoryName(damaged)!)),
+                "backups with broken checksums are not retained");
         }
         finally
         {

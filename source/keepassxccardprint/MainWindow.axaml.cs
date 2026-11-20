@@ -32,7 +32,46 @@ public partial class MainWindow : Window
     private bool _switchingStorage;
     private readonly CloudConfigurationSync _cloudSync = new();
     public CloudConfigurationSync CloudSync => _cloudSync;
-    public void SelectStorageFromSettings(OptionItem option) => StorageCombo.SelectedItem = option;
+    public event Action<string, bool>? StorageOperationCompleted;
+    internal string? CloudStorageBlockReason
+    {
+        get
+        {
+            if (SettingsLocation.Mode == ConfigurationStorage.Cloud) return null;
+            var lang = Localizer.ResolveLanguage(_settings.Language);
+            if (_switchingStorage || _vm.Busy)
+                return lang switch
+                {
+                    "uk" => "Зачекайте завершення поточної операції.",
+                    "en" => "Wait for the current operation to finish.",
+                    _ => "Дождитесь завершения текущей операции."
+                };
+            if (!CloudConnectionStore.IsCurrentVerified())
+                return lang switch
+                {
+                    "uk" => "Збережіть і перевірте хмарне підключення.",
+                    "en" => "Save and verify the cloud connection.",
+                    _ => "Сохраните и проверьте облачное подключение."
+                };
+            if (CloudMappingRecovery.FindProblemRoot(SettingsLocation.DirectoryPath,
+                    SettingsLocation.CloudRoot) is not null)
+                return lang switch
+                {
+                    "uk" => "Відновіть несумісний mapping.json у налаштуваннях.",
+                    "en" => "Recover the incompatible mapping.json in Settings.",
+                    _ => "Восстановите несовместимый mapping.json в настройках."
+                };
+            return null;
+        }
+    }
+    internal void RefreshStorageAvailability()
+    {
+        var available = CloudStorageBlockReason is null;
+        foreach (var item in _vm.StorageOptions)
+            if (item.Code == "cloud")
+                item.IsEnabled = available || SettingsLocation.Mode == ConfigurationStorage.Cloud;
+    }
+    public Task SwitchStorageFromSettingsAsync(OptionItem option) => SwitchStorageAsync(option);
     private readonly IPasswordInputLanguageScope _passwordLayout = PlatformServices.Current.CreatePasswordInputLanguageScope();
     private CancellationTokenSource? _printExportCancellation;
     private long _vaultGeneration;
@@ -119,6 +158,7 @@ public partial class MainWindow : Window
             catch (Exception ex) { CloudSyncDiagnostics.Record("settings-reset-result", ex); }
         });
         DataContext = _vm;
+        RefreshStorageAvailability();
         UiText.Language = _settings.Language;
         UiText.Enable(this, translateText: false);
         _aboutRefreshTimer.Tick += (_, _) => _vm.About.RefreshDiagnostics(RenderScaling);
@@ -385,6 +425,12 @@ public partial class MainWindow : Window
     {
         if (_switchingStorage || sender is not ComboBox combo ||
             combo.SelectedItem is not OptionItem selected || _vm is null) return;
+        await SwitchStorageAsync(selected);
+    }
+
+    private async Task SwitchStorageAsync(OptionItem selected)
+    {
+        if (_switchingStorage || _vm is null) return;
         var target = selected.Code switch
         {
             "local" => ConfigurationStorage.Local,
@@ -392,7 +438,10 @@ public partial class MainWindow : Window
             _ => ConfigurationStorage.AppData
         };
         if (target == SettingsLocation.Mode) return;
+        // The selected UI item is only a request. The active mode remains the
+        // persisted SettingsLocation.Mode until a successful activation.
         _switchingStorage = true;
+        var activated = false;
         try
         {
             if (_vm.Busy)
@@ -472,6 +521,7 @@ public partial class MainWindow : Window
             else Directory.CreateDirectory(destination);
 
             SettingsLocation.Activate(target);
+            activated = true;
             if (target == ConfigurationStorage.Cloud) _cloudSync.Start();
             else _cloudSync.Stop();
             // Reload ALL preferences from the selected folder. This includes UI
@@ -481,6 +531,7 @@ public partial class MainWindow : Window
             _store = new UiSettingsStore();
             _settings = _store.Load();
             _vm = new ShellViewModel(_settings);
+            RefreshStorageAvailability();
             _previewZoomTimer.Stop();
             _previewFitActive=false;
             _previewAnimatingFit=false;
@@ -507,20 +558,65 @@ public partial class MainWindow : Window
                 var viewport=this.FindControl<Canvas>("PreviewViewport");
                 if(viewport is not null)EnsurePreviewOrigin(viewport);
             },DispatcherPriority.Loaded);
+            StorageOperationCompleted?.Invoke(StorageOperationText(true, null), true);
         }
         catch (Exception ex)
         {
-            // Keep paths/credentials out of the UI, but retain a safe stack trace
-            // in the local diagnostic log for otherwise unexplained failures.
             CloudSyncDiagnostics.Record("storage-mode-switch", ex);
-            _vm.VaultStatus = "[STORAGE] Не удалось переключить хранение. См. cloud-sync-errors.log.";
+            var message = StorageOperationText(activated, ex);
+            _vm.VaultStatus = "[STORAGE] " + message;
+            StorageOperationCompleted?.Invoke(message, activated);
         }
         finally
         {
-            // Reverting the visual choice must never trigger a second dialog.
-            combo.SelectedItem = _vm.SelectedStorage;
+            // Never leave a requested value in the header. Even an exception
+            // after activation must reflect the actual persisted storage mode.
+            _vm.SetStorageMode(SettingsLocation.Mode);
+            StorageCombo.SelectedItem = _vm.SelectedStorage;
             _switchingStorage = false;
+            RefreshStorageAvailability();
         }
+    }
+
+    private string StorageOperationText(bool activated, Exception? error)
+    {
+        var lang = Localizer.ResolveLanguage(_settings.Language);
+        if (error is null)
+            return lang switch
+            {
+                "uk" => "Сховище успішно перемкнено.",
+                "en" => "Storage switched successfully.",
+                _ => "Хранилище успешно переключено."
+            };
+        if (activated)
+            return lang switch
+            {
+                "uk" => "Сховище перемкнено, але оновити інтерфейс не вдалося. Перезапустіть програму.",
+                "en" => "Storage switched, but the interface could not be refreshed. Restart the application.",
+                _ => "Хранилище переключено, но интерфейс не удалось обновить. Перезапустите программу."
+            };
+        var reason = error switch
+        {
+            UnauthorizedAccessException => lang switch
+            {
+                "uk" => "немає доступу до файлів", "en" => "file access denied", _ => "нет доступа к файлам"
+            },
+            IOException => lang switch
+            {
+                "uk" => "помилка запису даних", "en" => "storage I/O error", _ => "ошибка записи данных"
+            },
+            InvalidOperationException => lang switch
+            {
+                "uk" => "операцію відхилено", "en" => "operation rejected", _ => "операция отклонена"
+            },
+            _ => error.GetType().Name
+        };
+        return lang switch
+        {
+            "uk" => "Не вдалося перемкнути сховище (" + reason + "). Див. cloud-sync-errors.log.",
+            "en" => "Storage switch failed (" + reason + "). See cloud-sync-errors.log.",
+            _ => "Не удалось переключить хранилище (" + reason + "). См. cloud-sync-errors.log."
+        };
     }
 
     private void OnCloudRemoteApplied()

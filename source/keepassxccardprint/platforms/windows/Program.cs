@@ -155,6 +155,8 @@ internal static class Program
             Environment.ExitCode = status;
             return;
         }
+        try { ConfigurationMaintenance.CleanOnStartup(); }
+        catch (Exception ex) { CloudSyncDiagnostics.Record("startup-storage-cleanup", ex); }
         AppStartupState.ResetWindowPlacement = args.Contains("--reset-window", StringComparer.Ordinal);
         WindowsHost.BuildAvaloniaApp().StartWithClassicDesktopLifetime(args);
     }

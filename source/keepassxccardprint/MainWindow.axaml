@@ -26,6 +26,11 @@
           </ComboBox>
           <TextBlock Grid.Column="4" Classes="chrome-label" VerticalAlignment="Center" Text="{Binding Storage}"/>
           <ComboBox Grid.Column="5" Classes="header-select" x:Name="StorageCombo" ItemsSource="{Binding StorageOptions}" SelectedItem="{Binding SelectedStorage, Mode=OneWay}" SelectionChanged="OnStorageSelectionChanged">
+            <ComboBox.Styles>
+              <Style Selector="ComboBoxItem" x:DataType="vm:OptionItem">
+                <Setter Property="IsEnabled" Value="{CompiledBinding IsEnabled}"/>
+              </Style>
+            </ComboBox.Styles>
             <ComboBox.ItemTemplate>
               <DataTemplate x:DataType="vm:OptionItem"><TextBlock Text="{Binding Label}"/></DataTemplate>
             </ComboBox.ItemTemplate>

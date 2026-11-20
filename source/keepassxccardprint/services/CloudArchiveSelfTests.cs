@@ -202,12 +202,9 @@ public static class CloudArchiveSelfTests
             };
             Assert(CloudConnectionStore.VerificationMatches(verifiedRecord, noCheck),
                 "verification survives preference changes and application restart");
-            var legacyRecord = new CloudConnectionVerification
-            {
-                ProfileHash = CloudConnectionStore.LegacyFingerprint(oldR2), VerifiedUtc = recent
-            };
-            Assert(CloudConnectionStore.VerificationMatches(legacyRecord, oldR2),
-                "8.0.8 verified profiles remain valid");
+            Assert(!CloudConnectionStore.VerificationMatches(
+                    new CloudConnectionVerification { ProfileHash = "old-format", VerifiedUtc = recent }, oldR2),
+                "obsolete verification records are not accepted");
             var otherBucket = new CloudConnectionProfile
             {
                 Provider = oldR2.Provider, Endpoint = oldR2.Endpoint,
@@ -215,7 +212,7 @@ public static class CloudArchiveSelfTests
             };
             Assert(!CloudConnectionStore.VerificationMatches(verifiedRecord, otherBucket),
                 "a different S3 bucket cannot reuse a verified connection");
-            log.AppendLine("[PASS] Unified S3/R2 selection, legacy verification and preference stability");
+            log.AppendLine("[PASS] Unified S3/R2 selection and current verification fingerprint");
             var configured = new CloudConnectionProfile
             {
                 Provider = "GoogleDrive", RemoteFolder = "KeePassXC-Card-Print"
@@ -240,14 +237,10 @@ public static class CloudArchiveSelfTests
             };
             Assert(!CloudConfigurationSync.DestinationMatches(bound, moved, manifest),
                 "a changed remote folder requires explicit confirmation");
-            var legacy = new CloudSyncJournal { SnapshotId = manifest.SnapshotId };
-            Assert(CloudConfigurationSync.DestinationMatches(legacy, configured, manifest),
-                "8.0.5 journal matches its original snapshot without a prompt");
-            Assert(!CloudConfigurationSync.DestinationMatches(legacy, configured,
-                new CloudArchiveManifest { SnapshotId = Guid.NewGuid() }) &&
-                !CloudConfigurationSync.DestinationMatches(legacy, configured, null),
-                "legacy journal cannot silently adopt a different or missing archive");
-            log.AppendLine("[PASS] Connection retest has no implicit transfer; destination binding and legacy safety");
+            var unbound = new CloudSyncJournal { SnapshotId = manifest.SnapshotId };
+            Assert(!CloudConfigurationSync.DestinationMatches(unbound, configured, manifest),
+                "unbound journals cannot claim an existing cloud destination");
+            log.AppendLine("[PASS] Connection retest has no implicit transfer; strict destination binding");
             var cloudProbe = new CloudProbeStore();
             var originalArchive = Encoding.UTF8.GetBytes("must-not-be-modified");
             var archiveKey = CloudConnectionStore.RemoteFilePath(configured);

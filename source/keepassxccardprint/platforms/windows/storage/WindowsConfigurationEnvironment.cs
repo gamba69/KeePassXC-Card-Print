@@ -42,7 +42,7 @@ internal sealed class WindowsConfigurationEnvironment : IConfigurationEnvironmen
             }
         }
         catch (Exception e) when (e is IOException or UnauthorizedAccessException) { }
-        return Directory.Exists(LocalRoot) ? ConfigurationStorage.Local : ConfigurationStorage.AppData;
+        return ConfigurationStorage.AppData;
     }
 
     public void Activate(ConfigurationStorage mode)

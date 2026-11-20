@@ -13,10 +13,16 @@
           <ComboBox x:Name="StoragePicker" HorizontalAlignment="Stretch"
                     ItemsSource="{Binding StorageOptions}" SelectedItem="{Binding SelectedStorage, Mode=OneWay}"
                     SelectionChanged="OnStorageChanged">
+            <ComboBox.Styles>
+              <Style Selector="ComboBoxItem" x:DataType="vm:OptionItem">
+                <Setter Property="IsEnabled" Value="{CompiledBinding IsEnabled}"/>
+              </Style>
+            </ComboBox.Styles>
             <ComboBox.ItemTemplate>
               <DataTemplate x:DataType="vm:OptionItem"><TextBlock Text="{Binding Label}"/></DataTemplate>
             </ComboBox.ItemTemplate>
           </ComboBox>
+          <TextBlock x:Name="CloudUnavailableReason" FontSize="11" TextWrapping="Wrap" IsVisible="False"/>
           <TextBlock x:Name="ProviderCaption" Text="Облачный провайдер"/>
           <ComboBox x:Name="ProviderPicker" HorizontalAlignment="Stretch"
                     SelectionChanged="OnProviderChanged"/>
@@ -67,6 +73,7 @@
                   Click="OnRecoverMapping" Content="Восстановить маппинг…"/>
           <TextBlock x:Name="CloudStatus" TextWrapping="Wrap" FontSize="11"/>
           <TextBlock x:Name="LastSync" FontSize="11" TextWrapping="Wrap"/>
+          <TextBlock x:Name="CloudOperationStatus" FontSize="11" TextWrapping="Wrap" IsVisible="False"/>
         </StackPanel>
       </Border>
       <Border Classes="settings-card" Padding="11">
@@ -85,6 +92,7 @@
                      Text="Сброс настроек с резервным копированием. История печати сохраняется, если явно не выбрать её удаление."/>
           <Button x:Name="ResetSettingsButton" HorizontalAlignment="Left"
                   Click="OnResetSettings" Content="Сбросить настройки…"/>
+          <TextBlock x:Name="ResetStatus" TextWrapping="Wrap" FontSize="11" IsVisible="False"/>
         </StackPanel>
       </Border>
     </StackPanel>

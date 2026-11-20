@@ -80,9 +80,8 @@ public static class CloudConnectionStore
                 ? DefaultGoogleClientId : profile.GoogleClientId.Trim());
         return Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(location)));
     }
-    // Old 8.0.x verification files included every preference. Keep accepting
-    // their hashes while migrating to a connection-only fingerprint.
-    internal static string LegacyFingerprint(CloudConnectionProfile profile)
+    // Hash of the current full profile, used only to detect unsaved UI changes.
+    internal static string ProfileFingerprint(CloudConnectionProfile profile)
         => Convert.ToHexString(SHA256.HashData(JsonSerializer.SerializeToUtf8Bytes(
             profile, CloudSyncJsonContext.Default.CloudConnectionProfile)));
 
@@ -101,22 +100,20 @@ public static class CloudConnectionStore
             RemoteFolder = profile.RemoteFolder,
             CheckProtonCliAutomatically = true
         };
-        return LegacyFingerprint(stable);
+        return ProfileFingerprint(stable);
     }
 
     internal static bool SameConnection(CloudConnectionProfile a, CloudConnectionProfile b)
         => string.Equals(ConnectionFingerprint(a), ConnectionFingerprint(b), StringComparison.Ordinal);
 
     internal static bool SameProfile(CloudConnectionProfile a, CloudConnectionProfile b)
-        => string.Equals(LegacyFingerprint(a), LegacyFingerprint(b), StringComparison.Ordinal);
+        => string.Equals(ProfileFingerprint(a), ProfileFingerprint(b), StringComparison.Ordinal);
 
     internal static bool VerificationMatches(CloudConnectionVerification record, CloudConnectionProfile profile)
         => record.VerifiedUtc != default &&
-            (string.Equals(record.ProfileHash, ConnectionFingerprint(profile), StringComparison.Ordinal) ||
-             string.Equals(record.ProfileHash, LegacyFingerprint(profile), StringComparison.Ordinal));
+            string.Equals(record.ProfileHash, ConnectionFingerprint(profile), StringComparison.Ordinal);
 
-    // S3 and Cloudflare R2 share the same provider choice in the UI. Existing
-    // R2 profiles retain their provider identifier for journal compatibility.
+    // S3 and Cloudflare R2 share one UI choice, but retain distinct endpoints.
     internal static string UiProvider(string provider)
         => provider == "CloudflareR2" ? "S3" : provider;
 
@@ -190,8 +187,7 @@ public static class CloudConnectionStore
             throw new ArgumentException("Cloud settings exceed limits.");
         var previous = Load();
         var connectionChanged = !SameConnection(previous, profile);
-        // Preserve verified access when only non-connection preferences change,
-        // including migration from 8.0.x full-profile verification hashes.
+        // Preserve verification when only local presentation preferences change.
         var wasVerified = !connectionChanged && IsVerified(previous);
         Directory.CreateDirectory(SettingsLocation.AppDataRoot);
         var temp = PathName + "." + Guid.NewGuid().ToString("N") + ".tmp";
@@ -433,15 +429,11 @@ public sealed class CloudConfigurationSync : IDisposable
         return journal.RemoteTargetHash != CloudConnectionStore.TargetFingerprint(profile);
     }
 
-    // A 8.0.5 journal has no destination fingerprint. Trust it only when the
-    // remote archive actually has the same random snapshot ID, never by time.
+    // Current journals must be explicitly bound to the same remote destination.
     internal static bool DestinationMatches(CloudSyncJournal journal,
         CloudConnectionProfile profile, CloudArchiveManifest? remote)
     {
-        var expected = CloudConnectionStore.TargetFingerprint(profile);
-        return journal.RemoteTargetHash == expected ||
-            (journal.RemoteTargetHash.Length == 0 && journal.SnapshotId != Guid.Empty &&
-             remote is not null && remote.SnapshotId == journal.SnapshotId);
+        return journal.RemoteTargetHash == CloudConnectionStore.TargetFingerprint(profile);
     }
 
     // Test/authentication and all uploads/downloads share the same gate. A second

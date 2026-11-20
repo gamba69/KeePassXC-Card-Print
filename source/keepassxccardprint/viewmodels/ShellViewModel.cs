@@ -23,6 +23,17 @@ public sealed class OptionItem : INotifyPropertyChanged
         Relocalize(language);
     }
     private readonly string _labelKey;
+    private bool _isEnabled = true;
+    public bool IsEnabled
+    {
+        get => _isEnabled;
+        set
+        {
+            if (_isEnabled == value) return;
+            _isEnabled = value;
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(IsEnabled)));
+        }
+    }
     public void Relocalize(string language) => Label = Localizer.Text(language, _labelKey);
 }
 

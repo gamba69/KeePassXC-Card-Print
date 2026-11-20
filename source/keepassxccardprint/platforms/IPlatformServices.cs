@@ -106,6 +106,7 @@ public interface IPlatformServices
 public static class PlatformServices
 {
     private static IPlatformServices? _current;
+    public static bool IsInitialized => _current is not null;
     public static IPlatformServices Current => _current
         ?? throw new InvalidOperationException("Platform services must be initialized by the host.");
 

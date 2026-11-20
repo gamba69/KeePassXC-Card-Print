@@ -21,6 +21,8 @@ public partial class SettingsView : UserControl
     private CloudConfigurationSync? _observed;
     private ShellViewModel? _languageOwner;
     private string? _lastOperationMessage;
+    private string? _storageOperationMessage;
+    private MainWindow? _storageOwner;
     private bool _unsavedConnection;
     private bool _draftConnectionChanged;
     private bool _syncStoppedForDraft;
@@ -50,6 +52,7 @@ public partial class SettingsView : UserControl
             ObserveLanguage();
             UpdaterHost.Changed += RefreshOnUi;
             AttachEngine();
+            AttachStorageOwner();
             _protonTimer.Start();
             _ = CheckProtonAsync(automatic: true);
             Refresh();
@@ -62,6 +65,9 @@ public partial class SettingsView : UserControl
             if (_languageOwner is not null)
                 _languageOwner.PropertyChanged -= OnLanguageChange;
             _languageOwner = null;
+            if (_storageOwner is not null)
+                _storageOwner.StorageOperationCompleted -= OnStorageOperationCompleted;
+            _storageOwner = null;
             if (_observed is not null) _observed.Changed -= RefreshOnUi;
             _observed = null;
         };
@@ -80,6 +86,22 @@ public partial class SettingsView : UserControl
         Refresh();
     }
     private MainWindow? Owner => TopLevel.GetTopLevel(this) as MainWindow;
+    private void AttachStorageOwner()
+    {
+        var owner = Owner;
+        if (ReferenceEquals(owner, _storageOwner)) return;
+        if (_storageOwner is not null)
+            _storageOwner.StorageOperationCompleted -= OnStorageOperationCompleted;
+        _storageOwner = owner;
+        if (_storageOwner is not null)
+            _storageOwner.StorageOperationCompleted += OnStorageOperationCompleted;
+    }
+    private void OnStorageOperationCompleted(string message, bool succeeded)
+    {
+        _storageOperationMessage = message;
+        if (succeeded) _lastOperationMessage = null;
+        RefreshOnUi();
+    }
     private string L(string ru, string uk, string en) =>
         Localizer.ResolveLanguage((DataContext as ShellViewModel)?.Settings.Language ?? "auto") switch
         { "uk" => uk, "en" => en, _ => ru };
@@ -243,6 +265,19 @@ public partial class SettingsView : UserControl
             InstallMode.SelectedIndex = Array.IndexOf(UpdateModes, prefs.Installation);
             if (DataContext is ShellViewModel viewModel)
                 StoragePicker.SelectedItem = viewModel.SelectedStorage;
+            Owner?.RefreshStorageAvailability();
+            var blocked = Owner?.CloudStorageBlockReason;
+            if (_draftConnectionChanged && SettingsLocation.Mode != ConfigurationStorage.Cloud)
+                blocked = L("Сохраните и проверьте изменённое подключение.",
+                    "Збережіть і перевірте змінене підключення.",
+                    "Save and verify the modified connection.");
+            CloudUnavailableReason.IsVisible = !string.IsNullOrEmpty(blocked);
+            CloudUnavailableReason.Text = string.IsNullOrEmpty(blocked) ? "" :
+                L("Облако недоступно: ", "Хмара недоступна: ", "Cloud unavailable: ") + blocked;
+            if (DataContext is ShellViewModel model && _draftConnectionChanged)
+                foreach (var option in model.StorageOptions)
+                    if (option.Code == "cloud" && SettingsLocation.Mode != ConfigurationStorage.Cloud)
+                        option.IsEnabled = false;
             UpdateProviderFields();
             ProtonStatus.Text = _protonStatus.State switch
             {
@@ -277,11 +312,19 @@ public partial class SettingsView : UserControl
                 "неактивна (выбрано другое хранилище)",
                 "неактивна (вибрано інше сховище)",
                 "inactive (another storage mode is selected)");
-            CloudStatus.Text = (CloudConnectionStore.IsCurrentVerified() && !_draftConnectionChanged
+            CloudStatus.Text = L("Активное хранилище", "Активне сховище", "Active storage") +
+                ": " + (DataContext as ShellViewModel)?.StorageOptions.FirstOrDefault(
+                    option => option.Code == (SettingsLocation.Mode switch
+                    {
+                        ConfigurationStorage.Cloud => "cloud",
+                        ConfigurationStorage.Local => "local",
+                        _ => "appdata"
+                    }))?.Label +
+                "\n\n" + (CloudConnectionStore.IsCurrentVerified() && !_draftConnectionChanged
                     ? L("Подключение: проверено", "Підключення: перевірено", "Connection: verified")
                     : L("Подключение: не проверено", "Підключення: не перевірено", "Connection: not verified")) +
                 "\n" + L("Синхронизация", "Синхронізація", "Synchronization") + ": " + syncState +
-                (cloudActive && !string.IsNullOrEmpty(engine?.Detail) ? " — " + LocalizeSyncError(engine.Detail) : "") +
+                (cloudActive && (engine?.Status is "Error" or "Offline") && !string.IsNullOrEmpty(engine?.Detail) ? " — " + LocalizeSyncError(engine.Detail) : "") +
                 (recoveryRoot is null ? "" : "\n" + L(
                     "Несовместимый mapping.json: ",
                     "Несумісний mapping.json: ",
@@ -294,8 +337,10 @@ public partial class SettingsView : UserControl
                         "Параметри підключення змінено; збережіть і перевірте підключення.",
                         "Connection settings changed; save and test the connection.")
                     : L("Есть несохранённые настройки.", "Є незбережені налаштування.",
-                        "There are unsaved preferences.")) : "") +
-                (string.IsNullOrEmpty(_lastOperationMessage) ? "" : "\n" + _lastOperationMessage);
+                        "There are unsaved preferences.")) : "");
+            CloudOperationStatus.Text = _storageOperationMessage ??
+                _lastOperationMessage ?? "";
+            CloudOperationStatus.IsVisible = !string.IsNullOrEmpty(CloudOperationStatus.Text);
             CloudDestinationButton.Content = L("Подтвердить новую папку облака…",
                 "Підтвердити нову хмарну папку…", "Confirm new cloud destination…");
             CloudDestinationButton.IsVisible = !_cloudCommandRunning &&
@@ -400,38 +445,37 @@ public partial class SettingsView : UserControl
         }
         Refresh();
     }
-    // This event must never be async void: exceptions after an awaited modal
-    // used to escape to the Avalonia dispatcher and terminate the process.
-    private void OnStorageChanged(object? sender, SelectionChangedEventArgs e)
+    // Both selectors invoke the same storage transition directly. Neither
+    // simulates a selection in the other control.
+    private async void OnStorageChanged(object? sender, SelectionChangedEventArgs e)
     {
+        if (_updating || _cloudCommandRunning ||
+            StoragePicker.SelectedItem is not OptionItem option) return;
+        var owner = Owner;
+        if (owner is null) return;
         try
         {
-            if (_updating || _cloudCommandRunning ||
-                StoragePicker.SelectedItem is not OptionItem option) return;
-            var owner = Owner;
-            if (owner is null) return;
             if (option.Code == "cloud" && (_draftConnectionChanged ||
-                !CloudConnectionStore.IsCurrentVerified()))
+                owner.CloudStorageBlockReason is not null))
             {
-                var notice = L("Облако не настроено или не проверено. Сохраните параметры и нажмите «Проверить подключение».",
-                    "Хмару не налаштовано або не перевірено. Збережіть параметри й натисніть «Перевірити підключення».",
-                    "Cloud is not configured or verified. Save settings and choose Test connection.");
-                _lastOperationMessage = notice;
+                var notice = owner.CloudStorageBlockReason ?? L(
+                    "Сохраните и проверьте изменённое подключение.",
+                    "Збережіть і перевірте змінене підключення.",
+                    "Save and verify the modified connection.");
+                _storageOperationMessage = notice;
                 Refresh();
-                _ = ShowUnverifiedCloudAsync(owner, notice);
                 return;
             }
-            owner.SelectStorageFromSettings(option);
+            await owner.SwitchStorageFromSettingsAsync(option);
         }
         catch (Exception ex)
         {
             CloudSyncDiagnostics.Record("storage-selection-ui", ex);
-            _lastOperationMessage = L("Не удалось переключить хранилище. См. cloud-sync-errors.log.",
-                "Не вдалося перемкнути сховище. Див. cloud-sync-errors.log.",
-                "Storage selection failed; see cloud-sync-errors.log.");
-            try { Refresh(); }
-            catch (Exception refreshError) { CloudSyncDiagnostics.Record("storage-selection-refresh", refreshError); }
+            _storageOperationMessage = L("Ошибка выбора хранилища. См. cloud-sync-errors.log.",
+                "Помилка вибору сховища. Див. cloud-sync-errors.log.",
+                "Storage selection error. See cloud-sync-errors.log.");
         }
+        finally { Refresh(); }
     }
 
     private async Task ShowUnverifiedCloudAsync(MainWindow owner, string notice)
@@ -488,41 +532,69 @@ public partial class SettingsView : UserControl
     }
     private async void OnResetSettings(object? sender, RoutedEventArgs e)
     {
-        if (_cloudCommandRunning || Owner is not { } owner) return;
+        ResetStatus.IsVisible = true;
+        ResetStatus.Text = L("Открытие сброса настроек…",
+            "Відкриття скидання налаштувань…", "Opening settings reset…");
+        if (_cloudCommandRunning)
+        {
+            ResetStatus.Text = L("Дождитесь завершения операции.",
+                "Дочекайтеся завершення операції.", "Wait for the current operation.");
+            return;
+        }
+        if (Owner is not { } owner)
+        {
+            ResetStatus.Text = L("Не удалось открыть окно сброса настроек.",
+                "Не вдалося відкрити вікно скидання.", "Could not open settings reset.");
+            return;
+        }
+        ResetSettingsButton.IsEnabled = false;
         try
         {
             var options = await new SettingsResetDialog(
                 (DataContext as ShellViewModel)?.Settings.Language ?? "auto")
                 .ShowDialog<SettingsResetOptions?>(owner);
-            if (options is not { } selected) return;
+            if (options is not { } selected)
+            {
+                ResetStatus.IsVisible = false;
+                return;
+            }
             var message = L(
                 selected.AllStorages ? "Сбросить ВСЕ локальные настройки?" : "Сбросить настройки текущего хранилища?",
                 selected.AllStorages ? "Скинути ВСІ локальні налаштування?" : "Скинути налаштування поточного сховища?",
                 selected.AllStorages ? "Reset ALL local settings?" : "Reset current storage settings?") +
                 "\n\n" + (selected.ClearPrintHistory
-                    ? L("История печати и отметки напечатанных карточек БУДУТ удалены из выбранных хранилищ.",
-                        "Історію друку та позначки надрукованих карток БУДЕ видалено з вибраних сховищ.",
-                        "Print history and per-card printed states WILL be removed from selected storages.")
-                    : L("История печати и отметки напечатанных карточек сохранятся.",
-                        "Історія друку й позначки надрукованих карток збережуться.",
-                        "Print history and per-card printed states will be preserved.")) +
+                    ? L("ВСЯ папка print-tracking будет удалена во всех хранилищах и в облаке.",
+                        "УСЮ папку print-tracking буде видалено в усіх сховищах і хмарі.",
+                        "The ENTIRE print-tracking folder will be cleared in all storages and cloud.")
+                    : L("Вся папка print-tracking сохранится, включая историю и статусы.",
+                        "Уся папка print-tracking збережеться, включно з історією і статусами.",
+                        "The entire print-tracking folder, including history and statuses, will be kept.")) +
                 "\n\n" + L(
-                    "Будет создана резервная копия. Облачный архив не затрагивается. Несохранённые правки будут потеряны. Продолжить?",
-                    "Буде створено резервну копію. Хмарний архів не зміниться. Незбережені зміни буде втрачено. Продовжити?",
-                    "A backup will be created. The remote archive is untouched. Unsaved edits will be lost. Continue?");
+                    "Будет создана резервная копия. Облако перезапишется чистой конфигурацией. При ошибке облака сброс не завершится. Продолжить?",
+                    "Буде створено резервну копію. Хмару буде замінено чистою конфігурацією. За помилки хмари скидання не завершиться. Продовжити?",
+                    "A backup will be created and the cloud configuration replaced. A cloud failure prevents completing the reset. Continue?");
             if (!await AppConfirmations.AskAsync(owner,
                 L("Подтверждение сброса", "Підтвердження скидання", "Confirm settings reset"),
                 message, L("Сбросить", "Скинути", "Reset"), sensitive: true,
-                actionIcon: "warning", cancelText: L("Отмена", "Скасувати", "Cancel"))) return;
+                actionIcon: "warning", cancelText: L("Отмена", "Скасувати", "Cancel")))
+            {
+                ResetStatus.IsVisible = false;
+                return;
+            }
+            ResetStatus.Text = L("Запуск сброса настроек и перезапуска…",
+                "Запуск скидання та перезапуску…", "Starting reset and restart…");
             owner.ScheduleSettingsReset(selected);
         }
         catch (Exception ex)
         {
             CloudSyncDiagnostics.Record("settings-reset-launch", ex);
-            _lastOperationMessage = L("Не удалось начать сброс настроек.",
-                "Не вдалося почати скидання налаштувань.",
-                "Could not start settings reset.");
-            Refresh();
+            ResetStatus.Text = L("Сброс не запущен. См. cloud-sync-errors.log.",
+                "Скидання не запущено. Див. cloud-sync-errors.log.",
+                "Reset did not start. See cloud-sync-errors.log.");
+        }
+        finally
+        {
+            if (owner.IsVisible) ResetSettingsButton.IsEnabled = true;
         }
     }
 
@@ -675,8 +747,8 @@ public partial class SettingsView : UserControl
             SetCloudControlsEnabled(false);
             RefreshCloudActivity();
             await operation(cancellation.Token, progress);
-            _lastOperationMessage = successMessage ?? L("Операция завершена.",
-                "Операцію завершено.", "Operation completed.");
+            _lastOperationMessage = title + ": " + (successMessage ?? L("Операция завершена.",
+                "Операцію завершено.", "Operation completed."));
         }
         catch (OperationCanceledException)
         {

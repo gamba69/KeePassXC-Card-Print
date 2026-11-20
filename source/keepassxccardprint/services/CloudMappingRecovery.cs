@@ -1,5 +1,6 @@
 using System.Text;
 using System.Text.Json;
+using KeePassXCCardPrint.Platforms;
 
 namespace KeePassXCCardPrint.Services;
 
@@ -58,28 +59,25 @@ internal static class CloudMappingRecovery
         return NeedsRecovery(cloudRoot) ? cloudRoot : null;
     }
 
-    /// <summary>Returns a valid prior copy, if any. Never scans an arbitrary user folder.</summary>
+    /// <summary>Looks only in active roots and verified full configuration snapshots.</summary>
     internal static string? FindPreviousMapping(string damagedRoot, IEnumerable<string> knownRoots)
     {
         var damaged = Path.GetFullPath(Path.Combine(damagedRoot, "mapping.json"));
         var candidates = new List<string>();
         foreach (var root in knownRoots)
         {
-            try
+            try { candidates.Add(Path.Combine(Path.GetFullPath(root), "mapping.json")); }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException) { }
+        }
+        if (PlatformServices.IsInitialized && Directory.Exists(SettingsResetService.BackupBase))
+        {
+            foreach (var folder in Directory.EnumerateDirectories(SettingsResetService.BackupBase,
+                         "*", SearchOption.TopDirectoryOnly))
             {
-                var path = Path.GetFullPath(root);
-                candidates.Add(Path.Combine(path, "mapping.json"));
-                var backups = Path.Combine(path, "backups");
-                if (!Directory.Exists(backups) ||
-                    (File.GetAttributes(backups) & FileAttributes.ReparsePoint) != 0) continue;
-                foreach (var folder in Directory.EnumerateDirectories(backups, "*", SearchOption.TopDirectoryOnly).Take(128))
-                {
-                    if ((File.GetAttributes(folder) & FileAttributes.ReparsePoint) == 0)
-                        candidates.Add(Path.Combine(folder, "mapping.json"));
-                }
+                if (!ConfigurationMaintenance.IsVerifiedBackup(folder)) continue;
+                foreach (var name in new[] { "system", "local", "cloud-cache" })
+                    candidates.Add(Path.Combine(folder, name, "mapping.json"));
             }
-            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException)
-            { /* An inaccessible backup is not a recovery candidate. */ }
         }
         return candidates.Where(p => !string.Equals(Path.GetFullPath(p), damaged,
                 OperatingSystem.IsWindows() ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal))
@@ -116,14 +114,17 @@ internal static class CloudMappingRecovery
         var replacement = source is null ? Encoding.UTF8.GetBytes("{}") : File.ReadAllBytes(source);
         if (!IsValidMapping(replacement))
             throw new InvalidDataException("Mapping recovery source is not a valid mapping file.");
-        Directory.CreateDirectory(backupRoot);
-        var backupDirectory = Path.Combine(backupRoot, "mapping-recovery-" +
-            DateTime.UtcNow.ToString("yyyyMMdd-HHmmss") + "-" + Guid.NewGuid().ToString("N"));
-        Directory.CreateDirectory(backupDirectory);
-        var backup = Path.Combine(backupDirectory, "mapping.json");
-        File.WriteAllBytes(backup, original);
-        if (!File.ReadAllBytes(backup).AsSpan().SequenceEqual(original))
-            throw new IOException("Mapping recovery backup verification failed.");
+        var production = PlatformServices.IsInitialized &&
+            Path.GetFullPath(backupRoot).Equals(
+                Path.GetFullPath(Path.Combine(SettingsLocation.AppDataRoot, "backups")),
+                StringComparison.OrdinalIgnoreCase);
+        var fullBackup = production
+            ? ConfigurationMaintenance.CreateFullBackup(extraRoot: damagedRoot)
+            : ConfigurationMaintenance.CreateIsolatedFullBackup(damagedRoot, backupRoot);
+        var label = production ? ConfigurationMaintenance.BackupPathForRoot(damagedRoot) : "source";
+        var backup = Path.Combine(fullBackup, label, "mapping.json");
+        if (!File.Exists(backup) || !File.ReadAllBytes(backup).AsSpan().SequenceEqual(original))
+            throw new IOException("Mapping recovery full backup verification failed.");
 
         // A restart must not automatically publish a recovered or empty mapping.
         // The marker is outside the synchronized allow-list and is removed only

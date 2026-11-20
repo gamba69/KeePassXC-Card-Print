@@ -1,7 +1,45 @@
 # Changelog
 
+## [8.0.19] - 2026-11-20
+
+### Fixed
+- Permanent backups are complete verified snapshots of all application configuration roots, never per-operation fragments.
+- Backups use chronological date/time names, retain only the three newest verified snapshots, and discard legacy partial or corrupt backup folders at startup.
+- Storage switching, cloud application and mapping recovery now use full backups; transient rollback data is always removed after the operation.
+- Full reset seals a verified multi-root backup before remote replacement or local deletion and preserves print-tracking as an indivisible directory unless explicitly cleared.
+
+## [8.0.18] - 2026-11-20
+
+### Changed
+- Full settings reset now covers system, portable, and cloud-cache configuration, replaces the remote cloud archive with a verified clean snapshot, and restores default settings.
+- Treat print-tracking as one atomic folder: keep all history and statuses unless explicitly requested to delete the entire folder everywhere.
+- Clean obsolete and unknown entries from application-owned configuration roots on startup; preserve only current-format configuration, templates, and print-tracking.
+- Use dated backup folders (YYYY-MM-DD_HH-mm-ss-fff), retaining at most three on startup and after successful reset.
+- Remove obsolete cloud verification and destination-journal compatibility fallbacks; missing storage mode now defaults to system storage.
+- Clear Card Print's Windows Credential Manager entries after successful reset, without modifying KeePassXC databases or key files.
+
 All notable changes to KeePassXC Card Print are documented **only in this file**.
 Other documentation describes the current release and must not contain a version-by-version history.
+
+## [8.0.17] - 2026-11-20
+
+### Fixed
+- Initialize the reset-settings dialog using generated Avalonia XAML initialization so named controls are bound before the constructor accesses them, preventing NullReferenceException and allowing the confirmation dialog to open.
+
+## [8.0.16] - 2026-11-20
+
+### Fixed
+- Replace reflection-based ComboBox item bindings with typed compiled bindings compatible with Native AOT.
+- Preserve disabled cloud-storage choices in both storage selectors without using reflection.
+
+## [8.0.15] - 2026-11-20
+
+### Fixed
+- Route storage choices from both selectors through the same transition method; the header now reflects the persisted active storage instead of a pending selection.
+- Disable the cloud option until the saved connection is verified and the configuration mapping is compatible; show the reason in Settings.
+- Separate active storage, connection verification, synchronization and the latest operation message.
+- Clear stale operation errors after a successful attempt; retain full diagnostics in the local log.
+- Show reset-button feedback beside the button, including launch failures, instead of silently recording an error in cloud status.
 
 ## [8.0.14] - 2026-11-20
 
