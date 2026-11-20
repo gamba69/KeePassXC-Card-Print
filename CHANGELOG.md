@@ -1,5 +1,13 @@
 # Changelog
 
+## [8.0.20] - 2026-11-20
+
+### Fixed
+- Prevent unhandled dispatcher exceptions during storage switching, even when callbacks, status text, or UI restoration throw.
+- Isolate storage operation subscribers so one faulty listener cannot terminate the process or suppress other listeners.
+- Guard the Settings tab async selection handler and its final UI refresh independently.
+- Add Native AOT self-test coverage for throwing storage observers and UI recovery operations.
+
 ## [8.0.19] - 2026-11-20
 
 ### Fixed

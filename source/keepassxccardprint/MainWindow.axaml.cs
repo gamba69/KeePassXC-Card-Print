@@ -423,9 +423,21 @@ public partial class MainWindow : Window
 
     private async void OnStorageSelectionChanged(object? sender, SelectionChangedEventArgs e)
     {
-        if (_switchingStorage || sender is not ComboBox combo ||
-            combo.SelectedItem is not OptionItem selected || _vm is null) return;
-        await SwitchStorageAsync(selected);
+        // Avalonia invokes an async-void handler; no exception may escape it.
+        try
+        {
+            if (_switchingStorage || sender is not ComboBox combo ||
+                combo.SelectedItem is not OptionItem selected || _vm is null) return;
+            await SwitchStorageAsync(selected);
+        }
+        catch (Exception ex)
+        {
+            ReportStorageUiFailure("storage-selection-dispatch", ex);
+            StorageSwitchSafety.BestEffort(() => _vm.SetStorageMode(SettingsLocation.Mode),
+                error => ReportStorageUiFailure("storage-selection-state", error));
+            StorageSwitchSafety.BestEffort(() => StorageCombo.SelectedItem = _vm.SelectedStorage,
+                error => ReportStorageUiFailure("storage-selection-display", error));
+        }
     }
 
     private async Task SwitchStorageAsync(OptionItem selected)
@@ -558,25 +570,45 @@ public partial class MainWindow : Window
                 var viewport=this.FindControl<Canvas>("PreviewViewport");
                 if(viewport is not null)EnsurePreviewOrigin(viewport);
             },DispatcherPriority.Loaded);
-            StorageOperationCompleted?.Invoke(StorageOperationText(true, null), true);
+            NotifyStorageOperation(StorageOperationText(true, null), true);
         }
         catch (Exception ex)
         {
-            CloudSyncDiagnostics.Record("storage-mode-switch", ex);
-            var message = StorageOperationText(activated, ex);
-            _vm.VaultStatus = "[STORAGE] " + message;
-            StorageOperationCompleted?.Invoke(message, activated);
+            ReportStorageUiFailure("storage-mode-switch", ex);
+            // Reporting, localization and view updates can also fail. They are
+            // not allowed to turn a handled storage error into a fatal crash.
+            var message = activated
+                ? "Storage activated; UI refresh failed. Restart the application."
+                : "Storage switch failed. See cloud-sync-errors.log.";
+            StorageSwitchSafety.BestEffort(() => message = StorageOperationText(activated, ex),
+                error => ReportStorageUiFailure("storage-error-text", error));
+            StorageSwitchSafety.BestEffort(() => _vm.VaultStatus = "[STORAGE] " + message,
+                error => ReportStorageUiFailure("storage-error-display", error));
+            NotifyStorageOperation(message, activated);
         }
         finally
         {
-            // Never leave a requested value in the header. Even an exception
-            // after activation must reflect the actual persisted storage mode.
-            _vm.SetStorageMode(SettingsLocation.Mode);
-            StorageCombo.SelectedItem = _vm.SelectedStorage;
-            _switchingStorage = false;
-            RefreshStorageAvailability();
+            // Restore the *persisted* mode, not the user's tentative selection.
+            // Each step is isolated: a broken binding must not prevent cleanup.
+            try
+            {
+                StorageSwitchSafety.BestEffort(() => _vm.SetStorageMode(SettingsLocation.Mode),
+                    error => ReportStorageUiFailure("storage-restore-model", error));
+                StorageSwitchSafety.BestEffort(() => StorageCombo.SelectedItem = _vm.SelectedStorage,
+                    error => ReportStorageUiFailure("storage-restore-selector", error));
+                StorageSwitchSafety.BestEffort(RefreshStorageAvailability,
+                    error => ReportStorageUiFailure("storage-restore-availability", error));
+            }
+            finally { _switchingStorage = false; }
         }
     }
+
+    private static void ReportStorageUiFailure(string operation, Exception error) =>
+        StorageSwitchSafety.BestEffort(() => CloudSyncDiagnostics.Record(operation, error));
+
+    private void NotifyStorageOperation(string message, bool succeeded) =>
+        StorageSwitchSafety.Notify(StorageOperationCompleted, message, succeeded,
+            error => ReportStorageUiFailure("storage-operation-observer", error));
 
     private string StorageOperationText(bool activated, Exception? error)
     {

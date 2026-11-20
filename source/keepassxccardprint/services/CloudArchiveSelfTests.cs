@@ -66,6 +66,17 @@ public static class CloudArchiveSelfTests
             Directory.CreateDirectory(destination);
             SettingsResetSelfTests.Run();
             log.AppendLine("[PASS] Settings reset preserves print tracking unless explicitly selected");
+            var delivered = 0;
+            var reported = 0;
+            Action<string, bool> listeners = (_, _) => throw new InvalidOperationException("test observer");
+            listeners += (_, _) => delivered++;
+            StorageSwitchSafety.Notify(listeners, "test", true, _ => reported++);
+            Assert(delivered == 1 && reported == 1,
+                "a throwing observer cannot suppress later observers or crash storage selection");
+            StorageSwitchSafety.BestEffort(() => throw new NullReferenceException("test UI"),
+                _ => reported++);
+            Assert(reported == 2, "UI recovery operations swallow and report their failures");
+            log.AppendLine("[PASS] Storage operation observer isolation and guarded UI recovery");
             var sourceUi = new UiSettings { Language = "uk", Theme = "dark",
                 WindowWidth = 1000, LastPrintDevice = "source-printer" };
             new UiSettingsStore(source).Save(sourceUi);

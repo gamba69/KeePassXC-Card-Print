@@ -449,12 +449,14 @@ public partial class SettingsView : UserControl
     // simulates a selection in the other control.
     private async void OnStorageChanged(object? sender, SelectionChangedEventArgs e)
     {
-        if (_updating || _cloudCommandRunning ||
-            StoragePicker.SelectedItem is not OptionItem option) return;
-        var owner = Owner;
-        if (owner is null) return;
+        // SelectionChanged is async void, so every access (including Refresh)
+        // belongs inside an exception boundary, not merely the awaited call.
         try
         {
+            if (_updating || _cloudCommandRunning ||
+                StoragePicker.SelectedItem is not OptionItem option) return;
+            var owner = Owner;
+            if (owner is null) return;
             if (option.Code == "cloud" && (_draftConnectionChanged ||
                 owner.CloudStorageBlockReason is not null))
             {
@@ -470,12 +472,18 @@ public partial class SettingsView : UserControl
         }
         catch (Exception ex)
         {
-            CloudSyncDiagnostics.Record("storage-selection-ui", ex);
-            _storageOperationMessage = L("Ошибка выбора хранилища. См. cloud-sync-errors.log.",
+            StorageSwitchSafety.BestEffort(() => CloudSyncDiagnostics.Record("storage-selection-ui", ex));
+            StorageSwitchSafety.BestEffort(() => _storageOperationMessage = L(
+                "Ошибка выбора хранилища. См. cloud-sync-errors.log.",
                 "Помилка вибору сховища. Див. cloud-sync-errors.log.",
-                "Storage selection error. See cloud-sync-errors.log.");
+                "Storage selection error. See cloud-sync-errors.log."));
         }
-        finally { Refresh(); }
+        finally
+        {
+            StorageSwitchSafety.BestEffort(Refresh,
+                ex => StorageSwitchSafety.BestEffort(
+                    () => CloudSyncDiagnostics.Record("storage-selection-refresh", ex)));
+        }
     }
 
     private async Task ShowUnverifiedCloudAsync(MainWindow owner, string notice)
