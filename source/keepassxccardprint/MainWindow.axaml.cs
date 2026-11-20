@@ -74,9 +74,50 @@ public partial class MainWindow : Window
         _cloudSync.BeforeRemoteApplyAsync = async () => await Dispatcher.UIThread.InvokeAsync(() =>
             !_vm.Busy && !_vm.MappingHasPendingChanges && !_vm.CanSaveTemplateChanges &&
             _printExportCancellation is null);
-        _cloudSync.RemoteApplied = () => Dispatcher.UIThread.Post(OnCloudRemoteApplied);
+        _cloudSync.RemoteApplied = () => Dispatcher.UIThread.Post(() =>
+        {
+            try { OnCloudRemoteApplied(); }
+            catch (Exception ex)
+            {
+                CloudSyncDiagnostics.Record("cloud-remote-apply-ui", ex);
+                _vm.VaultStatus = Localizer.ResolveLanguage(_settings.Language) switch
+                {
+                    "uk" => "[CLOUD] Помилка оновлення інтерфейсу. Перезапустіть Card Print.",
+                    "en" => "[CLOUD] Error updating the view; restart Card Print.",
+                    _ => "[CLOUD] Ошибка обновления интерфейса. Перезапустите Card Print."
+                };
+            }
+        });
         Closed += (_, _) => _cloudSync.Dispose();
         Title = "KeePassXC Card Print  " + AppBuildInfo.Version;
+        Opened += (_, _) => Dispatcher.UIThread.Post(async () =>
+        {
+            try
+            {
+                var result = SettingsResetService.ConsumeOutcome();
+                if (result is null) return;
+                var lang = Localizer.ResolveLanguage(_settings.Language);
+                var title = lang switch
+                {
+                    "uk" => "Скидання налаштувань", "en" => "Settings reset", _ => "Сброс настроек"
+                };
+                var message = result.Value.Success ? (lang switch
+                {
+                    "uk" => "Налаштування скинуто. Резервна копія:\n",
+                    "en" => "Settings reset. Backup:\n",
+                    _ => "Настройки сброшены. Резервная копия:\n"
+                }) + result.Value.Message : (lang switch
+                {
+                    "uk" => "Скидання не завершено. Помилка: ",
+                    "en" => "Reset failed. Error: ",
+                    _ => "Сброс не завершён. Ошибка: "
+                }) + result.Value.Message;
+                await AppConfirmations.AskAsync(this, title, message,
+                    lang switch { "uk" => "Зрозуміло", "en" => "OK", _ => "Понятно" },
+                    cancelText: lang switch { "uk" => "Закрити", "en" => "Close", _ => "Закрыть" });
+            }
+            catch (Exception ex) { CloudSyncDiagnostics.Record("settings-reset-result", ex); }
+        });
         DataContext = _vm;
         UiText.Language = _settings.Language;
         UiText.Enable(this, translateText: false);
@@ -359,6 +400,35 @@ public partial class MainWindow : Window
                 _vm.VaultStatus = "Дождитесь завершения открытия базы.";
                 return;
             }
+            // A cloud switch copies the active source into the cloud cache.
+            // Check that source BEFORE any copy or remote operation, otherwise
+            // the same malformed mapping.json is reintroduced on every attempt.
+            var damagedStorage = target == ConfigurationStorage.Cloud
+                ? CloudMappingRecovery.FindProblemRoot(SettingsLocation.DirectoryPath, SettingsLocation.CloudRoot)
+                : null;
+            if (damagedStorage is not null)
+            {
+                var lang = Localizer.ResolveLanguage(_settings.Language);
+                var message = lang switch
+                {
+                    "uk" => "У поточному сховищі пошкоджений mapping.json:\n" +
+                        Path.Combine(damagedStorage, "mapping.json") +
+                        "\n\nПерейдіть до «Налаштування» → «Відновити мапінг…» перед перемиканням у хмару.",
+                    "en" => "The current storage contains an incompatible mapping.json:\n" +
+                        Path.Combine(damagedStorage, "mapping.json") +
+                        "\n\nOpen Settings → Recover field mapping… before switching to cloud.",
+                    _ => "В текущем хранилище несовместимый mapping.json:\n" +
+                        Path.Combine(damagedStorage, "mapping.json") +
+                        "\n\nОткройте «Настройки» → «Восстановить маппинг…» перед переходом в облако."
+                };
+                if (await AppConfirmations.AskAsync(this,
+                    lang switch { "uk" => "Відновлення мапінгу", "en" => "Mapping recovery", _ => "Восстановление маппинга" },
+                    message,
+                    lang switch { "uk" => "До налаштувань", "en" => "Open Settings", _ => "В настройки" },
+                    cancelText: lang switch { "uk" => "Скасувати", "en" => "Cancel", _ => "Отмена" }))
+                    _vm.ActiveTab = 4;
+                return;
+            }
             if (target == ConfigurationStorage.Cloud && !CloudConnectionStore.IsCurrentVerified())
             {
                 var lang = Localizer.ResolveLanguage(_settings.Language);
@@ -376,7 +446,7 @@ public partial class MainWindow : Window
                     cancelText: lang switch { "uk" => "Закрити", "en" => "Close", _ => "Закрыть" });
                 return;
             }
-            var answer = await new StorageSwitchDialog(_settings.Language, target)
+            var answer = await new StorageSwitchDialog(_settings.Language, target, SettingsLocation.Mode)
                 .ShowDialog<StorageSwitchAnswer>(this);
             if (answer == StorageSwitchAnswer.Cancel) return;
 
@@ -438,10 +508,12 @@ public partial class MainWindow : Window
                 if(viewport is not null)EnsurePreviewOrigin(viewport);
             },DispatcherPriority.Loaded);
         }
-        catch (Exception)
+        catch (Exception ex)
         {
-            // Never disclose filesystem details or a copied configuration's contents.
-            _vm.VaultStatus = "[STORAGE] Не удалось переключить хранение. Проверьте права записи и свободное место.";
+            // Keep paths/credentials out of the UI, but retain a safe stack trace
+            // in the local diagnostic log for otherwise unexplained failures.
+            CloudSyncDiagnostics.Record("storage-mode-switch", ex);
+            _vm.VaultStatus = "[STORAGE] Не удалось переключить хранение. См. cloud-sync-errors.log.";
         }
         finally
         {
@@ -660,6 +732,21 @@ public partial class MainWindow : Window
 
     private bool _exitApproved;
     private bool _exitPromptOpen;
+    private bool _settingsResetScheduled;
+    internal void ScheduleSettingsReset(SettingsResetOptions options)
+    {
+        if (_settingsResetScheduled) return;
+        if (_vm.Busy || _switchingStorage || _printExportCancellation is not null)
+            throw new InvalidOperationException("Wait for the current operation to finish before resetting settings.");
+        // The worker waits for this process to exit before deleting anything;
+        // the normal shutdown save handlers cannot recreate cleared settings.
+        if (!OperatingSystem.IsWindows())
+            throw new PlatformNotSupportedException("Settings reset requires Windows.");
+        KeePassXCCardPrint.Platforms.Windows.Storage.WindowsSettingsResetHost.Start(options);
+        _settingsResetScheduled = true;
+        _exitApproved = true;
+        Close();
+    }
     internal string UpdateLanguage => _settings.Language;
     internal bool IsExportRunning => _printExportCancellation is not null;
     internal Task<bool> ReadyForUpdateAsync() => ResolveUnsavedMappingAsync(exiting:true);
@@ -707,8 +794,9 @@ public partial class MainWindow : Window
         _vm.ClearVault();
         CaptureLayout();
         Persist();
-        if (SettingsLocation.Mode == ConfigurationStorage.Cloud) _cloudSync.MarkPending();
-        UpdaterHost.InstallOnExitIfReady();
+        if (SettingsLocation.Mode == ConfigurationStorage.Cloud && !_settingsResetScheduled)
+            _cloudSync.MarkPending();
+        if (!_settingsResetScheduled) UpdaterHost.InstallOnExitIfReady();
         base.OnClosing(e);
     }
 

@@ -3,6 +3,56 @@
 All notable changes to KeePassXC Card Print are documented **only in this file**.
 Other documentation describes the current release and must not contain a version-by-version history.
 
+## [8.0.14] - 2026-11-20
+
+### Fixed
+- Guard calls to the Windows-only settings reset worker and launcher so platform compatibility analysis (CA1416) succeeds without suppressing warnings.
+
+## [8.0.13] - 2026-11-20
+
+### Added
+- Add an explicit Settings > Maintenance reset dialog with current/all-local storage scope and a separate, unchecked-by-default option to delete print history and printed-card tracking.
+- Create a checksum-verified local backup of each affected file before deletion. Keep KeePassXC databases, key files, the remote cloud archive, stored Windows credentials and unrelated application data untouched.
+- Run the reset after the original application exits, then restart in the appropriate storage mode; report the result and backup directory on first startup.
+- Add isolated reset tests for print-history preservation, explicit history clearing, backup verification and unrelated-file protection.
+
+### Improved
+- Fix the unhandled managed NullReferenceException reported from SettingsView.OnStorageChanged by removing async-void event continuations and containing failures in the storage-selection/modal UI path; also capture switch and remote-apply exceptions in local diagnostics.
+
+## [8.0.12] - 2026-11-19
+
+### Fixed
+- Detect incompatible field mappings at the active configuration source, not just in the cloud cache; show the affected path and recovery action even before cloud storage is enabled.
+- Before switching to cloud storage, reject invalid source mappings with an actionable Settings dialog rather than copying them into the cache and failing the upload.
+- Serialize and back up recovery of both the active source and a damaged cloud cache, retaining every original mapping separately and requiring manual review before cloud synchronization resumes.
+- Disable manual cloud synchronization while another storage mode is selected; present an inactive status instead of a stale cloud-sync error, and clear the obsolete status after repair.
+- Add mapping source selection and dual-root recovery regression tests. No automatic mapping reset or cloud overwrite.
+
+## [8.0.11] - 2026-11-19
+
+### Fixed
+- Add explicit, loss-preserving mapping recovery for incompatible cloud-cache mapping.json files; restore the most recent valid saved rules from local/system/backup storage when available.
+- Always save the original invalid mapping outside the synchronized cloud cache before replacing it. A reset to empty rules requires explicit warning and confirmation.
+- Pause automatic synchronization across restarts until the recovered mapping is reviewed and manually synchronized. Serialize recovery with active cloud operations.
+- Localize the recovery UI and add native cloud self-tests for backup, restoration, reset and review marker.
+
+## [8.0.10] - 2026-11-19
+
+### Improved
+- Replace ambiguous Yes/No storage-selection dialogue with two explicit transfer directions, showing source and destination paths, overwrite consequences and action-specific buttons.
+- Show the configured cloud provider and remote `configuration.zip` path, distinguish the local cloud cache from the remote copy, and explain when nothing is copied.
+- Use the same decision layout when selecting a new cloud destination; keep original data-movement semantics and RU/UK/EN localization.
+- Add non-UI cloud self-tests for dialog choices across cloud, system, local and destination-change flows.
+
+## [8.0.9] - 2026-11-19
+
+### Fixed
+- Show a single S3 provider choice for Amazon S3, Cloudflare R2 and compatible endpoints, without modifying existing R2 credentials or remote destination fingerprints.
+- Preserve cloud connection verification across restarts, harmless UI refreshes and Proton CLI update-check preference changes; accept and migrate 8.0.8 verification markers.
+- Stop invalidating verified access when a user merely edits a draft connection field; invalidate only after saving changed connection parameters or credentials.
+- Resume cloud synchronization if an unsaved connection edit is reverted, and show a distinct warning for unverified draft changes.
+- Extend Native AOT cloud self-tests for R2 compatibility and verification fingerprint stability.
+
 ## [8.0.8] - 2026-11-19
 
 ### Improved

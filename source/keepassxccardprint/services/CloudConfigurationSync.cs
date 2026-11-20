@@ -80,9 +80,55 @@ public static class CloudConnectionStore
                 ? DefaultGoogleClientId : profile.GoogleClientId.Trim());
         return Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(location)));
     }
-    private static string Fingerprint(CloudConnectionProfile profile)
+    // Old 8.0.x verification files included every preference. Keep accepting
+    // their hashes while migrating to a connection-only fingerprint.
+    internal static string LegacyFingerprint(CloudConnectionProfile profile)
         => Convert.ToHexString(SHA256.HashData(JsonSerializer.SerializeToUtf8Bytes(
             profile, CloudSyncJsonContext.Default.CloudConnectionProfile)));
+
+    internal static string ConnectionFingerprint(CloudConnectionProfile profile)
+    {
+        // The Proton CLI update-check preference does not change authentication,
+        // endpoints or remote data. It must never invalidate verified access.
+        var stable = new CloudConnectionProfile
+        {
+            Provider = profile.Provider,
+            Endpoint = profile.Endpoint,
+            Bucket = profile.Bucket,
+            Region = profile.Region,
+            GoogleClientId = profile.GoogleClientId,
+            ProtonExecutable = profile.ProtonExecutable,
+            RemoteFolder = profile.RemoteFolder,
+            CheckProtonCliAutomatically = true
+        };
+        return LegacyFingerprint(stable);
+    }
+
+    internal static bool SameConnection(CloudConnectionProfile a, CloudConnectionProfile b)
+        => string.Equals(ConnectionFingerprint(a), ConnectionFingerprint(b), StringComparison.Ordinal);
+
+    internal static bool SameProfile(CloudConnectionProfile a, CloudConnectionProfile b)
+        => string.Equals(LegacyFingerprint(a), LegacyFingerprint(b), StringComparison.Ordinal);
+
+    internal static bool VerificationMatches(CloudConnectionVerification record, CloudConnectionProfile profile)
+        => record.VerifiedUtc != default &&
+            (string.Equals(record.ProfileHash, ConnectionFingerprint(profile), StringComparison.Ordinal) ||
+             string.Equals(record.ProfileHash, LegacyFingerprint(profile), StringComparison.Ordinal));
+
+    // S3 and Cloudflare R2 share the same provider choice in the UI. Existing
+    // R2 profiles retain their provider identifier for journal compatibility.
+    internal static string UiProvider(string provider)
+        => provider == "CloudflareR2" ? "S3" : provider;
+
+    internal static string ProviderForSelection(string selected, CloudConnectionProfile saved, string endpoint)
+    {
+        if (selected == "S3" && saved.Provider == "CloudflareR2" &&
+            Uri.TryCreate(endpoint, UriKind.Absolute, out var uri) &&
+            uri.Scheme == Uri.UriSchemeHttps &&
+            uri.Host.EndsWith(".r2.cloudflarestorage.com", StringComparison.OrdinalIgnoreCase))
+            return "CloudflareR2";
+        return selected;
+    }
 
     public static bool IsVerified(CloudConnectionProfile profile)
     {
@@ -94,8 +140,7 @@ public static class CloudConnectionStore
                 return false;
             var record = JsonSerializer.Deserialize(File.ReadAllBytes(VerificationPath),
                 CloudSyncJsonContext.Default.CloudConnectionVerification);
-            return record is not null && record.VerifiedUtc != default &&
-                string.Equals(record.ProfileHash, Fingerprint(profile), StringComparison.Ordinal);
+            return record is not null && VerificationMatches(record, profile);
         }
         catch (Exception e) when (e is IOException or UnauthorizedAccessException or
             JsonException or ArgumentException) { return false; }
@@ -107,15 +152,15 @@ public static class CloudConnectionStore
     }
     public static void MarkVerified(CloudConnectionProfile profile)
     {
-        // Guard against verification of a profile that was concurrently changed.
-        if (Fingerprint(profile) != Fingerprint(Load()))
+        // Guard against actual connection edits, not unrelated update preferences.
+        if (!SameConnection(profile, Load()))
             throw new InvalidOperationException("Connection settings changed during verification.");
         Directory.CreateDirectory(SettingsLocation.AppDataRoot);
         var temp = VerificationPath + "." + Guid.NewGuid().ToString("N") + ".tmp";
         try
         {
             File.WriteAllBytes(temp, JsonSerializer.SerializeToUtf8Bytes(
-                new CloudConnectionVerification { ProfileHash = Fingerprint(profile),
+                new CloudConnectionVerification { ProfileHash = ConnectionFingerprint(profile),
                     VerifiedUtc = DateTime.UtcNow },
                 CloudSyncJsonContext.Default.CloudConnectionVerification));
             File.Move(temp, VerificationPath, true);
@@ -144,7 +189,10 @@ public static class CloudConnectionStore
             profile.ProtonExecutable.Length > 2048)
             throw new ArgumentException("Cloud settings exceed limits.");
         var previous = Load();
-        var changed = !string.Equals(Fingerprint(previous), Fingerprint(profile), StringComparison.Ordinal);
+        var connectionChanged = !SameConnection(previous, profile);
+        // Preserve verified access when only non-connection preferences change,
+        // including migration from 8.0.x full-profile verification hashes.
+        var wasVerified = !connectionChanged && IsVerified(previous);
         Directory.CreateDirectory(SettingsLocation.AppDataRoot);
         var temp = PathName + "." + Guid.NewGuid().ToString("N") + ".tmp";
         try
@@ -152,7 +200,8 @@ public static class CloudConnectionStore
             File.WriteAllBytes(temp, JsonSerializer.SerializeToUtf8Bytes(profile,
                 CloudSyncJsonContext.Default.CloudConnectionProfile));
             File.Move(temp, PathName, true);
-            if (changed) InvalidateVerification();
+            if (connectionChanged) InvalidateVerification();
+            else if (wasVerified && !IsVerified(profile)) MarkVerified(profile);
         }
         finally { if (File.Exists(temp)) File.Delete(temp); }
     }
@@ -291,6 +340,12 @@ public sealed class CloudConfigurationSync : IDisposable
     public void Start()
     {
         if (_disposed) return;
+        if (CloudMappingRecovery.ReviewRequired)
+        {
+            _started = false;
+            SetStatus("Pending", "Mapping recovery requires review before manual synchronization.");
+            return;
+        }
         _started = true;
         try { _poll.Change(TimeSpan.FromSeconds(90), TimeSpan.FromSeconds(90)); }
         catch (ObjectDisposedException) { return; }
@@ -328,6 +383,40 @@ public sealed class CloudConfigurationSync : IDisposable
             _journal.Pending = true;
             SaveJournal();
         }
+    }
+
+    // Serialize repair with network work so no upload races the local replacement.
+    public async Task<string> RecoverMappingAsync(string? validSource, string recoveryRoot,
+        CancellationToken ct = default)
+    {
+        var fullRoot = Path.GetFullPath(recoveryRoot);
+        var cloudRoot = Path.GetFullPath(_root);
+        var activeRoot = Path.GetFullPath(SettingsLocation.DirectoryPath);
+        if (!string.Equals(fullRoot, cloudRoot, PlatformServices.Current.FileNameComparison) &&
+            !string.Equals(fullRoot, activeRoot, PlatformServices.Current.FileNameComparison))
+            throw new ArgumentException("Mapping recovery is limited to the current storage and cloud cache.", nameof(recoveryRoot));
+        Stop();
+        using var linked = CancellationTokenSource.CreateLinkedTokenSource(ct, _lifetime.Token);
+        await _gate.WaitAsync(linked.Token);
+        try
+        {
+            if (_disposed) throw new OperationCanceledException(linked.Token);
+            var backupFolder = Path.Combine(SettingsLocation.AppDataRoot, "backups");
+            var backup = CloudMappingRecovery.Restore(fullRoot, backupFolder, validSource);
+            // Failed transitions may have copied the same malformed file into
+            // cloud-cache. Preserve that original separately, then repair the
+            // cache with the approved rules, preventing a second failure later.
+            if (!string.Equals(fullRoot, cloudRoot, PlatformServices.Current.FileNameComparison) &&
+                CloudMappingRecovery.NeedsRecovery(cloudRoot))
+            {
+                var cacheBackup = CloudMappingRecovery.Restore(cloudRoot, backupFolder,
+                    Path.Combine(fullRoot, "mapping.json"));
+                backup += Environment.NewLine + cacheBackup;
+            }
+            SetStatus("Pending");
+            return backup;
+        }
+        finally { _gate.Release(); }
     }
 
     public Task SynchronizeAsync(CancellationToken ct = default, IProgress<string>? progress = null)
@@ -469,6 +558,7 @@ public sealed class CloudConfigurationSync : IDisposable
                 _journal.RemoteTargetHash = CloudConnectionStore.TargetFingerprint(profile);
                 _journal.LastSuccessfulUtc = DateTime.UtcNow;
                 SaveJournal();
+                if (!background) CloudMappingRecovery.ClearReviewRequired();
                 SetStatus("Synced");
                 return;
             }
@@ -496,6 +586,7 @@ public sealed class CloudConfigurationSync : IDisposable
                 }
                 finally { _applying = false; }
                 RemoteApplied?.Invoke();
+                if (!background) CloudMappingRecovery.ClearReviewRequired();
                 SetStatus("Synced");
                 return;
             }
@@ -531,6 +622,7 @@ public sealed class CloudConfigurationSync : IDisposable
             _journal.RemoteTargetHash = CloudConnectionStore.TargetFingerprint(profile);
             _journal.LastSuccessfulUtc = DateTime.UtcNow;
             SaveJournal();
+            if (!background && !_journal.Pending) CloudMappingRecovery.ClearReviewRequired();
             SetStatus(_journal.Pending ? "Pending" : "Synced");
         }
         catch (OperationCanceledException) when (ct.IsCancellationRequested) { throw; }

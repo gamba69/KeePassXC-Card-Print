@@ -14,14 +14,16 @@ namespace KeePassXCCardPrint;
 
 public partial class SettingsView : UserControl
 {
-    private static readonly string[] Providers = ["GoogleDrive", "ProtonDrive", "WebDAV", "S3", "CloudflareR2"];
-    private static readonly string[] ProviderNames = ["Google Drive", "Proton Drive", "WebDAV", "Amazon S3", "Cloudflare R2"];
+    private static readonly string[] Providers = ["GoogleDrive", "ProtonDrive", "WebDAV", "S3"];
+    private static readonly string[] ProviderNames = ["Google Drive", "Proton Drive", "WebDAV", "S3"];
     private static readonly string[] UpdateModes = ["exit", "ask", "manual"];
     private bool _updating;
     private CloudConfigurationSync? _observed;
     private ShellViewModel? _languageOwner;
     private string? _lastOperationMessage;
     private bool _unsavedConnection;
+    private bool _draftConnectionChanged;
+    private bool _syncStoppedForDraft;
     private ProtonCliStatus _protonStatus = new();
     private readonly DispatcherTimer _protonTimer = new() { Interval = TimeSpan.FromHours(24) };
     private bool _protonChecking;
@@ -64,7 +66,7 @@ public partial class SettingsView : UserControl
             _observed = null;
         };
         var saved = CloudConnectionStore.Load();
-        var index = Array.IndexOf(Providers, saved.Provider);
+        var index = Array.IndexOf(Providers, CloudConnectionStore.UiProvider(saved.Provider));
         _updating = true;
         ProviderPicker.SelectedIndex = index;
         EndpointBox.Text = saved.Endpoint;
@@ -185,7 +187,7 @@ public partial class SettingsView : UserControl
             EndpointBox, BucketBox, RegionBox, ClientIdBox, ProtonBox, UsernameBox,
             SecretBox, AdvancedGoogleCheck, AutoProtonCheck, BrowseProtonButton,
             SaveCloudButton, LoginCloudButton, TestCloudButton, SyncCloudButton,
-            CloudDestinationButton }) item.IsEnabled = enabled;
+            CloudDestinationButton, RecoverMappingButton }) item.IsEnabled = enabled;
     }
     private void Refresh()
     {
@@ -218,6 +220,13 @@ public partial class SettingsView : UserControl
             TestCloudButton.Content = L("Проверить подключение", "Перевірити підключення", "Test connection");
             SyncCloudButton.Content = L("Синхронизировать сейчас", "Синхронізувати зараз", "Sync now");
             UpdatesCaption.Text = L("Обновления программы", "Оновлення програми", "Application updates");
+            MaintenanceCaption.Text = L("Обслуживание", "Обслуговування", "Maintenance");
+            ResetSettingsButton.Content = L("Сбросить настройки…", "Скинути налаштування…", "Reset settings…");
+            ResetHelp.Text = L(
+                "Создать резервную копию и вернуть настройки к исходным. История печати сохраняется по умолчанию.",
+                "Створити резервну копію та скинути налаштування. Історія друку зберігається за замовчуванням.",
+                "Back up and reset settings. Print history is preserved by default.");
+            ResetSettingsButton.IsEnabled = !_cloudCommandRunning;
             AutoCheck.Content = L("Проверять обновления автоматически", "Автоматично перевіряти оновлення", "Check for updates automatically");
             AutoDownload.Content = L("Скачивать обновления автоматически", "Автоматично завантажувати оновлення", "Download updates automatically");
             InstallModeCaption.Text = L("Установка обновлений", "Установлення оновлень", "Install updates");
@@ -259,16 +268,33 @@ public partial class SettingsView : UserControl
                 "Error" => L("Ошибка", "Помилка", "Error"),
                 _ => L("Ожидание", "Очікування", "Pending")
             };
-            // A successful network test and a failed portable-config validation
-            // are independent states; do not present them as one result.
-            CloudStatus.Text = (CloudConnectionStore.IsCurrentVerified()
+            // Connection verification is separate from active cloud storage.
+            // A failed storage switch should not retain a stale sync error.
+            var cloudActive = SettingsLocation.Mode == ConfigurationStorage.Cloud;
+            var recoveryRoot = CloudMappingRecovery.FindProblemRoot(
+                SettingsLocation.DirectoryPath, SettingsLocation.CloudRoot);
+            var syncState = cloudActive ? state : L(
+                "неактивна (выбрано другое хранилище)",
+                "неактивна (вибрано інше сховище)",
+                "inactive (another storage mode is selected)");
+            CloudStatus.Text = (CloudConnectionStore.IsCurrentVerified() && !_draftConnectionChanged
                     ? L("Подключение: проверено", "Підключення: перевірено", "Connection: verified")
                     : L("Подключение: не проверено", "Підключення: не перевірено", "Connection: not verified")) +
-                "\n" + L("Синхронизация", "Синхронізація", "Synchronization") + ": " + state +
-                (string.IsNullOrEmpty(engine?.Detail) ? "" : " — " + LocalizeSyncError(engine.Detail)) +
-                (_unsavedConnection ? "\n" + L("Изменения не проверены; сохраните и проверьте подключение.",
-                    "Зміни не перевірені; збережіть і перевірте підключення.",
-                    "Changes not verified; save and test the connection.") : "") +
+                "\n" + L("Синхронизация", "Синхронізація", "Synchronization") + ": " + syncState +
+                (cloudActive && !string.IsNullOrEmpty(engine?.Detail) ? " — " + LocalizeSyncError(engine.Detail) : "") +
+                (recoveryRoot is null ? "" : "\n" + L(
+                    "Несовместимый mapping.json: ",
+                    "Несумісний mapping.json: ",
+                    "Incompatible mapping.json: ") + Path.Combine(recoveryRoot, "mapping.json") +
+                    "\n" + L("Нажмите «Восстановить маппинг…» перед переходом в облако.",
+                                 "Натисніть «Відновити мапінг…» перед переходом у хмару.",
+                                 "Choose Recover field mapping… before switching to cloud.")) +
+                (_unsavedConnection ? "\n" + (_draftConnectionChanged
+                    ? L("Параметры подключения изменены; сохраните и проверьте подключение.",
+                        "Параметри підключення змінено; збережіть і перевірте підключення.",
+                        "Connection settings changed; save and test the connection.")
+                    : L("Есть несохранённые настройки.", "Є незбережені налаштування.",
+                        "There are unsaved preferences.")) : "") +
                 (string.IsNullOrEmpty(_lastOperationMessage) ? "" : "\n" + _lastOperationMessage);
             CloudDestinationButton.Content = L("Подтвердить новую папку облака…",
                 "Підтвердити нову хмарну папку…", "Confirm new cloud destination…");
@@ -276,6 +302,11 @@ public partial class SettingsView : UserControl
                 SettingsLocation.Mode == ConfigurationStorage.Cloud &&
                 CloudConnectionStore.IsCurrentVerified() &&
                 engine is not null && engine.RequiresDestinationChoice(CloudConnectionStore.Load());
+            RecoverMappingButton.Content = L("Восстановить маппинг…",
+                "Відновити мапінг…", "Recover field mapping…");
+            RecoverMappingButton.IsVisible = !_cloudCommandRunning && recoveryRoot is not null;
+            if (!_cloudCommandRunning)
+                SyncCloudButton.IsEnabled = cloudActive && recoveryRoot is null;
             RefreshCloudActivity();
             var last = engine?.LastSuccessfulUtc ?? default;
             LastSync.Text = L("Последняя синхронизация", "Остання синхронізація", "Last sync") + ": " +
@@ -296,12 +327,14 @@ public partial class SettingsView : UserControl
 
     private CloudConnectionProfile ReadProfile()
     {
-        if (ProviderPicker.SelectedIndex is < 0 or >= 5)
+        if (ProviderPicker.SelectedIndex is < 0 or >= 4)
             throw new InvalidOperationException(L("Выберите провайдера.", "Оберіть провайдера.", "Select a provider."));
+        var endpoint = EndpointBox.Text?.Trim() ?? "";
         return new CloudConnectionProfile
         {
-            Provider = Providers[ProviderPicker.SelectedIndex],
-            Endpoint = EndpointBox.Text?.Trim() ?? "",
+            Provider = CloudConnectionStore.ProviderForSelection(Providers[ProviderPicker.SelectedIndex],
+                CloudConnectionStore.Load(), endpoint),
+            Endpoint = endpoint,
             Bucket = BucketBox.Text?.Trim() ?? "",
             Region = RegionBox.Text?.Trim() ?? "auto",
             GoogleClientId = ClientIdBox.Text?.Trim() ?? "",
@@ -325,42 +358,100 @@ public partial class SettingsView : UserControl
         }
         CloudConnectionStore.Save(profile);
         _unsavedConnection = false;
+        _draftConnectionChanged = false;
+        if (_syncStoppedForDraft && SettingsLocation.Mode == ConfigurationStorage.Cloud &&
+            CloudConnectionStore.IsCurrentVerified())
+        {
+            _syncStoppedForDraft = false;
+            Owner?.CloudSync.Start();
+        }
     }
     private void OnConnectionEdited(object? sender, EventArgs? args)
     {
         if (_updating) return;
-        _unsavedConnection = true;
-        try { CloudConnectionStore.InvalidateVerification(); }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
-        { _lastOperationMessage = ex.Message; }
-        if (SettingsLocation.Mode == ConfigurationStorage.Cloud) Owner?.CloudSync.Stop();
+        // Editing a field must not erase the last verified configuration. An
+        // untouched or reverted draft restores its existing verified state.
+        try
+        {
+            var saved = CloudConnectionStore.Load();
+            var draft = ReadProfile();
+            var credentialEdited = !string.IsNullOrWhiteSpace(SecretBox.Text);
+            _draftConnectionChanged = !CloudConnectionStore.SameConnection(saved, draft) || credentialEdited;
+            _unsavedConnection = !CloudConnectionStore.SameProfile(saved, draft) || credentialEdited;
+        }
+        catch (Exception)
+        {
+            // Incomplete input is an unsaved draft, never a persisted change.
+            _unsavedConnection = true;
+            _draftConnectionChanged = true;
+        }
+        if (SettingsLocation.Mode == ConfigurationStorage.Cloud && Owner is { } owner)
+        {
+            if (_draftConnectionChanged)
+            {
+                if (!_syncStoppedForDraft) owner.CloudSync.Stop();
+                _syncStoppedForDraft = true;
+            }
+            else if (_syncStoppedForDraft && CloudConnectionStore.IsCurrentVerified())
+            {
+                _syncStoppedForDraft = false;
+                owner.CloudSync.Start();
+            }
+        }
         Refresh();
     }
-    private async void OnStorageChanged(object? sender, SelectionChangedEventArgs e)
+    // This event must never be async void: exceptions after an awaited modal
+    // used to escape to the Avalonia dispatcher and terminate the process.
+    private void OnStorageChanged(object? sender, SelectionChangedEventArgs e)
     {
-        if (_updating || _cloudCommandRunning ||
-            StoragePicker.SelectedItem is not OptionItem option) return;
-        if (option.Code == "cloud" && (_unsavedConnection ||
-            !CloudConnectionStore.IsCurrentVerified()))
+        try
         {
-            _lastOperationMessage = L("Облако не настроено или не проверено. Сохраните параметры и нажмите «Проверить подключение».",
-                "Хмару не налаштовано або не перевірено. Збережіть параметри й натисніть «Перевірити підключення».",
-                "Cloud is not configured or verified. Save settings and choose Test connection.");
-            Refresh();
-            if (Owner is { } owner)
-                await AppConfirmations.AskAsync(owner,
-                    L("Облачное хранение", "Хмарне зберігання", "Cloud storage"),
-                    _lastOperationMessage,
-                    L("Понятно", "Зрозуміло", "OK"), cancelText: L("Закрыть", "Закрити", "Close"));
-            return;
+            if (_updating || _cloudCommandRunning ||
+                StoragePicker.SelectedItem is not OptionItem option) return;
+            var owner = Owner;
+            if (owner is null) return;
+            if (option.Code == "cloud" && (_draftConnectionChanged ||
+                !CloudConnectionStore.IsCurrentVerified()))
+            {
+                var notice = L("Облако не настроено или не проверено. Сохраните параметры и нажмите «Проверить подключение».",
+                    "Хмару не налаштовано або не перевірено. Збережіть параметри й натисніть «Перевірити підключення».",
+                    "Cloud is not configured or verified. Save settings and choose Test connection.");
+                _lastOperationMessage = notice;
+                Refresh();
+                _ = ShowUnverifiedCloudAsync(owner, notice);
+                return;
+            }
+            owner.SelectStorageFromSettings(option);
         }
-        Owner?.SelectStorageFromSettings(option);
+        catch (Exception ex)
+        {
+            CloudSyncDiagnostics.Record("storage-selection-ui", ex);
+            _lastOperationMessage = L("Не удалось переключить хранилище. См. cloud-sync-errors.log.",
+                "Не вдалося перемкнути сховище. Див. cloud-sync-errors.log.",
+                "Storage selection failed; see cloud-sync-errors.log.");
+            try { Refresh(); }
+            catch (Exception refreshError) { CloudSyncDiagnostics.Record("storage-selection-refresh", refreshError); }
+        }
+    }
+
+    private async Task ShowUnverifiedCloudAsync(MainWindow owner, string notice)
+    {
+        try
+        {
+            // The tab can be detached while the modal is being opened.
+            if (TopLevel.GetTopLevel(this) != owner || !owner.IsVisible) return;
+            await AppConfirmations.AskAsync(owner,
+                L("Облачное хранение", "Хмарне зберігання", "Cloud storage"),
+                notice, L("Понятно", "Зрозуміло", "OK"),
+                cancelText: L("Закрыть", "Закрити", "Close"));
+        }
+        catch (Exception ex) { CloudSyncDiagnostics.Record("storage-selection-modal", ex); }
     }
     private void UpdateProviderFields()
     {
         var provider = ProviderPicker.SelectedIndex;
-        var endpoint = provider is 2 or 3 or 4;
-        var bucket = provider is 3 or 4;
+        var endpoint = provider is 2 or 3;
+        var bucket = provider == 3;
         var google = provider == 0;
         var proton = provider == 1;
         EndpointCaption.IsVisible = EndpointBox.IsVisible = endpoint;
@@ -395,6 +486,46 @@ public partial class SettingsView : UserControl
         UpdaterHost.Service.SavePreferences(UpdaterHost.Service.Preferences with
         { Installation = UpdateModes[InstallMode.SelectedIndex] });
     }
+    private async void OnResetSettings(object? sender, RoutedEventArgs e)
+    {
+        if (_cloudCommandRunning || Owner is not { } owner) return;
+        try
+        {
+            var options = await new SettingsResetDialog(
+                (DataContext as ShellViewModel)?.Settings.Language ?? "auto")
+                .ShowDialog<SettingsResetOptions?>(owner);
+            if (options is not { } selected) return;
+            var message = L(
+                selected.AllStorages ? "Сбросить ВСЕ локальные настройки?" : "Сбросить настройки текущего хранилища?",
+                selected.AllStorages ? "Скинути ВСІ локальні налаштування?" : "Скинути налаштування поточного сховища?",
+                selected.AllStorages ? "Reset ALL local settings?" : "Reset current storage settings?") +
+                "\n\n" + (selected.ClearPrintHistory
+                    ? L("История печати и отметки напечатанных карточек БУДУТ удалены из выбранных хранилищ.",
+                        "Історію друку та позначки надрукованих карток БУДЕ видалено з вибраних сховищ.",
+                        "Print history and per-card printed states WILL be removed from selected storages.")
+                    : L("История печати и отметки напечатанных карточек сохранятся.",
+                        "Історія друку й позначки надрукованих карток збережуться.",
+                        "Print history and per-card printed states will be preserved.")) +
+                "\n\n" + L(
+                    "Будет создана резервная копия. Облачный архив не затрагивается. Несохранённые правки будут потеряны. Продолжить?",
+                    "Буде створено резервну копію. Хмарний архів не зміниться. Незбережені зміни буде втрачено. Продовжити?",
+                    "A backup will be created. The remote archive is untouched. Unsaved edits will be lost. Continue?");
+            if (!await AppConfirmations.AskAsync(owner,
+                L("Подтверждение сброса", "Підтвердження скидання", "Confirm settings reset"),
+                message, L("Сбросить", "Скинути", "Reset"), sensitive: true,
+                actionIcon: "warning", cancelText: L("Отмена", "Скасувати", "Cancel"))) return;
+            owner.ScheduleSettingsReset(selected);
+        }
+        catch (Exception ex)
+        {
+            CloudSyncDiagnostics.Record("settings-reset-launch", ex);
+            _lastOperationMessage = L("Не удалось начать сброс настроек.",
+                "Не вдалося почати скидання налаштувань.",
+                "Could not start settings reset.");
+            Refresh();
+        }
+    }
+
     private void OnSaveConnection(object? sender, RoutedEventArgs e)
     {
         if (_cloudCommandRunning) return;
@@ -423,9 +554,62 @@ public partial class SettingsView : UserControl
             // download configuration.zip or ask which copy wins.
             await owner.CloudSync.VerifyConnectionAsync(ReadProfile(), progress, ct);
             if (SettingsLocation.Mode == ConfigurationStorage.Cloud)
+            {
+                _syncStoppedForDraft = false;
                 owner.CloudSync.Start(); // Safe destination guard runs before any write.
+            }
         }, L("Проверка подключения", "Перевірка підключення", "Connection test"),
         L("Подключение проверено.", "Підключення перевірено.", "Connection verified."));
+
+    // A broken mapping is never discarded during synchronization. The user
+    // explicitly chooses a known-good prior mapping or a reset, after backup.
+    private async void OnRecoverMapping(object? sender, RoutedEventArgs e)
+    {
+        if (_cloudCommandRunning || Owner is not { } owner) return;
+        var root = CloudMappingRecovery.FindProblemRoot(SettingsLocation.DirectoryPath,
+            SettingsLocation.CloudRoot);
+        if (root is null) return;
+        var damagedPath = Path.Combine(root, "mapping.json");
+        var previous = CloudMappingRecovery.FindPreviousMapping(root,
+            [SettingsLocation.AppDataRoot, SettingsLocation.LocalRoot, SettingsLocation.CloudRoot]);
+        var hasBackup = previous is not null;
+        var description = hasBackup
+            ? L("Повреждённый файл:\n" + damagedPath + "\n\nНайдена корректная копия:\n" + previous +
+                    "\n\nВосстановить её? Исходный mapping.json будет сохранён отдельно. Архив в облаке не изменится.",
+                "Пошкоджений файл:\n" + damagedPath + "\n\nЗнайдено коректну копію:\n" + previous +
+                    "\n\nВідновити її? Початковий mapping.json буде збережено окремо. Архів у хмарі не зміниться.",
+                "Damaged file:\n" + damagedPath + "\n\nA valid copy was found:\n" + previous +
+                    "\n\nRestore it? The original mapping will be backed up. The remote archive will not change.")
+            : L("Повреждённый файл:\n" + damagedPath + "\n\nРабочая копия не найдена. Сброс создаст пустой маппинг. Пользовательские правила не восстановятся.\n\nИсходный файл будет сохранён в резервной копии. Продолжить?",
+                "Пошкоджений файл:\n" + damagedPath + "\n\nРобочу копію не знайдено. Скидання створить порожній мапінг. Користувацькі правила не відновляться.\n\nПочатковий файл буде збережено в резервній копії. Продовжити?",
+                "Damaged file:\n" + damagedPath + "\n\nNo valid copy was found. Reset creates an empty mapping; custom rules cannot be recovered.\n\nThe original file will be backed up. Continue?");
+        if (!await AppConfirmations.AskAsync(owner,
+            L("Восстановление маппинга", "Відновлення мапінгу", "Mapping recovery"),
+            description,
+            hasBackup ? L("Восстановить", "Відновити", "Restore") :
+                L("Сбросить маппинг", "Скинути мапінг", "Reset mapping"),
+            sensitive: !hasBackup, actionIcon: "save",
+            cancelText: L("Отмена", "Скасувати", "Cancel"))) return;
+        try
+        {
+            // Leave automatic synchronization paused until the user has reviewed
+            // the restored rules and explicitly synchronized or restarted.
+            var backup = await owner.CloudSync.RecoverMappingAsync(previous, root);
+            _lastOperationMessage = L("Маппинг восстановлен. Оригинал сохранён: ",
+                "Мапінг відновлено. Оригінал збережено: ",
+                "Mapping recovered. Original backed up: ") + backup + "\n" +
+                L("Перезапустите программу, проверьте правила и запустите синхронизацию вручную.",
+                  "Перезапустіть програму, перевірте правила та запустіть синхронізацію вручну.",
+                  "Restart the application, review the rules, then synchronize manually.");
+        }
+        catch (Exception ex)
+        {
+            CloudSyncDiagnostics.Record("mapping-recovery", ex);
+            _lastOperationMessage = L("Не удалось восстановить маппинг: ",
+                "Не вдалося відновити мапінг: ", "Could not recover mapping: ") + ex.Message;
+        }
+        Refresh();
+    }
 
     private async void OnSyncNow(object? sender, RoutedEventArgs e)
         => await PerformAsync(async (ct, progress) =>
@@ -440,7 +624,19 @@ public partial class SettingsView : UserControl
             if (sync.RequiresDestinationChoice(CloudConnectionStore.Load()))
                 throw new InvalidOperationException(L("Сначала подтвердите новую папку облака.",
                     "Спочатку підтвердьте нову хмарну папку.", "Confirm the new cloud destination first."));
+            if (CloudMappingRecovery.ReviewRequired && Owner is { } owner &&
+                !await AppConfirmations.AskAsync(owner,
+                    L("Подтвердить маппинг", "Підтвердити мапінг", "Confirm mapping"),
+                    L("Ранее повреждённый маппинг был восстановлен. Вы проверили его правила? Синхронизация может отправить их в облако или заменить более новой облачной копией.",
+                      "Раніше пошкоджений мапінг було відновлено. Ви перевірили його правила? Синхронізація може надіслати їх у хмару або замінити новішою хмарною копією.",
+                      "The previously damaged mapping was recovered. Have you reviewed its rules? Synchronization may upload it or replace it with a newer cloud copy."),
+                    L("Синхронизировать", "Синхронізувати", "Synchronize"),
+                    cancelText: L("Отмена", "Скасувати", "Cancel")))
+                throw new OperationCanceledException();
+            var resumingAfterReview = CloudMappingRecovery.ReviewRequired;
             await sync.SynchronizeAsync(ct, progress);
+            if (resumingAfterReview && !CloudMappingRecovery.ReviewRequired)
+                sync.Start();
         }, L("Синхронизация", "Синхронізація", "Synchronization"));
 
     private async void OnConfirmDestination(object? sender, RoutedEventArgs e)
@@ -454,7 +650,8 @@ public partial class SettingsView : UserControl
             // Only an explicit choice can replace an archive at another destination.
             var answer = await new StorageSwitchDialog(
                 (DataContext as ShellViewModel)?.Settings.Language ?? "auto",
-                ConfigurationStorage.Cloud).ShowDialog<StorageSwitchAnswer>(owner);
+                ConfigurationStorage.Cloud, ConfigurationStorage.Cloud,
+                changingCloudDestination: true).ShowDialog<StorageSwitchAnswer>(owner);
             if (answer == StorageSwitchAnswer.Cancel) throw new OperationCanceledException();
             if (answer == StorageSwitchAnswer.Yes)
                 await owner.CloudSync.UploadCurrentAsync(ct, progress);

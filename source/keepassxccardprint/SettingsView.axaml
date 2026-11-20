@@ -63,6 +63,8 @@
           </Border>
           <Button x:Name="CloudDestinationButton" IsVisible="False" HorizontalAlignment="Left"
                   Click="OnConfirmDestination" Content="Подтвердить новое облачное хранилище"/>
+          <Button x:Name="RecoverMappingButton" IsVisible="False" HorizontalAlignment="Left"
+                  Click="OnRecoverMapping" Content="Восстановить маппинг…"/>
           <TextBlock x:Name="CloudStatus" TextWrapping="Wrap" FontSize="11"/>
           <TextBlock x:Name="LastSync" FontSize="11" TextWrapping="Wrap"/>
         </StackPanel>
@@ -74,6 +76,15 @@
           <CheckBox x:Name="AutoDownload" Content="Автоматически скачивать обновления"/>
           <TextBlock x:Name="InstallModeCaption" Text="Установка обновлений"/>
           <ComboBox x:Name="InstallMode" HorizontalAlignment="Stretch" SelectionChanged="OnInstallModeChanged"/>
+        </StackPanel>
+      </Border>
+      <Border Classes="settings-card" Padding="11">
+        <StackPanel Spacing="8">
+          <TextBlock x:Name="MaintenanceCaption" Classes="section-heading" Text="Обслуживание"/>
+          <TextBlock x:Name="ResetHelp" TextWrapping="Wrap" FontSize="11"
+                     Text="Сброс настроек с резервным копированием. История печати сохраняется, если явно не выбрать её удаление."/>
+          <Button x:Name="ResetSettingsButton" HorizontalAlignment="Left"
+                  Click="OnResetSettings" Content="Сбросить настройки…"/>
         </StackPanel>
       </Border>
     </StackPanel>

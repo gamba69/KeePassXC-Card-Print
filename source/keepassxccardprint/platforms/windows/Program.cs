@@ -5,6 +5,7 @@ using KeePassXCCardPrint.Services;
 using KeePassXCCardPrint.Platforms;
 using KeePassXCCardPrint.Platforms.Windows;
 using KeePassXCCardPrint.Platforms.Windows.Updates;
+using KeePassXCCardPrint.Platforms.Windows.Storage;
 
 namespace KeePassXCCardPrint;
 
@@ -30,6 +31,16 @@ internal static class Program
     public static void Main(string[] args)
     {
         InstallFailureDiagnostics();
+        if (args.Length > 0 && args[0] == "--reset-settings-worker")
+        {
+            if (!OperatingSystem.IsWindows())
+            {
+                Environment.ExitCode = 1;
+                return;
+            }
+            Environment.ExitCode = WindowsSettingsResetHost.Run(args);
+            return;
+        }
         // The temporary helper uses the same Native AOT/Avalonia runtime but
         // instantiates only its progress window, never the database UI.
         if(args.Length>0 && (args[0] is "--apply-update" or "--recover-update"))

@@ -64,6 +64,8 @@ public static class CloudArchiveSelfTests
             var stage = Path.Combine(scratch, "stage");
             Directory.CreateDirectory(source);
             Directory.CreateDirectory(destination);
+            SettingsResetSelfTests.Run();
+            log.AppendLine("[PASS] Settings reset preserves print tracking unless explicitly selected");
             var sourceUi = new UiSettings { Language = "uk", Theme = "dark",
                 WindowWidth = 1000, LastPrintDevice = "source-printer" };
             new UiSettingsStore(source).Save(sourceUi);
@@ -99,6 +101,53 @@ public static class CloudArchiveSelfTests
                     "invalid mapping remains unmodified");
             }
             log.AppendLine("[PASS] Incompatible mapping format rejected without data loss");
+            // Reproduce a cloud-cache file accidentally containing an appearance
+            // template instead of a field-rule dictionary. Recovery must never
+            // remove it before keeping an independently verified backup.
+            var damagedRoot = Path.Combine(scratch, "damaged-mapping");
+            var goodRoot = Path.Combine(scratch, "good-mapping");
+            Directory.CreateDirectory(damagedRoot);
+            Directory.CreateDirectory(goodRoot);
+            File.WriteAllText(Path.Combine(damagedRoot, "mapping.json"), originalMapping);
+            var validRules = "{\"USERNAME\":{\"Role\":\"text\",\"Label\":\"Account\"}}";
+            File.WriteAllText(Path.Combine(goodRoot, "mapping.json"), validRules);
+            Assert(CloudMappingRecovery.NeedsRecovery(damagedRoot) &&
+                !CloudMappingRecovery.IsValidMappingFile(Path.Combine(damagedRoot, "mapping.json")),
+                "invalid cloud-cache mapping recognized");
+            Assert(CloudMappingRecovery.FindProblemRoot(damagedRoot, goodRoot) == damagedRoot &&
+                CloudMappingRecovery.FindProblemRoot(goodRoot, damagedRoot) == damagedRoot &&
+                CloudMappingRecovery.FindProblemRoot(goodRoot, goodRoot) is null,
+                "detect active-source mappings before cloud-cache mappings");
+            Assert(CloudMappingRecovery.FindPreviousMapping(damagedRoot, [goodRoot]) ==
+                Path.Combine(goodRoot, "mapping.json"), "valid previous mapping found");
+            var savedBroken = CloudMappingRecovery.Restore(damagedRoot,
+                Path.Combine(scratch, "recovery-backups"), Path.Combine(goodRoot, "mapping.json"),
+                Path.Combine(scratch, "review-required.flag"));
+            Assert(File.ReadAllText(savedBroken) == originalMapping &&
+                File.ReadAllText(Path.Combine(damagedRoot, "mapping.json")) == validRules &&
+                !CloudMappingRecovery.NeedsRecovery(damagedRoot),
+                "original preserved and exact rule dictionary restored");
+            var secondDamaged = Path.Combine(scratch, "secondary-damaged");
+            Directory.CreateDirectory(secondDamaged);
+            File.WriteAllText(Path.Combine(secondDamaged, "mapping.json"), originalMapping);
+            Assert(CloudMappingRecovery.FindProblemRoot(secondDamaged, damagedRoot) == secondDamaged,
+                "active mapping takes priority when both roots are damaged");
+            var secondBackup = CloudMappingRecovery.Restore(secondDamaged,
+                Path.Combine(scratch, "recovery-backups"), Path.Combine(damagedRoot, "mapping.json"),
+                Path.Combine(scratch, "review-required.flag"));
+            Assert(File.ReadAllText(secondBackup) == originalMapping &&
+                File.ReadAllText(Path.Combine(secondDamaged, "mapping.json")) == validRules,
+                "second damaged mapping independently backed up and restored");
+            File.WriteAllText(Path.Combine(damagedRoot, "mapping.json"), originalMapping);
+            var resetBackup = CloudMappingRecovery.Restore(damagedRoot,
+                Path.Combine(scratch, "recovery-backups"), null,
+                Path.Combine(scratch, "review-required.flag"));
+            Assert(File.ReadAllText(resetBackup) == originalMapping &&
+                File.ReadAllText(Path.Combine(damagedRoot, "mapping.json")) == "{}",
+                "explicit reset preserves original invalid mapping");
+            Assert(File.Exists(Path.Combine(scratch, "review-required.flag")),
+                "review marker prevents automatic cloud publication");
+            log.AppendLine("[PASS] Mapping recovery preserves original and requires manual review");
             File.WriteAllText(Path.Combine(source, "mapping.json"), "{\"email\":{\"role\":\"text\"}}");
             var archive = Path.Combine(scratch, "config.zip");
             var manifest = CloudConfigurationArchive.Create(source, archive,
@@ -128,6 +177,45 @@ public static class CloudArchiveSelfTests
             }
             catch (ArgumentException) { /* Expected. */ }
             log.AppendLine("[PASS] Custom folder and remote path traversal rejection");
+            var oldR2 = new CloudConnectionProfile
+            {
+                Provider = "CloudflareR2", Endpoint = "https://account.r2.cloudflarestorage.com",
+                Bucket = "my-bucket", Region = "auto", CheckProtonCliAutomatically = true
+            };
+            var noCheck = new CloudConnectionProfile
+            {
+                Provider = oldR2.Provider, Endpoint = oldR2.Endpoint,
+                Bucket = oldR2.Bucket, Region = oldR2.Region,
+                CheckProtonCliAutomatically = false
+            };
+            Assert(CloudConnectionStore.UiProvider(oldR2.Provider) == "S3" &&
+                CloudConnectionStore.ProviderForSelection("S3", oldR2, oldR2.Endpoint) == "CloudflareR2" &&
+                CloudConnectionStore.ProviderForSelection("S3", oldR2, "https://s3.example.invalid") == "S3",
+                "legacy R2 uses the unified S3 selector without changing its destination");
+            Assert(CloudConnectionStore.SameConnection(oldR2, noCheck) &&
+                !CloudConnectionStore.SameProfile(oldR2, noCheck),
+                "Proton CLI update preference is not a cloud connection change");
+            var recent = DateTime.UtcNow;
+            var verifiedRecord = new CloudConnectionVerification
+            {
+                ProfileHash = CloudConnectionStore.ConnectionFingerprint(oldR2), VerifiedUtc = recent
+            };
+            Assert(CloudConnectionStore.VerificationMatches(verifiedRecord, noCheck),
+                "verification survives preference changes and application restart");
+            var legacyRecord = new CloudConnectionVerification
+            {
+                ProfileHash = CloudConnectionStore.LegacyFingerprint(oldR2), VerifiedUtc = recent
+            };
+            Assert(CloudConnectionStore.VerificationMatches(legacyRecord, oldR2),
+                "8.0.8 verified profiles remain valid");
+            var otherBucket = new CloudConnectionProfile
+            {
+                Provider = oldR2.Provider, Endpoint = oldR2.Endpoint,
+                Bucket = "other-bucket", Region = oldR2.Region
+            };
+            Assert(!CloudConnectionStore.VerificationMatches(verifiedRecord, otherBucket),
+                "a different S3 bucket cannot reuse a verified connection");
+            log.AppendLine("[PASS] Unified S3/R2 selection, legacy verification and preference stability");
             var configured = new CloudConnectionProfile
             {
                 Provider = "GoogleDrive", RemoteFolder = "KeePassXC-Card-Print"
@@ -203,6 +291,33 @@ public static class CloudArchiveSelfTests
             Assert(CloudTransferPresentation.Percent(unknownLength) is null,
                 "unknown content length is indeterminate");
             log.AppendLine("[PASS] Transport bytes, phase filtering and Proton progress presentation");
+            var uploadDecision = KeePassXCCardPrint.StorageSwitchDialog.Describe("ru",
+                ConfigurationStorage.AppData, ConfigurationStorage.Cloud,
+                "machine-config", "local-cloud-cache", "Google Drive / KeePassXC-Card-Print/configuration.zip",
+                "local-cloud-cache");
+            Assert(uploadDecision.FirstAction == "Отправить в облако" &&
+                uploadDecision.FirstRoute.Contains("machine-config", StringComparison.Ordinal) &&
+                uploadDecision.FirstRoute.Contains("configuration.zip", StringComparison.Ordinal) &&
+                uploadDecision.SecondAction == "Загрузить из облака" &&
+                uploadDecision.SecondRoute.Contains("local-cloud-cache", StringComparison.Ordinal),
+                "cloud switch offers explicit upload/download directions");
+            var localDecision = KeePassXCCardPrint.StorageSwitchDialog.Describe("uk",
+                ConfigurationStorage.Cloud, ConfigurationStorage.Local,
+                "cloud-cache", "local-folder", "", "cloud-cache");
+            Assert(localDecision.FirstRoute.Contains("cloud-cache", StringComparison.Ordinal) &&
+                localDecision.FirstRoute.Contains("local-folder", StringComparison.Ordinal) &&
+                localDecision.SecondRoute.Contains("local-folder", StringComparison.Ordinal) &&
+                !localDecision.SecondRoute.Contains("cloud-cache", StringComparison.Ordinal),
+                "local switch uses local cache, not a live remote download");
+            var newDestination = KeePassXCCardPrint.StorageSwitchDialog.Describe("en",
+                ConfigurationStorage.Cloud, ConfigurationStorage.Cloud,
+                "old-cache", "old-cache", "S3 / backups/configuration.zip", "old-cache",
+                changingCloudDestination: true);
+            Assert(newDestination.Intro.Contains("new cloud folder", StringComparison.Ordinal) &&
+                newDestination.FirstRoute.Contains("S3 / backups/configuration.zip", StringComparison.Ordinal) &&
+                newDestination.SecondRoute.Contains("old-cache", StringComparison.Ordinal),
+                "new cloud destination has explicit transfer directions");
+            log.AppendLine("[PASS] Storage switch choices show source, destination and safe direction");
             var tie = new CloudSyncJournal { SavedAtUtc = manifest.SavedAtUtc };
             Assert(CloudConfigurationSync.RemoteWins(manifest, tie), "tie must favor cloud");
             Assert(!CloudConfigurationSync.RemoteWins(manifest, tie, forceUpload: true),

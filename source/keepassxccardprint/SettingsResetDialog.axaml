@@ -1,0 +1,34 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Class="KeePassXCCardPrint.SettingsResetDialog"
+        WindowDecorations="Full" CanResize="False" ShowInTaskbar="False"
+        WindowStartupLocation="CenterOwner" Width="520"
+        SizeToContent="Height" MinHeight="260" MaxHeight="430"
+        Background="{DynamicResource KpWindowBrush}">
+  <DockPanel LastChildFill="True">
+    <Border Classes="app-footer" DockPanel.Dock="Bottom">
+      <StackPanel Orientation="Horizontal" Spacing="8" HorizontalAlignment="Right">
+        <Button Click="OnContinue" Padding="12,5" MinWidth="145">
+          <TextBlock x:Name="ContinueText" Text="Продолжить…"/>
+        </Button>
+        <Button Click="OnCancel" Padding="12,5" MinWidth="90">
+          <TextBlock x:Name="CancelText" Text="Отмена"/>
+        </Button>
+      </StackPanel>
+    </Border>
+    <Border Classes="settings-card" Margin="12" Padding="14">
+      <StackPanel Spacing="12">
+        <TextBlock x:Name="TitleText" Classes="section-heading" Text="Сброс настроек"/>
+        <TextBlock x:Name="PromptText" TextWrapping="Wrap" FontSize="12"/>
+        <RadioButton x:Name="CurrentOption" GroupName="ResetScope" IsChecked="True"
+                     Content="Текущее хранилище"/>
+        <RadioButton x:Name="AllOption" GroupName="ResetScope"
+                     Content="Все локальные хранилища"/>
+        <Border Height="1" Background="{DynamicResource KpBorderBrush}"/>
+        <CheckBox x:Name="ClearHistory" IsChecked="False" Content="Очистить историю печати"/>
+        <TextBlock x:Name="HistoryHelp" FontSize="11" TextWrapping="Wrap"/>
+        <TextBlock x:Name="SafetyText" FontSize="11" TextWrapping="Wrap"/>
+      </StackPanel>
+    </Border>
+  </DockPanel>
+</Window>
