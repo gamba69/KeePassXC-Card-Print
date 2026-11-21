@@ -291,7 +291,10 @@ $mainWindowSource = Get-Content -LiteralPath (Join-Path $root 'source\keepassxcc
 $compactTheme = Get-Content -LiteralPath (Join-Path $root 'source\keepassxccardprint\styles\Compact.axaml') -Raw -Encoding UTF8
 if ($mainWindowSource -notmatch 'ConfirmSecretFileAsync\(this,_settings.Language,false\)' -or
     $mainWindowSource -notmatch 'ConfirmExitAsync\(this,_settings.Language' -or
-    $mainWindowSource -notmatch 'ResolveUnsavedMappingAsync\(exiting:true\)' -or
+    $mainWindowSource -notmatch 'ResolveUnsavedTemplateAsync\(exiting:true\)' -or
+    $mainWindowSource -match 'ResolveUnsavedMappingAsync' -or
+    $mainWindowSource -notmatch 'HasUnsavedTemplateChanges' -or
+    $mainWindowSource -notmatch 'SaveChangesToTemplate\(\)' -or
     $printDialogText -notmatch 'ConfirmSecretFileAsync\(this,_settings.Language,true\)' -or
     $printDialogText -notmatch 'MaySaveDocumentToFile\(printer\)' -or
     $appConfirmationsText -notmatch 'danger-action' -or
@@ -481,13 +484,20 @@ if ($chromeXaml -match 'Classes="heading"' -or
     $chromeXaml -match '<TextBlock[^>]*FontSize="1[3456]"[^>]*FontWeight="SemiBold"') {
     throw 'UI typography check: old heading classes or hand-sized section titles have returned.'
 }
-foreach ($headingCaption in @('SourceTitle','Records','MappingToolbarTitle','MappingFieldsHeading','MappingFieldHeading')) {
+# Mapping no longer has a separate title: all three editor tabs show the same
+# print-template toolbar, and its section heading is UiTemplate.
+foreach ($headingCaption in @('SourceTitle','Records','MappingFieldsHeading','MappingFieldHeading')) {
     if ($chromeXaml -notmatch ('Classes="section-heading"[^>]*Text="\{Binding ' + $headingCaption + '\}"') -and
         $chromeXaml -notmatch ('Text="\{Binding ' + $headingCaption + '\}"[^>]*Classes="section-heading"')) {
         throw "UI typography check: semantic section style missing for $headingCaption."
     }
 }
-Write-Host '[PASS] consistent 14-DIP semantic section headings.' -ForegroundColor Green
+[xml]$semanticXaml = $chromeXaml
+$templateHeadings = $semanticXaml.SelectNodes("//*[local-name()='Border' and @Classes='template-toolbar']//*[local-name()='TextBlock' and @Classes='section-heading' and @Text='{Binding UiTemplate}']")
+if ($null -eq $templateHeadings -or $templateHeadings.Count -ne 3) {
+    throw 'UI typography check: Mapping, Appearance and Duplex must each have one styled template heading.'
+}
+Write-Host '[PASS] consistent 14-DIP semantic section headings across all three template editors.' -ForegroundColor Green
 
 if ($chromeXaml -notmatch 'Classes="app-header"' -or
     $chromeXaml -notmatch 'Classes="app-footer"' -or
@@ -784,23 +794,44 @@ Write-Host '[PASS] both subsection tab strips and template management.' -Foregro
 # The compact mapping toolbar uses 4 columns: title, scope, status, Save.
 $mappingTab = $ui.SelectSingleNode("//*[local-name()='TabItem' and *[local-name()='TabItem.Header']//*[local-name()='TextBlock' and @Text='{Binding TabMapping}']]")
 if ($null -eq $mappingTab) { throw 'UI check: missing mapping tab.' }
-$mappingSave = $mappingTab.SelectSingleNode(".//*[local-name()='Button' and @Click='OnSaveMapping']")
+$toolbar = $mappingTab.SelectSingleNode(".//*[local-name()='Border' and @Classes='template-toolbar' and @Grid.Row='0']")
+$mappingSave = $toolbar.SelectSingleNode(".//*[local-name()='Button' and @Click='OnSaveAppearance']")
+$mappingCreate = $toolbar.SelectSingleNode(".//*[local-name()='Button' and @Click='OnSaveCardTemplate']")
+$mappingSelect = $toolbar.SelectSingleNode(".//*[local-name()='ComboBox' and @ItemsSource='{Binding TemplateNames}']")
 $mappingReset = $mappingTab.SelectSingleNode(".//*[local-name()='Button' and @Click='OnResetMapping']")
 $mappingApply = $mappingTab.SelectSingleNode(".//*[local-name()='Button' and @Click='OnApplyMapping']")
-if ($null -eq $mappingSave -or
-    [regex]::Matches($chromeXaml, 'Click="OnSaveMapping"').Count -ne 1 -or
-    $mappingSave.GetAttribute('Grid.Column') -ne '3' -or
-    $null -eq $mappingSave.ParentNode -or $mappingSave.ParentNode.GetAttribute('Grid.Row') -ne '0' -or
-    $mappingSave.ParentNode.GetAttribute('ColumnDefinitions') -ne 'Auto,*,2*,Auto' -or
-    $null -eq $mappingSave.ParentNode.SelectSingleNode("./*[local-name()='TextBlock' and @Text='{Binding MappingScopeDescription}' and @Grid.Column='2' and @TextAlignment='Right']") -or
-    $null -ne $mappingSave.ParentNode.SelectSingleNode("./*[local-name()='TextBlock' and @Text='{Binding MappingMessage}']")) {
-    throw 'UI check: mapping description must be right-aligned beside the single Save button, without the saved-status label.'
+$domainButton = $mappingTab.SelectSingleNode(".//*[local-name()='Button' and @Click='OnEditDomains']")
+$fieldListHeading = $mappingTab.SelectSingleNode(".//*[local-name()='TextBlock' and @Text='{Binding MappingFieldsHeading}']")
+if ($null -eq $toolbar -or $null -eq $mappingSave -or $null -eq $mappingCreate -or
+    $null -eq $mappingSelect -or $null -eq $fieldListHeading -or $null -eq $domainButton -or
+    $mappingSelect.GetAttribute('SelectionChanged') -ne 'OnCardTemplateSelectionChanged' -or
+    $mappingSave.GetAttribute('IsEnabled') -ne '{Binding CanSaveTemplateChanges}' -or
+    $mappingSave.GetAttribute('Grid.Column') -ne '4' -or
+    [regex]::Matches($chromeXaml, 'Click="OnSaveMapping"').Count -ne 0 -or
+    [regex]::Matches($chromeXaml, 'Click="OnSaveAppearance"').Count -ne 3) {
+    throw 'UI check: Mapping, Design and Duplex must share the same complete-template toolbar.'
 }
 if ($null -eq $mappingReset -or $null -ne $mappingApply -or
-    $mappingSave.GetAttribute('IsEnabled') -ne '{Binding MappingCanSave}') {
-    throw 'UI check: mapping must have an editor-only reset and no Apply stage.'
+    $mappingReset.GetAttribute('IsEnabled') -ne '{Binding MappingCanEdit}' -or
+    $domainButton.GetAttribute('Grid.Column') -ne '1' -or
+    $fieldListHeading.ParentNode.GetAttribute('Grid.Row') -ne '0' -or
+    $null -eq $fieldListHeading.ParentNode.ParentNode.SelectSingleNode("./*[local-name()='WrapPanel' and @Grid.Row='1']")) {
+    throw 'UI check: domain action and view checkboxes must be in the field list header, editor respects read-only templates.'
 }
-Write-Host '[PASS] compact top mapping Save action, editor reset and live editing.' -ForegroundColor Green
+Write-Host '[PASS] one print-template toolbar in all editors; built-in field mapping is read-only.' -ForegroundColor Green
+# Template data and mapping must be persisted together, never via mapping.json.
+$templatesSource = Get-Content -LiteralPath (Join-Path $sourceRoot 'services\CardAppearance.cs') -Raw -Encoding UTF8
+$mapSource = Get-Content -LiteralPath (Join-Path $sourceRoot 'viewmodels\MappingViewModel.cs') -Raw -Encoding UTF8
+if ($templatesSource -notmatch 'UpdatePersonalTemplate\(string path, CardAppearance model, Dictionary<string, FieldRule> mapping\)' -or
+    $templatesSource -notmatch 'VaultJsonContext.Default.DictionaryStringFieldRule' -or
+    $mapSource -match 'FieldMappingStore.Save\(' -or
+    $mapSource -match 'public bool SaveMapping\(' -or
+    $mapSource -notmatch 'MappingEditor\.SetEditable\(CanEditAppearance\)' -or
+    $mapSource -notmatch 'if\(!CanEditAppearance \|\| SelectedMappingRow is null\)return;' -or
+    $mainWindowText -match 'Click="OnSaveMapping"') {
+    throw 'UI check: mapping must be saved only as part of the complete print template.'
+}
+Write-Host '[PASS] unified template persistence and no standalone mapping Save.' -ForegroundColor Green
 # Each editor now has its own vertical scroll viewport. The rounded cards remain
 # direct children of the content Grid inside that viewport, not of the TabItem.
 # Validate all four viewports before checking card ownership and actions.
@@ -840,16 +871,16 @@ if ($null -eq $sourceCards[1].SelectSingleNode(".//*[local-name()='ItemsControl'
     throw 'UI check: records list must be inside its rounded card.'
 }
 $mappingCards = @($mappingTab.SelectNodes("./*[local-name()='ScrollViewer' and @*[local-name()='Name']='MappingTabScroll']/*[local-name()='Grid']/*[local-name()='Border' and @Classes='settings-card']"))
-if ($mappingCards.Count -ne 3 -or $mappingCards[0].GetAttribute('Grid.Row') -ne '0' -or
-    $mappingCards[1].GetAttribute('Grid.Row') -ne '1' -or $mappingCards[2].GetAttribute('Grid.Row') -ne '2') {
-    throw 'UI check: Mapping must contain toolbar, field list and editor cards.'
+if ($mappingCards.Count -ne 2 -or $mappingCards[0].GetAttribute('Grid.Row') -ne '1' -or
+    $mappingCards[1].GetAttribute('Grid.Row') -ne '2') {
+    throw 'UI check: Mapping must contain its shared template toolbar plus field list and editor cards.'
 }
-if ($null -eq $mappingCards[0].SelectSingleNode(".//*[local-name()='Button' and @Click='OnSaveMapping']") -or
-    $null -eq $mappingCards[1].SelectSingleNode(".//*[local-name()='ListBox' and @ItemsSource='{Binding FieldRows}']") -or
-    $null -eq $mappingCards[2].SelectSingleNode(".//*[local-name()='Button' and @Click='OnResetMapping']")) {
-    throw 'UI check: Mapping panel content or Save / Reset ownership is incorrect.'
+if ($null -eq $toolbar.SelectSingleNode(".//*[local-name()='Button' and @Click='OnSaveAppearance']") -or
+    $null -eq $mappingCards[0].SelectSingleNode(".//*[local-name()='ListBox' and @ItemsSource='{Binding FieldRows}']") -or
+    $null -eq $mappingCards[1].SelectSingleNode(".//*[local-name()='Button' and @Click='OnResetMapping']")) {
+    throw 'UI check: Mapping panel content or complete-template Save / Reset ownership is incorrect.'
 }
-Write-Host '[PASS] rounded Source and Mapping panels and all editing actions.' -ForegroundColor Green
+Write-Host '[PASS] rounded Source and Mapping panels and complete-template actions.' -ForegroundColor Green
 
 # Startup UX contract: opening must not restore the previous editing tab,
 # and a previously configured database must make the password box ready.

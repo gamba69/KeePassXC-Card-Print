@@ -512,7 +512,7 @@ public partial class MainWindow : Window
             if (answer == StorageSwitchAnswer.Cancel) return;
 
             // The source configuration remains available for later switching back.
-            if (!await ResolveUnsavedMappingAsync()) return;
+            if (!await ResolveUnsavedTemplateAsync()) return;
             _vm.SaveVaultPreferences();
             _vm.SaveCardAppearance();
             CaptureLayout();
@@ -878,17 +878,18 @@ public partial class MainWindow : Window
     }
     internal string UpdateLanguage => _settings.Language;
     internal bool IsExportRunning => _printExportCancellation is not null;
-    internal Task<bool> ReadyForUpdateAsync() => ResolveUnsavedMappingAsync(exiting:true);
+    internal Task<bool> ReadyForUpdateAsync() => ResolveUnsavedTemplateAsync(exiting:true);
     internal void CloseForUpdate() { _exitApproved=true; Close(); }
-    private async Task<bool> ResolveUnsavedMappingAsync(bool exiting=false)
+    private async Task<bool> ResolveUnsavedTemplateAsync(bool exiting=false)
     {
-        if(!_vm.MappingHasPendingChanges)return true;
+        if(!_vm.HasUnsavedTemplateChanges)return true;
         var decision=await new UnsavedMappingDialog(_settings.Language,exiting)
             .ShowDialog<UnsavedMappingChoice>(this);
         if(decision==UnsavedMappingChoice.Discard)return true;
         if(decision!=UnsavedMappingChoice.Save)return false;
-        if(_vm.SaveMapping())return true;
-        _vm.ActiveTab=1; // Leave validation failures visible.
+        _vm.SaveChangesToTemplate();
+        if(!_vm.HasUnsavedTemplateChanges)return true;
+        _vm.ActiveTab=1; // Expose any invalid mapping drafts for correction.
         return false;
     }
     protected override async void OnClosing(WindowClosingEventArgs e)
@@ -900,10 +901,10 @@ public partial class MainWindow : Window
             _exitPromptOpen=true;
             try
             {
-                // Dirty mapping has its own Save / Don't save / Cancel dialog.
+                // One Save / Don't save / Cancel dialog covers the entire template.
                 // Never show a second ordinary exit confirmation afterwards.
-                bool approved=_vm.MappingHasPendingChanges
-                    ? await ResolveUnsavedMappingAsync(exiting:true)
+                bool approved=_vm.HasUnsavedTemplateChanges
+                    ? await ResolveUnsavedTemplateAsync(exiting:true)
                     : await AppConfirmations.ConfirmExitAsync(this,_settings.Language,
                         _printExportCancellation is not null);
                 if(approved)
@@ -1700,7 +1701,6 @@ public partial class MainWindow : Window
             "Текущие настройки соответствия полей будут заменены значениями по умолчанию.",
             "Сбросить",false,"reset")) _vm.ResetMapping();
     }
-    private void OnSaveMapping(object? sender, RoutedEventArgs e) => _vm.SaveMapping();
     private async void OnEditDomains(object? sender, RoutedEventArgs e)
     {
         var dialog = new DomainsWindow(_vm.Settings.Language);

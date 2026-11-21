@@ -16,7 +16,7 @@ public sealed partial class ShellViewModel
 {
     private readonly IKdbxReader _reader = new KdbxVaultReader();
     private readonly VaultPreferences _prefs = PrivateUiState.Load();
-    private readonly Dictionary<string, FieldRule> _map = FieldMappingStore.Load();
+    private readonly Dictionary<string, FieldRule> _map = CardAppearanceStore.ReadActiveTemplateMapping();
     private string _passwordInput = "";
     private string _filterText = "";
     private RecordQuickFilter _recordQuickFilter;
@@ -301,6 +301,17 @@ public sealed partial class ShellViewModel
             VaultRecords.Add(record);
         }
         LoadPrintLedger(); // In-memory ledger; never reads or writes a real journal.
+        // Pre-populate demo-only print statuses and history for the quick filters.
+        // The ledger refuses this operation for any real database.
+        if (_printLedger is not null && _snapshot.Records.Count >= 20)
+        {
+            _printLedger.Mark(_snapshot.Records[0].Uuid, "printed", 1);
+            _printLedger.Mark(_snapshot.Records[4].Uuid, "unprinted", 2);
+            _printLedger.SeedDemoPartial(_snapshot.Records[17].Uuid, 3, 1);
+            _printLedger.SeedDemoHistory(_snapshot.Records[0].Uuid,
+                _snapshot.Records[17].Uuid);
+            RefreshPrintStatuses();
+        }
         ApplyRecordFilters();
         UpdateSelectedCount();
         RebuildMapping();

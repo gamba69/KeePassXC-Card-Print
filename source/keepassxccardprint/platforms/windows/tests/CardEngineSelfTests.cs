@@ -336,22 +336,118 @@ internal static class CardEngineSelfTests
             var nextDemo = DemoVaultFactory.Create();
             Check(demo.RootUuid != Guid.Empty && demo.RootUuid != nextDemo.RootUuid,
                 "demo uses a fresh in-memory database identity each time");
-            Check(demo.Records.Count >= 18 && demo.GroupCount >= 4 &&
-                  demo.Records.Select(r => r.Uuid).Distinct().Count() == demo.Records.Count,
-                "demo entries have unique identifiers across several groups");
-            Check(demo.Records.Any(r => r.Selected) &&
-                  demo.Records.Any(r => r.AdditionalFields.ContainsKey("Recovery Codes")) &&
+            Check(demo.Records.Count == 40 && demo.GroupCount >= 9 &&
+                  demo.Records.Select(r => r.Uuid).Distinct().Count() == demo.Records.Count &&
+                  demo.Records.Count(r => r.Selected) >= 10,
+                "forty synthetic entries with representative cards preselected");
+            Check(demo.Records.Any(r => r.AdditionalFields.ContainsKey("Recovery Codes")) &&
+                  demo.Records.Any(r => r.AdditionalFields.ContainsKey("Backup Codes")) &&
                   demo.Records.Any(r => r.AdditionalFields.ContainsKey("TOTP Secret")) &&
+                  demo.Records.Any(r => r.AdditionalFields.ContainsKey("HOTP Secret")) &&
                   demo.Records.Any(r => r.AdditionalFields.ContainsKey("Recovery Key")) &&
-                  demo.Records.Any(r => r.AdditionalUrls.Length > 0),
-                "demo exercises selection, recovery codes, TOTP, recovery keys and extra URLs");
-            Check(demo.Records.All(r => r.Url.Contains(".example", StringComparison.Ordinal) &&
-                  r.UserName.EndsWith("@example.com", StringComparison.Ordinal)),
-                "demo credentials use reserved example-only domains");
+                  demo.Records.Any(r => r.AdditionalFields.ContainsKey("Wi-Fi Password")) &&
+                  demo.Records.Any(r => r.AdditionalFields.ContainsKey("API Token")),
+                "demo exercises codes, OTP, BitLocker, Wi-Fi and long credentials");
+            Check(demo.Records.Any(r => r.Url.Length == 0 && r.AdditionalUrls.Length > 0) &&
+                  demo.Records.Any(r => r.Url.Length == 0 && r.UserName.Length == 0) &&
+                  demo.Records.Any(r => r.Notes.Contains('\n')) &&
+                  demo.Records.Any(r => r.Title == "Unicode · Cyrillic & Greek"),
+                "demo has fallback URLs, absent fields, multiline and printable Unicode");
+            var unicode = demo.Records.Single(r => r.Title == "Unicode · Cyrillic & Greek");
+            var showcaseFontSettings = CardAppearancePresets.Create("table");
+            // Actual card layout splits explicit newlines before shaping. Shaping a
+            // multiline value as one glyph run turns the nonprinting '\n' into
+            // glyph ID 0 and incorrectly reports a missing Unicode character.
+            // Test every rendered line instead, using the same measured wrapping
+            // and fonts as the title and field values in the print pipeline.
+            foreach (var (caption, value, fontFamily) in new[]
+            {
+                ("title", unicode.Title, showcaseFontSettings.TitleFont),
+                ("notes", unicode.Notes, showcaseFontSettings.SecretFont),
+                ("multiline description", unicode.AdditionalFields["Long Description"], showcaseFontSettings.SecretFont)
+            })
+            {
+                var printableLines = CardTextMetrics.WrapExact(value,
+                    (float)(showcaseFontSettings.WidthMm - 2 * showcaseFontSettings.PaddingMm),
+                    12f, fontFamily, "400");
+                Check(printableLines.Count >= (caption == "multiline description" ? 3 : 1) &&
+                      printableLines.All(line => !line.Contains('\n') && !line.Contains('\r')),
+                    "showcase Unicode " + caption + " separates hard line breaks before shaping");
+                foreach (var line in printableLines.Where(line => line.Length > 0))
+                {
+                    using var shaped = ShapedTextEngine.CreateLayout(line, 12f, fontFamily, "400");
+                    Check(shaped.Runs.All(run => run.Glyphs.All(glyph => glyph != 0)),
+                        "showcase Unicode " + caption + " contains no missing glyphs on printed lines");
+                }
+            }
+            var developer = demo.Records.Single(r => r.Title == "Developer Console");
+            var ssh = demo.Records.Single(r => r.Title == "SSH Access / Fingerprint");
+            Check(developer.AdditionalFields.ContainsKey("API Token") &&
+                  !developer.AdditionalFields.ContainsKey("SSH Fingerprint") &&
+                  ssh.AdditionalFields.ContainsKey("SSH Fingerprint") &&
+                  !ssh.AdditionalFields.ContainsKey("API Token"),
+                "ordinary demo accounts are not overloaded with unrelated secret fields");
+            Check(demo.Records.All(r => r.Url.Length == 0 || r.Url.Contains(".example", StringComparison.Ordinal)) &&
+                  demo.Records.All(r => r.UserName.Length == 0 ||
+                      r.UserName.EndsWith("@example.com", StringComparison.Ordinal) ||
+                      r.UserName.StartsWith("+380", StringComparison.Ordinal)),
+                "all demo addresses and identities are fictitious");
             var demoLedger = new PrintTrackingLedger(demo.RootUuid, inMemory: true);
             demoLedger.Mark(demo.Records[0].Uuid, "printed");
-            Check(demoLedger.IsFullyPrinted(demo.Records[0].Uuid),
-                "demo print tracking works without a persistent journal");
+            demoLedger.Mark(demo.Records[4].Uuid, "unprinted", 2);
+            demoLedger.SeedDemoPartial(demo.Records[17].Uuid, 3, 1);
+            demoLedger.SeedDemoHistory(demo.Records[0].Uuid, demo.Records[17].Uuid);
+            Check(demoLedger.IsFullyPrinted(demo.Records[0].Uuid) &&
+                  !demoLedger.IsFullyPrinted(demo.Records[17].Uuid) &&
+                  demoLedger.Status(demo.Records[17].Uuid) == "Частично" &&
+                  demoLedger.History.Count == 1,
+                "demo-only print statuses, partial card and history use no real journal");
+            var rowDividerCase = new List<CardLine>
+            {
+                new(CardLineKind.Value, "example", 3, 6, Field: "URL"),
+                new(CardLineKind.Gap, "", 1),
+                new(CardLineKind.Section, "ACCESS", 3),
+                new(CardLineKind.Value, "password", 3, 6, Field: "PASSWORD"),
+                new(CardLineKind.Gap, "", 1),
+                new(CardLineKind.Label, "TOKEN", 3, 6, Field: "API Token"),
+                new(CardLineKind.Value, "token", 3, 6, Field: "API Token"),
+                new(CardLineKind.Value, "wrapped", 3, 6, Field: "API Token")
+            };
+            Check(!CardSkiaRenderer.ShouldDrawTableRule(rowDividerCase, 0),
+                "table does not double-draw a rule immediately before a section");
+            Check(CardSkiaRenderer.ShouldDrawTableRule(rowDividerCase, 3),
+                "table draws one subtle rule between independent fields");
+            Check(!CardSkiaRenderer.ShouldDrawTableRule(rowDividerCase, 6) &&
+                  !CardSkiaRenderer.ShouldDrawTableRule(rowDividerCase, 7),
+                "table avoids extra rules within wrapped values or at the end");
+            foreach (var style in new[] { "archive", "technical", "table" })
+            {
+                var appearance = CardAppearancePresets.Create(style);
+                var mapping = CardAppearancePresets.CreateMapping(style);
+                Check(appearance.TitleSizePt is >= 7.5 and <= 8.5 &&
+                      appearance.ValueSizePt is >= 6.2 and <= 6.9 &&
+                      appearance.LabelSizePt is >= 5.3 and <= 5.8 &&
+                      appearance.RecoveryMaxFontPt <= 8.2 && mapping.Count >= 20 &&
+                      appearance.DuplexEnabled,
+                    "built-in visual style uses compact physical type sizes, duplex and complete mapping: " + style);
+                var sample = demo.Records.Where(r => r.Title is "Aurora Mail" or
+                    "Disk Encryption" or "TOTP · QR Showcase" or "16 Backup Codes" or
+                    "Long Multiline Notes").ToArray();
+                var cards = CardLayoutEngine.Build(sample, appearance, mapping, sample);
+                Check(cards.Count >= sample.Length,
+                    "built-in layout includes all representative records: " + style);
+                LayoutFits(cards, appearance);
+                if (style == "table")
+                    Check(All(cards).Any(line => line.Kind == CardLineKind.Qr),
+                        "QR template displays valid demo TOTP as an actual QR");
+                // One rendered card per preset catches unsupported fonts, colors
+                // or background modes in both the preview and printer compositor.
+                var png = CardSkiaRenderer.Render(cards[0], appearance, false);
+                using (var decoded = SKBitmap.Decode(png))
+                    Check(decoded is not null && decoded.Width > 100 && decoded.Height > 100,
+                        "built-in preset raster renders: " + style);
+                Array.Clear(png);
+            }
             TestPublicKdbxHeaderMetadata();
             TestXpsPathSyntax();
             TestSharedGlyphRuns();

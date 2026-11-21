@@ -1,5 +1,78 @@
 # Changelog
 
+## [9.1.3] - 2026-11-21
+
+### Fixed
+- Fix the Unicode showcase layout self-test: shape each printable line after the same hard-break/wrapping step used by card rendering, not a raw multiline string.
+- Preserve missing-glyph checks for all printable Cyrillic, Latin and Greek characters, with separate title/notes/description diagnostics and actual print fonts.
+
+## [9.1.2] - 2026-11-21
+
+### Fixed
+- Curate the showcase corpus: security extras belong only to relevant demo records, not to every third/fourth entry.
+- Replace unsupported CJK/Arabic characters in the Unicode showcase with deliberate Cyrillic, Latin and Greek sample text; assert no missing glyphs in the printing font.
+- Prevent two horizontal separators at a section boundary and extra dividers within wrapped values in the QR/recovery design.
+- Give QR template titles the full header width rather than forcing multi-line titles next to a group badge.
+- Start with ten intentionally composed example cards; keep all 40 records and specialized stress cases available for selection.
+- Extend Native AOT layout self-tests for field boundaries, glyph coverage and well-scoped security samples.
+
+## [9.1.1] - 2026-11-21
+
+### Fixed
+- Reduce overly large title, label and value fonts across the three built-in showcase templates, especially the QR/security template.
+- Reduce maximum recovery-code font sizes and compact note typography without altering field data, QR geometry or the editable personal templates.
+- Match the native layout smoke test to practical print-size typography bounds.
+
+## [9.1.0] - 2026-11-21
+
+### Changed
+- Replace the five shallow built-in appearance styles with three complete, read-only showcase print templates (editorial archive, technical recovery, QR/security), each with distinct front, reverse, geometry, typography, and field mapping.
+- Keep old classic/minimal style codes loadable by existing personal templates; do not introduce a configuration migration.
+- Expand the offline demo vault to 40 synthetic records showing TOTP/HOTP, BitLocker, multi-column recovery codes, long multiline values, backup URLs, phone logins, Unicode, optional fields, and varied icons.
+- Seed printed, unprinted, and partially printed demo records plus sample history strictly in the in-memory tracking ledger, without touching the real print-tracking folder.
+
+### Tested
+- Extend the published executable's layout smoke checks to validate the three preset maps, representative paginated card layouts, and QR rendering.
+
+## [9.0.4] - 2026-11-21
+
+### Fixed
+- Remove the redundant mapping scope explanation from the field list above the table.
+- Suppress false field-validation errors while viewing read-only built-in templates; keep numeric validation for editable personal templates.
+- Add mapping self-tests for read-only and editable validation states.
+
+## [9.0.3] - 2026-11-21
+
+### Fixed
+- Use the unified unsaved-template confirmation handler before switching configuration storage, fixing CS0103 from the incomplete 9.0.0 refactor.
+- Detect stale references to the removed mapping-only confirmation handler in the pre-build confirmation policy regression check.
+
+## [9.0.2] - 2026-11-21
+
+### Fixed
+- Update the typography regression checks for the unified template manager in Mapping, Appearance and Duplex.
+- Require the shared `UiTemplate` heading to retain its semantic style in all three tabs, without weakening the 14-DIP heading contract.
+
+## [9.0.1] - 2026-11-21
+
+### Fixed
+- Update the build-time confirmation policy check for the unified template unsaved-changes handler.
+- Verify that unsaved template state and whole-template Save remain present without weakening file-output, virtual-printer or danger-action checks.
+
+## [9.0.0] - 2026-11-21
+
+### Changed
+- One complete print template now owns both card faces and the entire field mapping; no independent mapping.json persistence.
+- Mapping, Appearance and Duplex share the same template selection, Create and full-template Save toolbar.
+- Built-in templates are completely read-only, including field mapping and per-field reset controls.
+- Move mapping view options above the field table and the service subdomains button to the table card's top right.
+- Cloud archives validate mapping embedded in templates; detached mapping.json is no longer portable.
+- Explicit cloud upload can replace an older incompatible remote archive; automatic synchronization remains strict.
+- A template's unsaved changes are tracked as one operation and must be saved together.
+
+### Tests
+- Exercise embedded mapping parsing, built-in mapping read-only state, cloud validation, and unified template UI contracts.
+
 ## [8.0.32] - 2026-11-20
 
 ### Fixed

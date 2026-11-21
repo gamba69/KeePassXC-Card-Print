@@ -103,32 +103,5 @@ public sealed class FieldRule
     public double GroupSpaces { get; set; }
 }
 
-public static class FieldMappingStore
-{
-    private static string MappingPath => SettingsLocation.FilePath("mapping.json");
-    public static Dictionary<string, FieldRule> Load()
-    {
-        if (File.Exists(MappingPath))
-        {
-            try
-            {
-                if (new FileInfo(MappingPath).Length > 2_000_000) return new(StringComparer.OrdinalIgnoreCase);
-                var existing = JsonSerializer.Deserialize(File.ReadAllBytes(MappingPath), VaultJsonContext.Default.DictionaryStringFieldRule);
-                var clean = new Dictionary<string,FieldRule>(StringComparer.OrdinalIgnoreCase);
-                if (existing is not null) foreach(var item in existing) clean[item.Key.Trim().ToLowerInvariant()] = FieldMappingDefaults.Normalize(item.Value);
-                return clean;
-            }
-            catch (Exception e) when (e is IOException or JsonException or UnauthorizedAccessException) { }
-        }
-        return new(StringComparer.OrdinalIgnoreCase);
-    }
-
-    public static void Save(Dictionary<string, FieldRule> rules)
-    {
-        var bytes = JsonSerializer.SerializeToUtf8Bytes(rules, VaultJsonContext.Default.DictionaryStringFieldRule);
-        Directory.CreateDirectory(SettingsLocation.DirectoryPath);
-        var tmp = MappingPath + ".tmp";
-        try { File.WriteAllBytes(tmp, bytes); File.Move(tmp, MappingPath, true); }
-        finally { if (File.Exists(tmp)) File.Delete(tmp); }
-    }
-}
+// Individual mapping.json files are obsolete. A print template is the only
+// persisted mapping source; unconfigured fields use FieldMappingDefaults.

@@ -9,13 +9,13 @@ internal static class ConfigurationMaintenance
 {
     private static readonly string[] SettingsFiles =
     [
-        "ui-shell.json", "vault-state.json", "appearance.json", "mapping.json",
+        "ui-shell.json", "vault-state.json", "appearance.json",
         "domains.json", "appearance-template-source.json"
     ];
     private static readonly string[] SystemFiles =
     [
         "storage-mode.txt", "cloud-connection.json", "cloud-verified.json",
-        "cloud-sync-journal.json", "cloud-mapping-review-pending.flag",
+        "cloud-sync-journal.json",
         "cloud-sync-errors.log"
     ];
     internal const int RetainedBackups = 3;

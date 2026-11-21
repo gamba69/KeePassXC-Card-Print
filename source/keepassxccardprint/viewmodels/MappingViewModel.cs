@@ -70,6 +70,7 @@ public sealed class MappingEditor : INotifyPropertyChanged
     private bool _enabled;
     public string Field { get=>_field; private set { _field=value; Changed(); } }
     public bool Enabled { get=>_enabled; private set { _enabled=value; Changed(); } }
+    public void SetEditable(bool value) => Enabled = value && Field.Length > 0;
     private string _label="";
     private string _order="500";
     private string _size="100";
@@ -225,6 +226,14 @@ public sealed class MappingEditor : INotifyPropertyChanged
             throw new ArgumentException($"{label}: {min}–{max}");
         return value;
     }
+    // A read-only built-in template is not an invalid field configuration.
+    // Only validate editable fields; never surface a false error on selection.
+    public void ValidateForEditing(bool allowEditing)
+    {
+        if (!allowEditing || !Enabled) { Validate(null); return; }
+        try { ToRule(); Validate(null); }
+        catch (ArgumentException e) { Validate(e.Message); }
+    }
     public FieldRule ToRule()
     {
         if (!Enabled || Role is null || Section is null || Visibility is null || Heading is null || UrlMode is null || UrlSource is null || Fit is null || Weight is null || Group is null)
@@ -277,6 +286,7 @@ public sealed partial class ShellViewModel
             try
             {
                 MappingEditor.Load(value?.Field,value is null ? null : GetRule(value.Field));
+                MappingEditor.SetEditable(CanEditAppearance);
                 if(value is not null && _invalidMappingDrafts.TryGetValue(value.Field,out var draft))
                     MappingEditor.RestoreDraft(draft);
                 CheckCurrentEditor();
@@ -286,14 +296,15 @@ public sealed partial class ShellViewModel
             UpdateUrlPreviewStatus();
         }
     }
-    public bool MappingCanEdit => _selectedMappingRow is not null;
+    public bool MappingCanEdit => CanEditAppearance && _selectedMappingRow is not null;
     public string MappingSelectedLabel => _selectedMappingRow?.Field ?? Localizer.Text(_settings.Language,"NotSelected");
     public string MappingFieldHeading => _selectedMappingRow is null
         ? Localizer.Text(_settings.Language,"FieldOptions")
         : $"{Localizer.Text(_settings.Language,"FieldOptions")} {_selectedMappingRow.Field}";
     public string MappingMessage { get=>_mappingMessage;private set { _mappingMessage=value;Changed(); } }
     public bool MappingHasPendingChanges => _mappingDirty || _invalidMappingDrafts.Count>0;
-    public bool MappingCanSave => _mappingDirty && _invalidMappingDrafts.Count==0;
+    public bool MappingHasInvalidDrafts => _invalidMappingDrafts.Count>0;
+    public bool MappingCanSave => CanSaveTemplateChanges;
     public string MappingScopeDescription { get; private set; } = "";
     public string MappingScopeHelpText => ML("ScopeHelp");
     public string MappingFilterHelpText => ML("FilterHelp");
@@ -330,6 +341,26 @@ public sealed partial class ShellViewModel
         RebuildMapping();
         UpdateMappingStatus();
     }
+
+    // Switching templates replaces the entire mapping, never merges global rules.
+    private void LoadTemplateMapping(Dictionary<string, FieldRule> mapping)
+    {
+        _map.Clear();
+        foreach (var (key, rule) in mapping) _map[key] = CloneRule(rule);
+        _savedMapping = CloneMap(_map);
+        _invalidMappingDrafts.Clear();
+        _mappingSaveFailed = false;
+        RebuildMapping();
+        UpdateMappingStatus();
+    }
+
+    private void MarkTemplateMappingSaved()
+    {
+        _savedMapping = CloneMap(_map);
+        _mappingSaveFailed = false;
+        UpdateMappingStatus();
+    }
+
     public void RelocalizeMapping()
     {
         if (!_mappingInitialized) return;
@@ -401,9 +432,7 @@ public sealed partial class ShellViewModel
     }
     private void CheckCurrentEditor()
     {
-        if (_selectedMappingRow is null) { MappingEditor.Validate(null); return; }
-        try { MappingEditor.ToRule(); MappingEditor.Validate(null); }
-        catch(ArgumentException e) { MappingEditor.Validate(e.Message); }
+        MappingEditor.ValidateForEditing(CanEditAppearance && _selectedMappingRow is not null);
     }
     private void UpdateUrlPreviewStatus()
     {
@@ -439,10 +468,11 @@ public sealed partial class ShellViewModel
         MappingMessage=_invalidMappingDrafts.Count>0 ? ML("InvalidDraft") :
             _mappingSaveFailed ? ML("SaveError") : _mappingDirty ? ML("Dirty") : "";
         Changed(nameof(MappingCanSave)); Changed(nameof(MappingHasPendingChanges));
+        Changed(nameof(CanSaveTemplateChanges)); Changed(nameof(ActiveTemplateNotice));
     }
     private void OnMappingEditorChanged(object? sender, PropertyChangedEventArgs e)
     {
-        if(_mappingLoadingEditor || _selectedMappingRow is null) return;
+        if(_mappingLoadingEditor || _selectedMappingRow is null || !CanEditAppearance) return;
         if(e.PropertyName is not (nameof(MappingEditor.Label) or nameof(MappingEditor.Order) or
             nameof(MappingEditor.SizePct) or nameof(MappingEditor.TrackingPt) or
             nameof(MappingEditor.GroupSize) or nameof(MappingEditor.GroupSpaces) or
@@ -476,7 +506,7 @@ public sealed partial class ShellViewModel
     }
     public void ResetMapping()
     {
-        if(SelectedMappingRow is null)return;
+        if(!CanEditAppearance || SelectedMappingRow is null)return;
         var field=SelectedMappingRow.Field;
         _invalidMappingDrafts.Remove(field);
         _map.Remove(field);
@@ -488,28 +518,5 @@ public sealed partial class ShellViewModel
         _mappingSaveFailed=false;
         UpdateMappingStatus();
     }
-    // Explicit save only; callers must not silently persist mapping when leaving the app.
-    public bool SaveMapping()
-    {
-        if(_invalidMappingDrafts.Count>0)
-        {
-            UpdateMappingStatus();
-            return false;
-        }
-        if(!_mappingDirty) { UpdateMappingStatus(); return true; }
-        try
-        {
-            FieldMappingStore.Save(_map);
-            _savedMapping=CloneMap(_map);
-            _mappingSaveFailed=false;
-            UpdateMappingStatus();
-            return true;
-        }
-        catch(Exception e) when (e is IOException or UnauthorizedAccessException or System.Security.SecurityException)
-        {
-            _mappingSaveFailed=true;
-            UpdateMappingStatus();
-            return false;
-        }
-    }
+    // Mapping is saved exclusively through SaveChangesToTemplate.
 }

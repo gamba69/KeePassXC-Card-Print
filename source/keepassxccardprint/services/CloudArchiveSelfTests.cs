@@ -84,87 +84,32 @@ public static class CloudArchiveSelfTests
                 WindowWidth = 1580, LastPrintDevice = "machine-printer",
                 PrintCalibrations = new() { ["local-printer"] = new PrintCalibration { FrontX = 1.5 } } };
             new UiSettingsStore(destination).Save(destinationUi);
-            File.WriteAllText(Path.Combine(source, "mapping.json"), "{\"email\":{\"role\":\"text\"}}");
             File.WriteAllText(Path.Combine(source, "appearance.json"), "{\"version\":1}");
             Directory.CreateDirectory(Path.Combine(source, "templates"));
-            File.WriteAllText(Path.Combine(source, "templates", "example.json"), "{\"format\":\"KeePassCardPrint-template-v1\",\"name\":\"test\",\"settings\":{}}");
+            var embedded = "{\"format\":\"KeePassCardPrint-template-v1\",\"name\":\"test\",\"settings\":{},\"mapping\":{\"email\":{\"Role\":\"text\"}}}";
+            var templatePath = Path.Combine(source, "templates", "example.json");
+            File.WriteAllText(templatePath, embedded);
             Directory.CreateDirectory(Path.Combine(source, "print-tracking"));
             var tracking = new string('a', 64) + ".json";
             File.WriteAllText(Path.Combine(source, "print-tracking", tracking),
                 "{\"Version\":1,\"History\":[{\"Result\":\"printed\"}]}");
-            // A format-tagged JSON document is not a FieldMappingStore mapping.
-            // The old path raised JsonException at $.format and left an opaque
-            // sync error after a successful cloud connection check.
-            File.WriteAllText(Path.Combine(source, "mapping.json"),
-                "{\"format\":\"KeePassCardPrint-template-v1\",\"settings\":{}}");
-            var originalMapping = File.ReadAllText(Path.Combine(source, "mapping.json"));
-            try
-            {
-                CloudConfigurationArchive.ValidateLocal(source);
-                throw new InvalidOperationException("[FAIL] Incompatible mapping was accepted");
-            }
-            catch (InvalidDataException ex)
-            {
-                Assert(ex.Message.Contains("mapping.json", StringComparison.Ordinal) &&
-                    ex.Message.Contains("$.format", StringComparison.Ordinal),
-                    "invalid mapping error identifies file and schema mismatch");
-                Assert(File.ReadAllText(Path.Combine(source, "mapping.json")) == originalMapping,
-                    "invalid mapping remains unmodified");
-            }
-            log.AppendLine("[PASS] Incompatible mapping format rejected without data loss");
-            // Reproduce a cloud-cache file accidentally containing an appearance
-            // template instead of a field-rule dictionary. Recovery must never
-            // remove it before keeping an independently verified backup.
-            var damagedRoot = Path.Combine(scratch, "damaged-mapping");
-            var goodRoot = Path.Combine(scratch, "good-mapping");
-            Directory.CreateDirectory(damagedRoot);
-            Directory.CreateDirectory(goodRoot);
-            File.WriteAllText(Path.Combine(damagedRoot, "mapping.json"), originalMapping);
-            var validRules = "{\"USERNAME\":{\"Role\":\"text\",\"Label\":\"Account\"}}";
-            File.WriteAllText(Path.Combine(goodRoot, "mapping.json"), validRules);
-            Assert(CloudMappingRecovery.NeedsRecovery(damagedRoot) &&
-                !CloudMappingRecovery.IsValidMappingFile(Path.Combine(damagedRoot, "mapping.json")),
-                "invalid cloud-cache mapping recognized");
-            Assert(CloudMappingRecovery.FindProblemRoot(damagedRoot, goodRoot) == damagedRoot &&
-                CloudMappingRecovery.FindProblemRoot(goodRoot, damagedRoot) == damagedRoot &&
-                CloudMappingRecovery.FindProblemRoot(goodRoot, goodRoot) is null,
-                "detect active-source mappings before cloud-cache mappings");
-            Assert(CloudMappingRecovery.FindPreviousMapping(damagedRoot, [goodRoot]) ==
-                Path.Combine(goodRoot, "mapping.json"), "valid previous mapping found");
-            var savedBroken = CloudMappingRecovery.Restore(damagedRoot,
-                Path.Combine(scratch, "recovery-backups"), Path.Combine(goodRoot, "mapping.json"),
-                Path.Combine(scratch, "review-required.flag"));
-            Assert(File.ReadAllText(savedBroken) == originalMapping &&
-                File.ReadAllText(Path.Combine(damagedRoot, "mapping.json")) == validRules &&
-                !CloudMappingRecovery.NeedsRecovery(damagedRoot),
-                "original preserved and exact rule dictionary restored");
-            var secondDamaged = Path.Combine(scratch, "secondary-damaged");
-            Directory.CreateDirectory(secondDamaged);
-            File.WriteAllText(Path.Combine(secondDamaged, "mapping.json"), originalMapping);
-            Assert(CloudMappingRecovery.FindProblemRoot(secondDamaged, damagedRoot) == secondDamaged,
-                "active mapping takes priority when both roots are damaged");
-            var secondBackup = CloudMappingRecovery.Restore(secondDamaged,
-                Path.Combine(scratch, "recovery-backups"), Path.Combine(damagedRoot, "mapping.json"),
-                Path.Combine(scratch, "review-required.flag"));
-            Assert(File.ReadAllText(secondBackup) == originalMapping &&
-                File.ReadAllText(Path.Combine(secondDamaged, "mapping.json")) == validRules,
-                "second damaged mapping independently backed up and restored");
-            File.WriteAllText(Path.Combine(damagedRoot, "mapping.json"), originalMapping);
-            var resetBackup = CloudMappingRecovery.Restore(damagedRoot,
-                Path.Combine(scratch, "recovery-backups"), null,
-                Path.Combine(scratch, "review-required.flag"));
-            Assert(File.ReadAllText(resetBackup) == originalMapping &&
-                File.ReadAllText(Path.Combine(damagedRoot, "mapping.json")) == "{}",
-                "explicit reset preserves original invalid mapping");
-            Assert(File.Exists(Path.Combine(scratch, "review-required.flag")),
-                "review marker prevents automatic cloud publication");
-            log.AppendLine("[PASS] Mapping recovery preserves original and requires manual review");
-            File.WriteAllText(Path.Combine(source, "mapping.json"), "{\"email\":{\"role\":\"text\"}}");
+            CloudConfigurationArchive.ValidateLocal(source);
+            using (var parsed = System.Text.Json.JsonDocument.Parse(embedded))
+                Assert(CardAppearanceStore.ParseMapping(parsed.RootElement).ContainsKey("email"),
+                    "embedded field mapping is parsed from the template");
+            File.WriteAllText(templatePath,
+                "{\"format\":\"KeePassCardPrint-template-v1\",\"name\":\"test\",\"settings\":{},\"mapping\":[]}");
+            Reject(() => CloudConfigurationArchive.ValidateLocal(source),
+                "invalid embedded field mapping rejected before upload");
+            File.WriteAllText(templatePath, embedded);
+            log.AppendLine("[PASS] Embedded mapping validated with template before cloud upload");
             var archive = Path.Combine(scratch, "config.zip");
             var manifest = CloudConfigurationArchive.Create(source, archive,
                 Guid.NewGuid(), DateTime.UtcNow);
-            Assert(manifest.Files.Count == 5, "portable files enumerated");
-            log.AppendLine("[PASS] Allow-list and print-tracking history included");
+            Assert(manifest.Files.Count == 4 &&
+                !manifest.Files.Any(x => x.Path == "mapping.json"),
+                "portable archive contains full templates, not standalone mapping");
+            log.AppendLine("[PASS] Template mapping and print-tracking included");
             var verified = CloudConfigurationArchive.ReadVerified(archive, stage);
             CloudConfigurationArchive.ApplyVerified(destination, stage, verified,
                 Path.Combine(scratch, "backups"));
@@ -338,9 +283,9 @@ public static class CloudArchiveSelfTests
                 foreach (var entry in input.Entries)
                 {
                     using var destinationStream = output.CreateEntry(entry.FullName).Open();
-                    if (entry.FullName == "mapping.json")
+                    if (entry.FullName == "templates/example.json")
                     {
-                        var bytes = Encoding.UTF8.GetBytes("{\"email\":{\"role\":\"evil\"}}");
+                        var bytes = Encoding.UTF8.GetBytes("{\"format\":\"corrupt\"}");
                         destinationStream.Write(bytes);
                     }
                     else using (var stream = entry.Open()) stream.CopyTo(destinationStream);

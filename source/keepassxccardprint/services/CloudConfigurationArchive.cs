@@ -41,7 +41,7 @@ public static class CloudConfigurationArchive
     private const long MaxFileBytes = 4 * 1024 * 1024;
     private const int MaxFiles = 2000;
     private static readonly string[] FlatFiles =
-        ["appearance.json", "appearance-template-source.json", "mapping.json", "domains.json"];
+        ["appearance.json", "appearance-template-source.json", "domains.json"];
 
     public static bool IsPortableChange(string name) => name == "ui-shell.json" || PortablePath(name);
 
@@ -138,34 +138,6 @@ public static class CloudConfigurationArchive
             if (JsonSerializer.Deserialize(content, CardAppearanceJsonContext.Default.CardAppearance) is null)
                 throw new InvalidDataException("Invalid card appearance.");
         }
-        else if (name == "mapping.json")
-        {
-            // The application's FieldMappingStore uses a bare dictionary:
-            // { "field": { "Role": "text", ... } }. Some unrelated JSON
-            // envelopes start with { "format": "..." }; interpreting their
-            // metadata as a FieldRule raises a low-level JsonException at
-            // $.format. Never upload a partially converted or empty mapping.
-            foreach (var field in doc.RootElement.EnumerateObject())
-                if (field.Value.ValueKind != JsonValueKind.Object)
-                    throw new InvalidDataException(
-                        "mapping.json: unsupported field mapping structure (" +
-                        (field.Name == "format" ? "$.format is metadata, not a rule" :
-                            "a field value is not a rule object") +
-                        "). Preserve the file and restore a compatible mapping before syncing.");
-            try
-            {
-                var map = JsonSerializer.Deserialize(content, VaultJsonContext.Default.DictionaryStringFieldRule)
-                    ?? throw new InvalidDataException("mapping.json: missing field rules.");
-                foreach (var rule in map.Values)
-                    if (rule is null) throw new InvalidDataException("mapping.json: invalid field rule.");
-            }
-            catch (JsonException e)
-            {
-                throw new InvalidDataException(
-                    "mapping.json: a rule does not match the supported field mapping schema. " +
-                    "Preserve the original file; it has not been replaced.", e);
-            }
-        }
         else if (name == "domains.json")
         {
             var domains = JsonSerializer.Deserialize(content, DomainPrefixContext.Default.DomainPrefixFile)
@@ -181,7 +153,10 @@ public static class CloudConfigurationArchive
                 !doc.RootElement.TryGetProperty("settings", out var settings) ||
                 settings.ValueKind != JsonValueKind.Object ||
                 settings.Deserialize(CardAppearanceJsonContext.Default.CardAppearance) is null)
-                throw new InvalidDataException("Invalid appearance template.");
+                throw new InvalidDataException("Invalid print template.");
+            try { _ = CardAppearanceStore.ParseMapping(doc.RootElement); }
+            catch (Exception ex) when (ex is JsonException or ArgumentException or InvalidDataException)
+            { throw new InvalidDataException("Invalid embedded template mapping.", ex); }
         }
         else if (name.StartsWith("print-tracking/", StringComparison.Ordinal))
         {

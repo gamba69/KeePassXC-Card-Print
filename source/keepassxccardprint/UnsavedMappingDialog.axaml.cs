@@ -18,20 +18,20 @@ public partial class UnsavedMappingDialog : Window
         var lang=Localizer.ResolveLanguage(language);
         this.FindControl<TextBlock>("DialogHeading")!.Text=lang switch
         {
-            "uk"=>"Незбережені зміни мапінгу",
-            "en"=>"Unsaved field mapping",
-            _=>"Несохранённые изменения маппинга"
+            "uk"=>"Незбережені зміни шаблона",
+            "en"=>"Unsaved print template",
+            _=>"Несохранённые изменения шаблона"
         };
         this.FindControl<TextBlock>("DialogQuestion")!.Text=exiting? lang switch
         {
-            "uk"=>"Є незбережені зміни мапінгу. Зберегти їх перед виходом?",
-            "en"=>"Field mapping has unsaved changes. Save them before exiting?",
-            _=>"В маппинге есть несохранённые изменения. Сохранить их перед выходом?"
+            "uk"=>"Є незбережені зміни шаблона. Зберегти його перед виходом?",
+            "en"=>"The print template has unsaved changes. Save it before exiting?",
+            _=>"В шаблоне есть несохранённые изменения. Сохранить его перед выходом?"
         } : lang switch
         {
-            "uk"=>"Зміни полів ще не записані на диск. Зберегти їх перед продовженням? Якщо введено некоректне число, поверніться до мапінгу та виправте його.",
-            "en"=>"Field mapping changes have not been saved. Save before continuing? If a numeric value is invalid, return to Mapping and correct it.",
-            _=>"Изменения полей ещё не записаны на диск. Сохранить перед продолжением? Если число введено неверно, вернитесь в «Маппинг» и исправьте его."
+            "uk"=>"Зберегти весь шаблон, включно з мапінгом і оформленням обох боків?",
+            "en"=>"Save the entire template, including field mapping and both sides?",
+            _=>"Сохранить весь шаблон, включая маппинг и оформление обеих сторон?"
         };
         this.FindControl<TextBlock>("SaveText")!.Text=lang switch {"uk"=>"Зберегти", "en"=>"Save changes", _=>"Сохранить"};
         this.FindControl<TextBlock>("DiscardText")!.Text=lang switch {"uk"=>"Не зберігати", "en"=>"Don't save", _=>"Не сохранять"};

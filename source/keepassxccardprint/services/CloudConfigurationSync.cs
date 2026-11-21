@@ -526,7 +526,10 @@ public sealed class CloudConfigurationSync : IDisposable
             CloudArchiveManifest? remote = null;
             var remoteExists = await RetryAsync(() => transport.DownloadAsync(
                 CloudConnectionStore.RemoteFilePath(profile), remoteFile, ct), ct);
-            if (remoteExists)
+            // An explicit upload replaces an old remote format instead of
+            // requiring it to pass the new template schema first. Automatic
+            // sync and explicit download still validate every remote entry.
+            if (remoteExists && !forceUpload)
             {
                 SetStatus("Downloading");
                 remote = CloudConfigurationArchive.ReadVerified(remoteFile, remoteStage);

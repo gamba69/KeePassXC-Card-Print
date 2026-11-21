@@ -69,7 +69,7 @@ public sealed partial class ShellViewModel
     private string? _activePersonalTemplatePath;
     private string _activeTemplateName = "";
     private bool _templateDirty;
-    public bool HasUnsavedTemplateChanges => _templateDirty;
+    public bool HasUnsavedTemplateChanges => _templateDirty || MappingHasPendingChanges;
     public string? ActiveTemplateSelection => _activeTemplateOrigin switch
     {
         TemplateOrigin.BuiltIn => BuiltinLabel(_appearance.Style),
@@ -79,35 +79,38 @@ public sealed partial class ShellViewModel
         _ => null
     };
     public bool CanEditAppearance => _activeTemplateOrigin != TemplateOrigin.BuiltIn;
-    public bool CanSaveTemplateChanges => _activeTemplateOrigin == TemplateOrigin.Personal && _templateDirty;
+    public bool CanSaveTemplateChanges => _activeTemplateOrigin == TemplateOrigin.Personal &&
+        !MappingHasInvalidDrafts && HasUnsavedTemplateChanges;
     public string ActiveTemplateNotice => Localizer.ResolveLanguage(_settings.Language) switch
     {
         "en" => _activeTemplateOrigin switch
         {
             TemplateOrigin.BuiltIn => $"Built-in · {_activeTemplateName} — read-only. Create your own template to edit either side.",
             TemplateOrigin.Personal => $"My · {_activeTemplateName} — both sides are editable." +
-                (_templateDirty ? " Unsaved changes." : " All changes saved."),
+                (HasUnsavedTemplateChanges ? " Unsaved changes." : " All changes saved."),
             _ => "Current design without a template. Create a personal template to save edits to both sides."
         },
         "uk" => _activeTemplateOrigin switch
         {
             TemplateOrigin.BuiltIn => $"Вбудований · {_activeTemplateName} — лише перегляд. Створіть власний шаблон для редагування обох боків.",
             TemplateOrigin.Personal => $"Мій · {_activeTemplateName} — обидва боки доступні для редагування." +
-                (_templateDirty ? " Є незбережені зміни." : " Усі зміни збережені."),
+                (HasUnsavedTemplateChanges ? " Є незбережені зміни." : " Усі зміни збережені."),
             _ => "Поточне оформлення без шаблона. Створіть власний шаблон для збереження змін обох боків."
         },
         _ => _activeTemplateOrigin switch
         {
             TemplateOrigin.BuiltIn => $"Встроенный · {_activeTemplateName} — только просмотр. Создайте свой шаблон, чтобы изменять лицо и оборот.",
             TemplateOrigin.Personal => $"Мой · {_activeTemplateName} — лицо и оборот доступны для правки." +
-                (_templateDirty ? " Есть несохранённые изменения." : " Все изменения сохранены."),
+                (HasUnsavedTemplateChanges ? " Есть несохранённые изменения." : " Все изменения сохранены."),
             _ => "Текущее оформление без шаблона. Создайте свой шаблон для сохранения и редактирования обеих сторон."
         }
     };
     private void NotifyTemplateState()
     {
         foreach (var field in AppearanceFields) field.IsReadOnly = !CanEditAppearance;
+        MappingEditor?.SetEditable(CanEditAppearance);
         Changed(nameof(CanEditAppearance));
+        Changed(nameof(MappingCanEdit));
         Changed(nameof(CanSaveTemplateChanges));
         Changed(nameof(ActiveTemplateNotice));
     }
@@ -121,16 +124,14 @@ public sealed partial class ShellViewModel
     }
     private static readonly (string Code, string Label)[] BuiltInTemplates =
     [
-        ("archive", "Встроенный · Архивный"),
-        ("technical", "Встроенный · Техническая сетка"),
-        ("classic", "Встроенный · Классический"),
-        ("minimal", "Встроенный · Минимализм"),
-        ("table", "Встроенный · Табличный")
+        ("archive", "Встроенный · Элегантный архив"),
+        ("technical", "Встроенный · Инженерная карта"),
+        ("table", "Встроенный · QR и восстановление")
     ];
     private string BuiltinName(string code) => Localizer.ResolveLanguage(_settings.Language) switch
     {
-        "uk" => code switch {"archive"=>"Архівний","technical"=>"Технічна сітка","classic"=>"Класичний","minimal"=>"Мінімалізм","table"=>"Табличний",_=>code},
-        "en" => code switch {"archive"=>"Archive","technical"=>"Technical grid","classic"=>"Classic","minimal"=>"Minimal","table"=>"Table",_=>code},
+        "uk" => code switch {"archive"=>"Елегантний архів","technical"=>"Інженерна картка","table"=>"QR і відновлення",_=>code},
+        "en" => code switch {"archive"=>"Elegant archive","technical"=>"Engineering card","table"=>"QR and recovery",_=>code},
         _ => BuiltInTemplates.First(x=>x.Code==code).Label.Split('·').Last().Trim()
     };
     private string BuiltinLabel(string code) =>
@@ -470,19 +471,17 @@ public sealed partial class ShellViewModel
         var filename = CardAppearanceStore.ReadActivePersonalTemplate();
         if (filename is null)
         {
-            if (!CardAppearanceStore.HasSavedAppearance)
+            // With only three built-ins, an obsolete former preset falls back
+            // to archive. Personal files with legacy styles remain untouched.
+            var builtin = BuiltInTemplates.FirstOrDefault(t => t.Code == _appearance.Style);
+            if (builtin.Code is null) builtin = BuiltInTemplates[0];
+            if (builtin.Code is not null)
             {
-                // On a fresh installation the default is a built-in preset,
-                // not an editable personal template in disguise.
-                var builtin = BuiltInTemplates.FirstOrDefault(t => t.Code == _appearance.Style);
-                if (builtin.Code is not null)
-                {
-                    _appearance = CardAppearancePresets.Create(builtin.Code);
-                    _activeTemplateOrigin = TemplateOrigin.BuiltIn;
-                    _activeTemplateName = BuiltinName(builtin.Code);
-                    TemplateName = _activeTemplateName + CopySuffix;
-                    NotifyTemplateState();
-                }
+                _appearance = CardAppearancePresets.Create(builtin.Code);
+                _activeTemplateOrigin = TemplateOrigin.BuiltIn;
+                _activeTemplateName = BuiltinName(builtin.Code);
+                TemplateName = _activeTemplateName + CopySuffix;
+                NotifyTemplateState();
             }
             return;
         }
@@ -495,9 +494,9 @@ public sealed partial class ShellViewModel
             _activeTemplateOrigin = TemplateOrigin.Personal;
             _activePersonalTemplatePath = path;
             _activeTemplateName = name;
-            // Edits saved in appearance.json remain a working
-            // draft. They do not silently overwrite the source template.
-            _templateDirty = !CardAppearanceStore.ContentEquals(_appearance, CardAppearanceStore.ReadTemplate(path));
+            // Load the saved complete template, never an abandoned draft cache.
+            _appearance = CardAppearanceStore.ReadTemplate(path);
+            _templateDirty = false;
             NotifyTemplateState();
         }
         catch (Exception e) when (e is IOException or UnauthorizedAccessException or ArgumentException or System.Text.Json.JsonException or InvalidDataException) { }
@@ -534,11 +533,11 @@ public sealed partial class ShellViewModel
             SelectedTemplate = null; // Built-in presets are not selected while editing a custom working copy.
     }
 
-    // Persist the active working configuration without writing a template.
-    // The window closes and storage changes call this method automatically.
+    // Persist only the selected, fully saved configuration for reopening.
+    // Draft changes never persist separately or overwrite the full template.
     public void SaveCardAppearance()
     {
-        if (_activeTemplateOrigin == TemplateOrigin.BuiltIn) return; // Preview-only, immutable.
+        if (HasUnsavedTemplateChanges) return;
         try
         {
             CardAppearanceStore.Save(_appearance);
@@ -552,7 +551,7 @@ public sealed partial class ShellViewModel
     public bool LoadCardTemplate(bool discardUnsavedChanges = false)
     {
         if (string.IsNullOrEmpty(_selectedTemplate)) return false;
-        if (_templateDirty && !discardUnsavedChanges)
+        if (HasUnsavedTemplateChanges && !discardUnsavedChanges)
         {
             DesignMessage = "Есть несохранённые изменения. Подтвердите переключение шаблона.";
             return false;
@@ -567,20 +566,25 @@ public sealed partial class ShellViewModel
                 _activePersonalTemplatePath = null;
                 _activeTemplateName = BuiltinName(builtin.Code);
                 TemplateName = _activeTemplateName + CopySuffix;
+                LoadTemplateMapping(CardAppearancePresets.CreateMapping(builtin.Code));
             }
             else if (_personalTemplatePaths.TryGetValue(_selectedTemplate, out var path))
             {
+                // Read and validate BOTH components before touching active state.
                 var appearance = CardAppearanceStore.ReadTemplate(path);
+                var mapping = CardAppearanceStore.ReadTemplateMapping(path);
                 var name = CardAppearanceStore.ReadTemplateName(path);
                 _appearance = appearance;
                 _activeTemplateOrigin = TemplateOrigin.Personal;
                 _activePersonalTemplatePath = path;
                 _activeTemplateName = name;
                 TemplateName = name + CopySuffix;
+                LoadTemplateMapping(mapping);
             }
             else return false;
             _templateDirty = false;
             RebuildAppearanceFields();
+            SaveCardAppearance(); // Cache only the selected, complete template.
             NotifyTemplateState();
             ScheduleCardPreview();
             // ActiveTemplateNotice already communicates origin and editability.
@@ -596,14 +600,20 @@ public sealed partial class ShellViewModel
 
     public void SaveCardTemplate()
     {
+        if (MappingHasInvalidDrafts)
+        {
+            DesignMessage = "Исправьте ошибки маппинга перед созданием шаблона.";
+            return;
+        }
         try
         {
             var name = _templateName.Trim();
-            var path = CardAppearanceStore.CreatePersonalTemplate(name, _appearance);
+            var path = CardAppearanceStore.CreatePersonalTemplate(name, _appearance, _map);
             _activeTemplateOrigin = TemplateOrigin.Personal;
             _activePersonalTemplatePath = path;
             _activeTemplateName = name;
             _templateDirty = false;
+            MarkTemplateMappingSaved();
             SaveCardAppearance();
             ReloadTemplates();
             SelectedTemplate = _personalTemplatePaths.First(kv =>
@@ -623,10 +633,17 @@ public sealed partial class ShellViewModel
             DesignMessage="Встроенные шаблоны не изменяются. Сначала создайте свой шаблон.";
             return;
         }
+        if (MappingHasInvalidDrafts)
+        {
+            DesignMessage = "Исправьте ошибки маппинга перед сохранением шаблона.";
+            return;
+        }
         try
         {
-            CardAppearanceStore.UpdatePersonalTemplate(_activePersonalTemplatePath, _appearance);
+            // One atomic write: both sides of the card and ALL mapping rules.
+            CardAppearanceStore.UpdatePersonalTemplate(_activePersonalTemplatePath, _appearance, _map);
             _templateDirty = false;
+            MarkTemplateMappingSaved();
             SaveCardAppearance();
             NotifyTemplateState();
             DesignMessage = "";

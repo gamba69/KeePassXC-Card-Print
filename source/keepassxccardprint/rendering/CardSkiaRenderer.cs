@@ -315,8 +315,9 @@ public static class CardSkiaRenderer
         DrawHeader(c,w,h,a,part,ink,muted,accent,rule);
         float y=Px(CardLayoutEngine.HeaderHeight(a,part.Record));
         float end=h-Px(a.FooterBottomInsetMm+a.FooterHeightMm+.9);
-        foreach(var line in part.Lines)
+        for(int lineIndex=0;lineIndex<part.Lines.Count;lineIndex++)
         {
+            var line=part.Lines[lineIndex];
             float lineHeight=Px(line.HeightMm);
             if(y+lineHeight>end+.9f)
                 throw new InvalidOperationException("Текст выходит за пределы карточки.");
@@ -358,9 +359,11 @@ public static class CardSkiaRenderer
                     else
                         Fit(c,line.Text,valueX,valueBaseline,valueWidth,size,95,ink,font,weight,
                             tracking,markZero:a.MarkZero && font==a.SecretFont);
-                    if(a.Style=="table")
+                    // Never draw a second line directly above a section rule,
+                    // nor a line underneath each wrapped fragment of one value.
+                    if(a.Style=="table" && ShouldDrawTableRule(part.Lines,lineIndex))
                     {
-                        using var pen=Paint(rule,true,.6f);c.DrawLine(x,y+lineHeight-1,right,y+lineHeight-1,pen);
+                        using var pen=Paint(rule,true,.55f);c.DrawLine(x,y+lineHeight-1,right,y+lineHeight-1,pen);
                     }
                     break;
             }
@@ -369,6 +372,24 @@ public static class CardSkiaRenderer
         DrawFooter(c,w,h,a,part);
         Frame(c,w,h,a);
     }
+
+    // An optional row rule separates different fields. A section owns its
+    // leading rule, so the preceding value must not draw an adjacent duplicate.
+    // Gaps and wrapped lines do not introduce new boundaries.
+    internal static bool ShouldDrawTableRule(IReadOnlyList<CardLine> lines,int index)
+    {
+        if(index<0 || index>=lines.Count || lines[index].Kind!=CardLineKind.Value)
+            return false;
+        for(int nextIndex=index+1;nextIndex<lines.Count;nextIndex++)
+        {
+            var next=lines[nextIndex];
+            if(next.Kind==CardLineKind.Gap)continue;
+            return next.Kind!=CardLineKind.Section &&
+                !string.Equals(next.Field,lines[index].Field,StringComparison.OrdinalIgnoreCase);
+        }
+        return false;
+    }
+
     // The checkbox must be vertically centred on the actual *ink* of the first
     // printed code line, not on a nominal line box. This layout ensures
     // the text's real bounding rectangle was used for checkbox placement.

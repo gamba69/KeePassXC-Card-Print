@@ -21,6 +21,20 @@ public static class MappingSelfTests
             var rule=FieldMappingDefaults.Infer("PASSWORD");
             var editor=new MappingEditor("ru");
             editor.Load("PASSWORD",rule);
+            editor.SetEditable(false);
+            Check(!editor.Enabled, "built-in template mapping editor stays read-only");
+            editor.SetEditable(true);
+            Check(editor.Enabled, "personal template mapping editor becomes editable");
+            using (var embedded = System.Text.Json.JsonDocument.Parse(
+                "{\"mapping\":{\"USERNAME\":{\"Role\":\"secret\",\"Order\":7}}}"))
+            {
+                var map = CardAppearanceStore.ParseMapping(embedded.RootElement);
+                Check(map.ContainsKey("username") && map["username"].Order == 7,
+                    "personal template embeds field rules");
+            }
+            using (var missing = System.Text.Json.JsonDocument.Parse("{}"))
+                Check(CardAppearanceStore.ParseMapping(missing.RootElement).Count == 0,
+                    "missing mapping uses field inference, never a global file");
             Check(editor.ToRule().Order==rule.Order,"default field loads");
             editor.Order="27";
             Check(editor.ToRule().Order==27,"valid priority applies");
@@ -70,6 +84,16 @@ public static class MappingSelfTests
             editor.Order="33";
             row.Update(editor.ToRule(),2,"ru");
             Check(row.Position==2 && row.Order==33,"table can refresh in-place");
+            editor.Validate("stale validation message");
+            editor.SetEditable(false);
+            editor.ValidateForEditing(false);
+            Check(!editor.Enabled && !editor.HasValidationError,
+                "built-in read-only editor does not show false validation errors");
+            editor.SetEditable(true);
+            editor.Order="-";
+            editor.ValidateForEditing(true);
+            Check(editor.HasValidationError && editor.OrderInvalid,
+                "personal editable field still reports invalid numeric drafts");
             log.AppendLine($"[PASS] mapping/summary: {checks} assertions");
             Report = log.ToString();
             return 0;

@@ -245,35 +245,46 @@
           <ScrollViewer x:Name="MappingTabScroll" VerticalScrollBarVisibility="Auto"
                         HorizontalScrollBarVisibility="Disabled" MinHeight="0" SizeChanged="OnEditorTabScrollSizeChanged">
           <Grid Margin="9" RowDefinitions="Auto,*,Auto" RowSpacing="8" MinHeight="0" SizeChanged="OnMappingTabSizeChanged">
-            <Border Grid.Row="0" Classes="settings-card" MinHeight="0">
+            <Border Grid.Row="0" Classes="template-toolbar" Padding="9,6" Background="{DynamicResource KpSurfaceBrush}" BorderBrush="{DynamicResource KpBorderBrush}" BorderThickness="1" CornerRadius="4">
               <Grid RowDefinitions="Auto,Auto" RowSpacing="5">
-                <!-- Keep the scope description on the title line, not an extra vertical row. -->
-                <Grid Grid.Row="0" ColumnDefinitions="Auto,*,2*,Auto" ColumnSpacing="8" MinHeight="30">
-                  <TextBlock VerticalAlignment="Center" Classes="section-heading" Text="{Binding MappingToolbarTitle}"/>
-                  <TextBlock Grid.Column="2" Classes="hint" VerticalAlignment="Center" HorizontalAlignment="Stretch" TextAlignment="Right" Text="{Binding MappingScopeDescription}" ToolTip.Tip="{Binding MappingScopeDescription}" TextTrimming="CharacterEllipsis" TextWrapping="NoWrap"/>
-                  <Button Grid.Column="3" Classes="mapping-save" IsEnabled="{Binding MappingCanSave}" ToolTip.Tip="{Binding MappingMessage}" Click="OnSaveMapping">
-                    <StackPanel Orientation="Horizontal" Spacing="5" VerticalAlignment="Center">
+                <Grid Grid.Row="0" ColumnDefinitions="Auto,Auto,Auto,*,Auto" ColumnSpacing="7">
+                  <TextBlock VerticalAlignment="Center" Classes="section-heading" Text="{Binding UiTemplate}"/>
+                  <ComboBox Grid.Column="1" Width="235" MinWidth="130" ItemsSource="{Binding TemplateNames}" SelectedItem="{Binding SelectedTemplate,Mode=TwoWay}" SelectionChanged="OnCardTemplateSelectionChanged" ToolTip.Tip="Выбор сразу загружает шаблон"/>
+                  <Button Grid.Column="2" Click="OnSaveCardTemplate" ToolTip.Tip="Создать полную копию шаблона с маппингом и оформлением обеих сторон">
+                    <StackPanel Orientation="Horizontal" Spacing="5">
+                      <fi:FluentIcon Icon="DocumentCopy" IconVariant="Regular" IconSize="Size20" Width="14" Height="14" FontSize="14" Foreground="{DynamicResource KpTextBrush}"/>
+                      <TextBlock Text="{Binding UiCreateTemplate}" VerticalAlignment="Center"/>
+                    </StackPanel>
+                  </Button>
+                  <Button Grid.Column="4" Click="OnSaveAppearance" IsEnabled="{Binding CanSaveTemplateChanges}" ToolTip.Tip="Сохранить весь шаблон: маппинг и обе стороны">
+                    <StackPanel Orientation="Horizontal" Spacing="5">
                       <fi:FluentIcon Icon="Save" IconVariant="Regular" IconSize="Size20" Width="14" Height="14" FontSize="14" Foreground="{DynamicResource KpTextBrush}"/>
-                      <TextBlock Text="{Binding MappingSaveText}" VerticalAlignment="Center"/>
+                      <TextBlock Text="{Binding UiSaveChanges}" VerticalAlignment="Center"/>
                     </StackPanel>
                   </Button>
                 </Grid>
-                <WrapPanel Grid.Row="1" Orientation="Horizontal" HorizontalAlignment="Stretch">
-                  <CheckBox Content="{Binding Scope}" IsChecked="{Binding MappingScopeCurrent, Mode=TwoWay}" Margin="0,0,14,4"/>
-                  <CheckBox Content="{Binding AllColumns}" IsChecked="{Binding MappingAllColumns, Mode=TwoWay}" Margin="0,0,14,4"/>
-                  <Button  Click="OnEditDomains" Padding="6,2" Margin="0,0,0,4">
+                <Grid Grid.Row="1" ColumnDefinitions="*,Auto" ColumnSpacing="8">
+                  <TextBlock Classes="hint" Text="{Binding ActiveTemplateNotice}" TextTrimming="CharacterEllipsis" TextWrapping="NoWrap" ToolTip.Tip="{Binding ActiveTemplateNotice}"/>
+                  <TextBlock Grid.Column="1" Classes="hint" Text="{Binding DesignMessage}" IsVisible="{Binding HasDesignMessage}" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding DesignMessage}"/>
+                </Grid>
+              </Grid>
+            </Border>
+            <Border Grid.Row="1" Classes="settings-card" MinHeight="0">
+              <Grid RowDefinitions="Auto,Auto,*" RowSpacing="6" MinHeight="0">
+                <Grid Grid.Row="0" ColumnDefinitions="*,Auto" ColumnSpacing="8">
+                  <TextBlock VerticalAlignment="Center" Classes="section-heading" Text="{Binding MappingFieldsHeading}"/>
+                  <Button Grid.Column="1" Click="OnEditDomains" Padding="6,2">
                     <StackPanel Orientation="Horizontal" Spacing="5" VerticalAlignment="Center">
                       <fi:FluentIcon Icon="Settings" IconVariant="Regular" IconSize="Size20" Width="14" Height="14" FontSize="14" Foreground="{DynamicResource KpTextBrush}"/>
                       <TextBlock Text="{Binding MappingDomainsText}" VerticalAlignment="Center"/>
                     </StackPanel>
                   </Button>
+                </Grid>
+                <WrapPanel Grid.Row="1" Orientation="Horizontal" HorizontalAlignment="Stretch">
+                  <CheckBox Content="{Binding Scope}" IsChecked="{Binding MappingScopeCurrent, Mode=TwoWay}" Margin="0,0,14,0"/>
+                  <CheckBox Content="{Binding AllColumns}" IsChecked="{Binding MappingAllColumns, Mode=TwoWay}" Margin="0,0,14,0"/>
                 </WrapPanel>
-              </Grid>
-            </Border>
-            <Border Grid.Row="1" Classes="settings-card" MinHeight="0">
-              <Grid RowDefinitions="Auto,*" RowSpacing="6" MinHeight="0">
-                <TextBlock Grid.Row="0" Classes="section-heading" Text="{Binding MappingFieldsHeading}"/>
-                <Grid Grid.Row="1" RowDefinitions="*" MinHeight="125">
+                <Grid Grid.Row="2" RowDefinitions="*" MinHeight="125">
                   <Border Grid.Row="0" BorderThickness="0" BorderBrush="{DynamicResource KpBorderBrush}" Background="Transparent" IsVisible="{Binding MappingCompactVisible}">
                     <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Disabled">
                       <Grid MinWidth="668" RowDefinitions="27,*">
@@ -611,7 +622,7 @@
                 <Grid Grid.Row="0" ColumnDefinitions="Auto,Auto,Auto,*,Auto" ColumnSpacing="7">
                   <TextBlock VerticalAlignment="Center" Classes="section-heading" Text="{Binding UiTemplate}"/>
                   <ComboBox Grid.Column="1" Width="235" MinWidth="130" ItemsSource="{Binding TemplateNames}" SelectedItem="{Binding SelectedTemplate,Mode=TwoWay}" SelectionChanged="OnCardTemplateSelectionChanged" ToolTip.Tip="Выбор сразу загружает шаблон"/>
-                  <Button Grid.Column="2" Click="OnSaveCardTemplate" ToolTip.Tip="Создать независимую копию шаблона с оформлением обеих сторон">
+                  <Button Grid.Column="2" Click="OnSaveCardTemplate" ToolTip.Tip="Создать полную копию шаблона с маппингом и оформлением обеих сторон">
                     <StackPanel Orientation="Horizontal" Spacing="5">
                       <fi:FluentIcon Icon="DocumentCopy" IconVariant="Regular" IconSize="Size20" Width="14" Height="14" FontSize="14" Foreground="{DynamicResource KpTextBrush}"/>
                       <TextBlock Text="{Binding UiCreateTemplate}" VerticalAlignment="Center"/>
@@ -701,7 +712,7 @@
                 <Grid Grid.Row="0" ColumnDefinitions="Auto,Auto,Auto,*,Auto" ColumnSpacing="7">
                   <TextBlock VerticalAlignment="Center" Classes="section-heading" Text="{Binding UiTemplate}"/>
                   <ComboBox Grid.Column="1" Width="235" MinWidth="130" ItemsSource="{Binding TemplateNames}" SelectedItem="{Binding SelectedTemplate,Mode=TwoWay}" SelectionChanged="OnCardTemplateSelectionChanged" ToolTip.Tip="Выбор сразу загружает шаблон"/>
-                  <Button Grid.Column="2" Click="OnSaveCardTemplate" ToolTip.Tip="Создать независимую копию шаблона с оформлением обеих сторон">
+                  <Button Grid.Column="2" Click="OnSaveCardTemplate" ToolTip.Tip="Создать полную копию шаблона с маппингом и оформлением обеих сторон">
                     <StackPanel Orientation="Horizontal" Spacing="5">
                       <fi:FluentIcon Icon="DocumentCopy" IconVariant="Regular" IconSize="Size20" Width="14" Height="14" FontSize="14" Foreground="{DynamicResource KpTextBrush}"/>
                       <TextBlock Text="{Binding UiCreateTemplate}" VerticalAlignment="Center"/>

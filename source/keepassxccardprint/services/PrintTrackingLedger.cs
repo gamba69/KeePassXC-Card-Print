@@ -85,6 +85,32 @@ public sealed class PrintTrackingLedger
         entry.Tracked && entry.PrintedParts.Count > 0 &&
         Enumerable.Range(1, Math.Max(1, entry.TotalParts)).All(entry.PrintedParts.Contains);
 
+    // Demo fixtures are memory-only. Refuse to seed a real print journal even
+    // if a caller accidentally passes a non-demo database identifier.
+    internal void SeedDemoPartial(Guid id, int total, params int[] printed)
+    {
+        if (!_inMemory) throw new InvalidOperationException("Synthetic print tracking requires a demo ledger.");
+        if (total is < 2 or > 64 || printed.Length == 0 ||
+            printed.Any(number => number < 1 || number > total) ||
+            printed.Distinct().Count() == total)
+            throw new ArgumentOutOfRangeException(nameof(printed));
+        var state = Entry(id);
+        state.Tracked = true;
+        state.TotalParts = total;
+        state.PrintedParts = printed.Distinct().Order().ToList();
+    }
+
+    internal void SeedDemoHistory(Guid printedId, Guid partialId)
+    {
+        if (!_inMemory) throw new InvalidOperationException("Synthetic print history requires a demo ledger.");
+        _data.History.Insert(0, new PrintJobHistory
+        {
+            Utc = DateTime.UtcNow, Printer = "DEMO · Virtual printer",
+            Mode = "demo", Result = "demo", Sheets = 2, CardCount = 2,
+            EntryIds = [printedId, partialId]
+        });
+    }
+
     public void Mark(Guid id,string action,int? partCount=null)
     {
         var entry=Entry(id);

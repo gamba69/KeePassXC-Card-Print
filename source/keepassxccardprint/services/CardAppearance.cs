@@ -250,10 +250,61 @@ public static class CardAppearanceStore
         var dir = Path.Combine(SettingsLocation.DirectoryPath, "templates");
         return Directory.Exists(dir) ? Directory.EnumerateFiles(dir, "*.json").OrderBy(x => x, StringComparer.OrdinalIgnoreCase).ToArray() : [];
     }
+
+    // Mapping is part of every personal print template. Missing rules use
+    // normal field inference, not the retired global mapping.json file.
+    internal static Dictionary<string, FieldRule> ReadTemplateMapping(string path)
+    {
+        var folder = Path.GetFullPath(Path.Combine(SettingsLocation.DirectoryPath, "templates")) + Path.DirectorySeparatorChar;
+        if (!Path.GetFullPath(path).StartsWith(folder, PlatformServices.Current.FileNameComparison))
+            throw new IOException("Template is outside the personal template directory.");
+        if (new FileInfo(path).Length > 2_000_000) throw new InvalidDataException("Template too large.");
+        using var doc = JsonDocument.Parse(File.ReadAllBytes(path));
+        return ParseMapping(doc.RootElement);
+    }
+
+    internal static Dictionary<string, FieldRule> ParseMapping(JsonElement template)
+    {
+        if (!template.TryGetProperty("mapping", out var mapping))
+            return new(StringComparer.OrdinalIgnoreCase);
+        if (mapping.ValueKind != JsonValueKind.Object)
+            throw new InvalidDataException("Template field mapping must be an object.");
+        var result = mapping.Deserialize(VaultJsonContext.Default.DictionaryStringFieldRule)
+            ?? throw new InvalidDataException("Invalid template field mapping.");
+        var cleaned = new Dictionary<string, FieldRule>(StringComparer.OrdinalIgnoreCase);
+        foreach (var (key, rule) in result)
+        {
+            if (string.IsNullOrWhiteSpace(key) || rule is null)
+                throw new InvalidDataException("Invalid template field rule.");
+            cleaned.Add(key.Trim().ToLowerInvariant(), FieldMappingDefaults.Normalize(rule));
+        }
+        return cleaned;
+    }
+
+    // Load mapping from exactly the active full template. Built-in mapping is
+    // regenerated on startup from its immutable preset, never from mapping.json.
+    internal static Dictionary<string, FieldRule> ReadActiveTemplateMapping()
+    {
+        try
+        {
+            var name = ReadActivePersonalTemplate();
+            if (name is null)
+            {
+                var code = Load().Style;
+                return CardAppearancePresets.CreateMapping(code is "archive" or "technical" or "table"
+                    ? code : "archive");
+            }
+            var path = Templates().FirstOrDefault(p => string.Equals(Path.GetFileName(p), name,
+                PlatformServices.Current.FileNameComparison));
+            return path is null ? CardAppearancePresets.CreateMapping("archive") : ReadTemplateMapping(path);
+        }
+        catch (Exception e) when (e is IOException or UnauthorizedAccessException or JsonException or InvalidDataException or ArgumentException)
+        { return CardAppearancePresets.CreateMapping("archive"); }
+    }
     // Use the embedded template display name rather than its on-disk filename.
     public static string ReadTemplateName(string path)
     {
-        if (new FileInfo(path).Length > 256_000) throw new InvalidDataException("Template too large.");
+        if (new FileInfo(path).Length > 2_000_000) throw new InvalidDataException("Template too large.");
         using var doc = JsonDocument.Parse(File.ReadAllBytes(path));
         var root = doc.RootElement;
         if (!root.TryGetProperty("format", out var format) ||
@@ -270,7 +321,7 @@ public static class CardAppearanceStore
     {
         if (!Path.GetFullPath(path).StartsWith(Path.GetFullPath(Path.Combine(SettingsLocation.DirectoryPath, "templates")) + Path.DirectorySeparatorChar, PlatformServices.Current.FileNameComparison))
             throw new IOException("Шаблон должен находиться в каталоге templates.");
-        if (new FileInfo(path).Length > 256_000) throw new IOException("Файл шаблона слишком велик.");
+        if (new FileInfo(path).Length > 2_000_000) throw new IOException("Файл шаблона слишком велик.");
         using var doc = JsonDocument.Parse(File.ReadAllBytes(path));
         if (doc.RootElement.TryGetProperty("format", out var format) &&
             format.GetString() == "KeePassCardPrint-template-v1" &&
@@ -319,13 +370,14 @@ public static class CardAppearanceStore
             throw new IOException("Можно сохранять только собственные шаблоны в папке templates.");
         return full;
     }
-    private static string MakeEnvelope(string name, CardAppearance model) =>
+    private static string MakeEnvelope(string name, CardAppearance model, Dictionary<string, FieldRule> mapping) =>
         "{\"format\":\"KeePassCardPrint-template-v1\",\"name\":" +
         JsonSerializer.Serialize(name, CardAppearanceJsonContext.Default.String) +
-        ",\"settings\":" + JsonSerializer.Serialize(model, CardAppearanceJsonContext.Default.CardAppearance) + "}";
+        ",\"settings\":" + JsonSerializer.Serialize(model, CardAppearanceJsonContext.Default.CardAppearance) +
+        ",\"mapping\":" + JsonSerializer.Serialize(mapping, VaultJsonContext.Default.DictionaryStringFieldRule) + "}";
 
     // New personal copies cannot overwrite existing templates.
-    public static string CreatePersonalTemplate(string name, CardAppearance model)
+    public static string CreatePersonalTemplate(string name, CardAppearance model, Dictionary<string, FieldRule> mapping)
     {
         name = name.Trim();
         if (name.Length is < 1 or > 64 || name.EndsWith('.') ||
@@ -344,7 +396,7 @@ public static class CardAppearanceStore
         var tmp = path + ".tmp-" + Guid.NewGuid().ToString("N");
         try
         {
-            File.WriteAllText(tmp, MakeEnvelope(name, model));
+            File.WriteAllText(tmp, MakeEnvelope(name, model, mapping));
             File.Move(tmp, path, false);
         }
         finally { if (File.Exists(tmp)) File.Delete(tmp); }
@@ -353,7 +405,7 @@ public static class CardAppearanceStore
 
     // Only a verified personal template path may be overwritten. The public
     // built-in presets have no files, and cannot be passed to this method.
-    public static void UpdatePersonalTemplate(string path, CardAppearance model)
+    public static void UpdatePersonalTemplate(string path, CardAppearance model, Dictionary<string, FieldRule> mapping)
     {
         path = EnsurePersonalPath(path);
         if (!File.Exists(path)) throw new FileNotFoundException("Пользовательский шаблон не найден.", path);
@@ -361,7 +413,7 @@ public static class CardAppearanceStore
         var tmp = path + ".tmp-" + Guid.NewGuid().ToString("N");
         try
         {
-            File.WriteAllText(tmp, MakeEnvelope(name, model));
+            File.WriteAllText(tmp, MakeEnvelope(name, model, mapping));
             File.Move(tmp, path, true);
         }
         finally { if (File.Exists(tmp)) File.Delete(tmp); }
