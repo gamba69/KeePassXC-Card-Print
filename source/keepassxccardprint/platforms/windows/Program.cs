@@ -155,10 +155,24 @@ internal static class Program
             Environment.ExitCode = status;
             return;
         }
-        try { ConfigurationMaintenance.CleanOnStartup(); }
-        catch (Exception ex) { CloudSyncDiagnostics.Record("startup-storage-cleanup", ex); }
-        AppStartupState.ResetWindowPlacement = args.Contains("--reset-window", StringComparer.Ordinal);
-        WindowsHost.BuildAvaloniaApp().StartWithClassicDesktopLifetime(args);
+        // Only the interactive UI is single-instance. Update/reset workers and
+        // self-tests above must remain independently executable.
+        WindowsSingleInstance? primaryInstance;
+        try { primaryInstance = WindowsSingleInstance.EnterOrActivate(); }
+        catch (Exception ex)
+        {
+            try { CloudSyncDiagnostics.Record("single-instance-startup", ex); } catch { }
+            Environment.ExitCode = 1;
+            return; // Fail closed rather than create an unprotected second UI.
+        }
+        using (primaryInstance)
+        {
+            if (primaryInstance is null) return;
+            try { ConfigurationMaintenance.CleanOnStartup(); }
+            catch (Exception ex) { CloudSyncDiagnostics.Record("startup-storage-cleanup", ex); }
+            AppStartupState.ResetWindowPlacement = args.Contains("--reset-window", StringComparer.Ordinal);
+            WindowsHost.BuildAvaloniaApp().StartWithClassicDesktopLifetime(args);
+        }
     }
 
 }

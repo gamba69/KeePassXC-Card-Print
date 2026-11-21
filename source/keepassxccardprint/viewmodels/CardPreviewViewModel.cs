@@ -69,7 +69,15 @@ public sealed partial class ShellViewModel
     private string? _activePersonalTemplatePath;
     private string _activeTemplateName = "";
     private bool _templateDirty;
-    private bool _confirmDiscardOnLoad;
+    public bool HasUnsavedTemplateChanges => _templateDirty;
+    public string? ActiveTemplateSelection => _activeTemplateOrigin switch
+    {
+        TemplateOrigin.BuiltIn => BuiltinLabel(_appearance.Style),
+        TemplateOrigin.Personal when _activePersonalTemplatePath is not null =>
+            _personalTemplatePaths.FirstOrDefault(item => string.Equals(item.Value,
+                _activePersonalTemplatePath, PlatformServices.Current.FileNameComparison)).Key,
+        _ => null
+    };
     public bool CanEditAppearance => _activeTemplateOrigin != TemplateOrigin.BuiltIn;
     public bool CanSaveTemplateChanges => _activeTemplateOrigin == TemplateOrigin.Personal && _templateDirty;
     public string ActiveTemplateNotice => Localizer.ResolveLanguage(_settings.Language) switch
@@ -107,7 +115,6 @@ public sealed partial class ShellViewModel
     {
         if (!CanEditAppearance) return;
         _templateDirty = true;
-        _confirmDiscardOnLoad = false;
         DesignMessage = "";
         NotifyTemplateState();
         ScheduleCardPreview();
@@ -182,7 +189,7 @@ public sealed partial class ShellViewModel
     public string? SelectedTemplate
     {
         get => _selectedTemplate;
-        set { if (_selectedTemplate == value) return; _selectedTemplate = value; _confirmDiscardOnLoad = false; Changed(); }
+        set { if (_selectedTemplate == value) return; _selectedTemplate = value; Changed(); }
     }
     public string DesignMessage
     {
@@ -542,16 +549,14 @@ public sealed partial class ShellViewModel
         { DesignMessage="Не удалось сохранить текущие настройки оформления."; }
     }
 
-    public void LoadCardTemplate()
+    public bool LoadCardTemplate(bool discardUnsavedChanges = false)
     {
-        if (string.IsNullOrEmpty(_selectedTemplate)) return;
-        if (_templateDirty && !_confirmDiscardOnLoad)
+        if (string.IsNullOrEmpty(_selectedTemplate)) return false;
+        if (_templateDirty && !discardUnsavedChanges)
         {
-            _confirmDiscardOnLoad = true;
-            DesignMessage = "Есть несохранённые изменения. Сохраните их или повторно нажмите «Загрузить», чтобы отказаться от них.";
-            return;
+            DesignMessage = "Есть несохранённые изменения. Подтвердите переключение шаблона.";
+            return false;
         }
-        _confirmDiscardOnLoad = false;
         try
         {
             var builtin = BuiltInTemplates.FirstOrDefault(t => BuiltinLabel(t.Code) == _selectedTemplate);
@@ -565,22 +570,28 @@ public sealed partial class ShellViewModel
             }
             else if (_personalTemplatePaths.TryGetValue(_selectedTemplate, out var path))
             {
-                _appearance = CardAppearanceStore.ReadTemplate(path);
+                var appearance = CardAppearanceStore.ReadTemplate(path);
+                var name = CardAppearanceStore.ReadTemplateName(path);
+                _appearance = appearance;
                 _activeTemplateOrigin = TemplateOrigin.Personal;
                 _activePersonalTemplatePath = path;
-                _activeTemplateName = CardAppearanceStore.ReadTemplateName(path);
-                TemplateName = _activeTemplateName + CopySuffix;
+                _activeTemplateName = name;
+                TemplateName = name + CopySuffix;
             }
-            else return;
+            else return false;
             _templateDirty = false;
             RebuildAppearanceFields();
             NotifyTemplateState();
             ScheduleCardPreview();
             // ActiveTemplateNotice already communicates origin and editability.
             DesignMessage = "";
+            return true;
         }
         catch(Exception e) when(e is IOException or UnauthorizedAccessException or ArgumentException or System.Text.Json.JsonException or InvalidDataException)
-        {DesignMessage="Не удалось открыть шаблон.";}
+        {
+            DesignMessage = "Не удалось открыть шаблон.";
+            return false;
+        }
     }
 
     public void SaveCardTemplate()

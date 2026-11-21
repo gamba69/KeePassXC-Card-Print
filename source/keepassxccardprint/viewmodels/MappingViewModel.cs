@@ -437,7 +437,7 @@ public sealed partial class ShellViewModel
     {
         _mappingDirty=!MapEquals(_map,_savedMapping);
         MappingMessage=_invalidMappingDrafts.Count>0 ? ML("InvalidDraft") :
-            _mappingSaveFailed ? ML("SaveError") : _mappingDirty ? ML("Dirty") : ML("SavedState");
+            _mappingSaveFailed ? ML("SaveError") : _mappingDirty ? ML("Dirty") : "";
         Changed(nameof(MappingCanSave)); Changed(nameof(MappingHasPendingChanges));
     }
     private void OnMappingEditorChanged(object? sender, PropertyChangedEventArgs e)

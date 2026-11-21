@@ -2,37 +2,44 @@
   <!-- The host keeps the native titlebar outside the client area, including while maximized. -->
   <Grid Margin="0" RowDefinitions="Auto,*,Auto" RowSpacing="0">
     <Border Grid.Row="0" Classes="app-header">
-      <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="12" HorizontalAlignment="Stretch" MinHeight="54">
-        <!-- Theme-adaptive client-area icon: original ICO frame, no resizing or backdrop. -->
-        <Image Grid.Column="0" x:Name="AppHeaderIcon" Width="40" Height="40"
-               Stretch="Fill" VerticalAlignment="Center" HorizontalAlignment="Center"
-               Source="avares://KeePassXCCardPrint/assets/CardPrint_black_40.png"/>
+      <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="12" HorizontalAlignment="Stretch" MinHeight="56">
+        <!-- Same 48-DIP, DPI-matched brandmark proportions as KeePassXC Cloud Sync. -->
+        <Image Grid.Column="0" x:Name="AppHeaderIcon" Width="48" Height="48"
+               Stretch="Uniform" VerticalAlignment="Center" HorizontalAlignment="Center"
+               Source="avares://KeePassXCCardPrint/assets/CardPrint_black_48.png"/>
         <StackPanel Grid.Column="1" VerticalAlignment="Center" Spacing="1">
           <TextBlock Classes="app-title" Text="{Binding AppDisplayName}"/>
           <TextBlock Classes="app-subtitle" Text="{Binding AppTagline}"/>
         </StackPanel>
-        <Grid Grid.Column="2" ColumnDefinitions="Auto,86,Auto,112,Auto,112" ColumnSpacing="7" VerticalAlignment="Center" HorizontalAlignment="Right" Margin="0">
+        <Grid Grid.Column="2" ColumnDefinitions="Auto,132,Auto,142,Auto,132" ColumnSpacing="7" VerticalAlignment="Center" HorizontalAlignment="Right" Margin="0">
           <TextBlock Grid.Column="0" Classes="chrome-label" VerticalAlignment="Center" Text="{Binding Theme}"/>
           <ComboBox Grid.Column="1" Classes="header-select" x:Name="ThemeCombo" ItemsSource="{Binding ThemeOptions}" SelectedItem="{Binding SelectedTheme, Mode=TwoWay}" HorizontalAlignment="Stretch">
+            <ComboBox.Styles>
+              <Style Selector="ComboBoxItem"><Setter Property="FontSize" Value="14"/></Style>
+            </ComboBox.Styles>
             <ComboBox.ItemTemplate>
-              <DataTemplate x:DataType="vm:OptionItem"><TextBlock Text="{Binding Label}"/></DataTemplate>
+              <DataTemplate x:DataType="vm:OptionItem"><TextBlock FontSize="14" Text="{Binding Label}"/></DataTemplate>
             </ComboBox.ItemTemplate>
           </ComboBox>
-          <TextBlock Grid.Column="2" Classes="chrome-label" VerticalAlignment="Center" Text="{Binding Language}"/>
+          <TextBlock Grid.Column="2" Classes="chrome-label" Margin="8,0,0,0" VerticalAlignment="Center" Text="{Binding Language}"/>
           <ComboBox Grid.Column="3" Classes="header-select" ItemsSource="{Binding LanguageOptions}" SelectedItem="{Binding SelectedLanguage, Mode=TwoWay}" HorizontalAlignment="Stretch">
+            <ComboBox.Styles>
+              <Style Selector="ComboBoxItem"><Setter Property="FontSize" Value="14"/></Style>
+            </ComboBox.Styles>
             <ComboBox.ItemTemplate>
-              <DataTemplate x:DataType="vm:OptionItem"><TextBlock Text="{Binding Label}"/></DataTemplate>
+              <DataTemplate x:DataType="vm:OptionItem"><TextBlock FontSize="14" Text="{Binding Label}"/></DataTemplate>
             </ComboBox.ItemTemplate>
           </ComboBox>
-          <TextBlock Grid.Column="4" Classes="chrome-label" VerticalAlignment="Center" Text="{Binding Storage}"/>
+          <TextBlock Grid.Column="4" Classes="chrome-label" Margin="8,0,0,0" VerticalAlignment="Center" Text="{Binding Storage}"/>
           <ComboBox Grid.Column="5" Classes="header-select" x:Name="StorageCombo" ItemsSource="{Binding StorageOptions}" SelectedItem="{Binding SelectedStorage, Mode=OneWay}" SelectionChanged="OnStorageSelectionChanged">
             <ComboBox.Styles>
               <Style Selector="ComboBoxItem" x:DataType="vm:OptionItem">
+                <Setter Property="FontSize" Value="14"/>
                 <Setter Property="IsEnabled" Value="{CompiledBinding IsEnabled}"/>
               </Style>
             </ComboBox.Styles>
             <ComboBox.ItemTemplate>
-              <DataTemplate x:DataType="vm:OptionItem"><TextBlock Text="{Binding Label}"/></DataTemplate>
+              <DataTemplate x:DataType="vm:OptionItem"><TextBlock FontSize="14" Text="{Binding Label}"/></DataTemplate>
             </ComboBox.ItemTemplate>
           </ComboBox>
         </Grid>
@@ -97,8 +104,8 @@
                     <CheckBox x:Name="ShowPasswordToggle" Grid.Column="1" Content="{Binding Show}" Click="OnTogglePassword"/>
                   </Grid>
                 </StackPanel>
-                <!-- YubiKey is an optional component of the database key, not a login shortcut. -->
-                <Border Grid.Row="4" IsVisible="{Binding IsRealMode}" BorderBrush="{DynamicResource KpBorderBrush}" BorderThickness="1" Background="{DynamicResource KpWindowBrush}" CornerRadius="4" Padding="7,4">
+                <!-- Match the surrounding card surface in both light and dark themes. -->
+                <Border Grid.Row="4" IsVisible="{Binding IsRealMode}" BorderBrush="{DynamicResource KpBorderBrush}" BorderThickness="1" Background="{DynamicResource KpSurfaceBrush}" CornerRadius="4" Padding="7,4">
                   <Grid RowDefinitions="Auto,Auto" RowSpacing="4">
                     <Grid Grid.Row="0" ColumnDefinitions="Auto,*,Auto" ColumnSpacing="7">
                       <CheckBox Grid.Column="0" Content="{Binding YubiEnabledCaption}" VerticalAlignment="Center" IsChecked="{Binding UseYubiKey, Mode=TwoWay}" ToolTip.Tip="{Binding YubiKeyHelp}"/>
@@ -239,12 +246,12 @@
                         HorizontalScrollBarVisibility="Disabled" MinHeight="0" SizeChanged="OnEditorTabScrollSizeChanged">
           <Grid Margin="9" RowDefinitions="Auto,*,Auto" RowSpacing="8" MinHeight="0" SizeChanged="OnMappingTabSizeChanged">
             <Border Grid.Row="0" Classes="settings-card" MinHeight="0">
-              <Grid RowDefinitions="Auto,Auto,Auto" RowSpacing="5">
-                <!-- Same explicit-save pattern as Appearance/Two sides: actions above the editor. -->
-                <Grid Grid.Row="0" ColumnDefinitions="*,145,Auto" ColumnSpacing="8" MinHeight="30">
+              <Grid RowDefinitions="Auto,Auto" RowSpacing="5">
+                <!-- Keep the scope description on the title line, not an extra vertical row. -->
+                <Grid Grid.Row="0" ColumnDefinitions="Auto,*,2*,Auto" ColumnSpacing="8" MinHeight="30">
                   <TextBlock VerticalAlignment="Center" Classes="section-heading" Text="{Binding MappingToolbarTitle}"/>
-                  <TextBlock Grid.Column="1" Classes="hint" VerticalAlignment="Center" Text="{Binding MappingMessage}" ToolTip.Tip="{Binding MappingMessage}" TextTrimming="CharacterEllipsis"/>
-                  <Button Grid.Column="2" Classes="mapping-save"  IsEnabled="{Binding MappingCanSave}" Click="OnSaveMapping">
+                  <TextBlock Grid.Column="2" Classes="hint" VerticalAlignment="Center" HorizontalAlignment="Stretch" TextAlignment="Right" Text="{Binding MappingScopeDescription}" ToolTip.Tip="{Binding MappingScopeDescription}" TextTrimming="CharacterEllipsis" TextWrapping="NoWrap"/>
+                  <Button Grid.Column="3" Classes="mapping-save" IsEnabled="{Binding MappingCanSave}" ToolTip.Tip="{Binding MappingMessage}" Click="OnSaveMapping">
                     <StackPanel Orientation="Horizontal" Spacing="5" VerticalAlignment="Center">
                       <fi:FluentIcon Icon="Save" IconVariant="Regular" IconSize="Size20" Width="14" Height="14" FontSize="14" Foreground="{DynamicResource KpTextBrush}"/>
                       <TextBlock Text="{Binding MappingSaveText}" VerticalAlignment="Center"/>
@@ -261,7 +268,6 @@
                     </StackPanel>
                   </Button>
                 </WrapPanel>
-                <TextBlock Grid.Row="2" Classes="hint" Text="{Binding MappingScopeDescription}" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding MappingScopeDescription}"/>
               </Grid>
             </Border>
             <Border Grid.Row="1" Classes="settings-card" MinHeight="0">
@@ -599,38 +605,30 @@
           <ScrollViewer x:Name="DesignTabScroll" VerticalScrollBarVisibility="Auto"
                         HorizontalScrollBarVisibility="Disabled" MinHeight="0" SizeChanged="OnEditorTabScrollSizeChanged">
           <Grid Margin="9" RowDefinitions="Auto,Auto,*" RowSpacing="8" MinHeight="0">
-            <!-- The template manager is shared across both editors. The choice is
-                 distinct from the currently loaded template until Load is clicked. -->
-            <Border Grid.Row="0" Classes="template-toolbar" Padding="9,8" Background="{DynamicResource KpSurfaceBrush}" BorderBrush="{DynamicResource KpBorderBrush}" BorderThickness="1" CornerRadius="4">
-              <StackPanel Spacing="6">
-                <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="8">
+            <!-- Selecting a template loads it immediately in either editor. -->
+            <Border Grid.Row="0" Classes="template-toolbar" Padding="9,6" Background="{DynamicResource KpSurfaceBrush}" BorderBrush="{DynamicResource KpBorderBrush}" BorderThickness="1" CornerRadius="4">
+              <Grid RowDefinitions="Auto,Auto" RowSpacing="5">
+                <Grid Grid.Row="0" ColumnDefinitions="Auto,Auto,Auto,*,Auto" ColumnSpacing="7">
                   <TextBlock VerticalAlignment="Center" Classes="section-heading" Text="{Binding UiTemplate}"/>
-                  <ComboBox Grid.Column="1" ItemsSource="{Binding TemplateNames}" SelectedItem="{Binding SelectedTemplate,Mode=TwoWay}" ToolTip.Tip="Выберите шаблон и нажмите «Загрузить»"/>
-                  <Button Grid.Column="2"  Click="OnLoadCardTemplate" ToolTip.Tip="Загрузить выбранный шаблон целиком: обе стороны">
-                    <StackPanel Orientation="Horizontal" Spacing="5" VerticalAlignment="Center">
-                      <fi:FluentIcon Icon="FolderOpen" IconVariant="Regular" IconSize="Size20" Width="14" Height="14" FontSize="14" Foreground="{DynamicResource KpTextBrush}"/>
-                      <TextBlock Text="{Binding UiLoadTemplate}" VerticalAlignment="Center"/>
-                    </StackPanel>
-                  </Button>
-                </Grid>
-                <TextBlock Text="{Binding ActiveTemplateNotice}" Classes="hint" TextWrapping="Wrap"/>
-                <WrapPanel Orientation="Horizontal">
-                  <TextBox Width="174" Margin="0,0,7,4" PlaceholderText="{Binding UiTemplateNamePlaceholder}" Text="{Binding TemplateName,Mode=TwoWay,UpdateSourceTrigger=PropertyChanged}"/>
-                  <Button  Click="OnSaveCardTemplate" Margin="0,0,7,4" ToolTip.Tip="Создать независимую копию шаблона с оформлением обеих сторон">
-                    <StackPanel Orientation="Horizontal" Spacing="5" VerticalAlignment="Center">
+                  <ComboBox Grid.Column="1" Width="235" MinWidth="130" ItemsSource="{Binding TemplateNames}" SelectedItem="{Binding SelectedTemplate,Mode=TwoWay}" SelectionChanged="OnCardTemplateSelectionChanged" ToolTip.Tip="Выбор сразу загружает шаблон"/>
+                  <Button Grid.Column="2" Click="OnSaveCardTemplate" ToolTip.Tip="Создать независимую копию шаблона с оформлением обеих сторон">
+                    <StackPanel Orientation="Horizontal" Spacing="5">
                       <fi:FluentIcon Icon="DocumentCopy" IconVariant="Regular" IconSize="Size20" Width="14" Height="14" FontSize="14" Foreground="{DynamicResource KpTextBrush}"/>
                       <TextBlock Text="{Binding UiCreateTemplate}" VerticalAlignment="Center"/>
                     </StackPanel>
                   </Button>
-                  <Button  Click="OnSaveAppearance" Margin="0,0,0,4" IsEnabled="{Binding CanSaveTemplateChanges}" ToolTip.Tip="Сохранить текущие настройки в свой шаблон">
-                    <StackPanel Orientation="Horizontal" Spacing="5" VerticalAlignment="Center">
+                  <Button Grid.Column="4" Click="OnSaveAppearance" IsEnabled="{Binding CanSaveTemplateChanges}" ToolTip.Tip="Сохранить текущие настройки в свой шаблон">
+                    <StackPanel Orientation="Horizontal" Spacing="5">
                       <fi:FluentIcon Icon="Save" IconVariant="Regular" IconSize="Size20" Width="14" Height="14" FontSize="14" Foreground="{DynamicResource KpTextBrush}"/>
                       <TextBlock Text="{Binding UiSaveChanges}" VerticalAlignment="Center"/>
                     </StackPanel>
                   </Button>
-                </WrapPanel>
-                <TextBlock Text="{Binding DesignMessage}" IsVisible="{Binding HasDesignMessage}" Classes="hint" TextWrapping="Wrap"/>
-              </StackPanel>
+                </Grid>
+                <Grid Grid.Row="1" ColumnDefinitions="*,Auto" ColumnSpacing="8">
+                  <TextBlock Classes="hint" Text="{Binding ActiveTemplateNotice}" TextTrimming="CharacterEllipsis" TextWrapping="NoWrap" ToolTip.Tip="{Binding ActiveTemplateNotice}"/>
+                  <TextBlock Grid.Column="1" Classes="hint" Text="{Binding DesignMessage}" IsVisible="{Binding HasDesignMessage}" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding DesignMessage}"/>
+                </Grid>
+              </Grid>
             </Border>
             <!-- A wrap-capable second-level navigation strip. It lives OUTSIDE
                  the editable area so built-in templates remain browseable. -->
@@ -697,38 +695,30 @@
           <ScrollViewer x:Name="DuplexTabScroll" VerticalScrollBarVisibility="Auto"
                         HorizontalScrollBarVisibility="Disabled" MinHeight="0" SizeChanged="OnEditorTabScrollSizeChanged">
           <Grid Margin="9" RowDefinitions="Auto,Auto,Auto,*" RowSpacing="8" MinHeight="0">
-            <!-- The template manager is shared across both editors. The choice is
-                 distinct from the currently loaded template until Load is clicked. -->
-            <Border Grid.Row="0" Classes="template-toolbar" Padding="9,8" Background="{DynamicResource KpSurfaceBrush}" BorderBrush="{DynamicResource KpBorderBrush}" BorderThickness="1" CornerRadius="4">
-              <StackPanel Spacing="6">
-                <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="8">
+            <!-- Selecting a template loads it immediately in either editor. -->
+            <Border Grid.Row="0" Classes="template-toolbar" Padding="9,6" Background="{DynamicResource KpSurfaceBrush}" BorderBrush="{DynamicResource KpBorderBrush}" BorderThickness="1" CornerRadius="4">
+              <Grid RowDefinitions="Auto,Auto" RowSpacing="5">
+                <Grid Grid.Row="0" ColumnDefinitions="Auto,Auto,Auto,*,Auto" ColumnSpacing="7">
                   <TextBlock VerticalAlignment="Center" Classes="section-heading" Text="{Binding UiTemplate}"/>
-                  <ComboBox Grid.Column="1" ItemsSource="{Binding TemplateNames}" SelectedItem="{Binding SelectedTemplate,Mode=TwoWay}" ToolTip.Tip="Выберите шаблон и нажмите «Загрузить»"/>
-                  <Button Grid.Column="2"  Click="OnLoadCardTemplate" ToolTip.Tip="Загрузить выбранный шаблон целиком: обе стороны">
-                    <StackPanel Orientation="Horizontal" Spacing="5" VerticalAlignment="Center">
-                      <fi:FluentIcon Icon="FolderOpen" IconVariant="Regular" IconSize="Size20" Width="14" Height="14" FontSize="14" Foreground="{DynamicResource KpTextBrush}"/>
-                      <TextBlock Text="{Binding UiLoadTemplate}" VerticalAlignment="Center"/>
-                    </StackPanel>
-                  </Button>
-                </Grid>
-                <TextBlock Text="{Binding ActiveTemplateNotice}" Classes="hint" TextWrapping="Wrap"/>
-                <WrapPanel Orientation="Horizontal">
-                  <TextBox Width="174" Margin="0,0,7,4" PlaceholderText="{Binding UiTemplateNamePlaceholder}" Text="{Binding TemplateName,Mode=TwoWay,UpdateSourceTrigger=PropertyChanged}"/>
-                  <Button  Click="OnSaveCardTemplate" Margin="0,0,7,4" ToolTip.Tip="Создать независимую копию шаблона с оформлением обеих сторон">
-                    <StackPanel Orientation="Horizontal" Spacing="5" VerticalAlignment="Center">
+                  <ComboBox Grid.Column="1" Width="235" MinWidth="130" ItemsSource="{Binding TemplateNames}" SelectedItem="{Binding SelectedTemplate,Mode=TwoWay}" SelectionChanged="OnCardTemplateSelectionChanged" ToolTip.Tip="Выбор сразу загружает шаблон"/>
+                  <Button Grid.Column="2" Click="OnSaveCardTemplate" ToolTip.Tip="Создать независимую копию шаблона с оформлением обеих сторон">
+                    <StackPanel Orientation="Horizontal" Spacing="5">
                       <fi:FluentIcon Icon="DocumentCopy" IconVariant="Regular" IconSize="Size20" Width="14" Height="14" FontSize="14" Foreground="{DynamicResource KpTextBrush}"/>
                       <TextBlock Text="{Binding UiCreateTemplate}" VerticalAlignment="Center"/>
                     </StackPanel>
                   </Button>
-                  <Button  Click="OnSaveAppearance" Margin="0,0,0,4" IsEnabled="{Binding CanSaveTemplateChanges}" ToolTip.Tip="Сохранить текущие настройки в свой шаблон">
-                    <StackPanel Orientation="Horizontal" Spacing="5" VerticalAlignment="Center">
+                  <Button Grid.Column="4" Click="OnSaveAppearance" IsEnabled="{Binding CanSaveTemplateChanges}" ToolTip.Tip="Сохранить текущие настройки в свой шаблон">
+                    <StackPanel Orientation="Horizontal" Spacing="5">
                       <fi:FluentIcon Icon="Save" IconVariant="Regular" IconSize="Size20" Width="14" Height="14" FontSize="14" Foreground="{DynamicResource KpTextBrush}"/>
                       <TextBlock Text="{Binding UiSaveChanges}" VerticalAlignment="Center"/>
                     </StackPanel>
                   </Button>
-                </WrapPanel>
-                <TextBlock Text="{Binding DesignMessage}" IsVisible="{Binding HasDesignMessage}" Classes="hint" TextWrapping="Wrap"/>
-              </StackPanel>
+                </Grid>
+                <Grid Grid.Row="1" ColumnDefinitions="*,Auto" ColumnSpacing="8">
+                  <TextBlock Classes="hint" Text="{Binding ActiveTemplateNotice}" TextTrimming="CharacterEllipsis" TextWrapping="NoWrap" ToolTip.Tip="{Binding ActiveTemplateNotice}"/>
+                  <TextBlock Grid.Column="1" Classes="hint" Text="{Binding DesignMessage}" IsVisible="{Binding HasDesignMessage}" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding DesignMessage}"/>
+                </Grid>
+              </Grid>
             </Border>
             <!-- A wrap-capable second-level navigation strip. It lives OUTSIDE
                  the editable area so built-in templates remain browseable. -->

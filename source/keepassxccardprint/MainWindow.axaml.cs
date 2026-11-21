@@ -700,11 +700,12 @@ public partial class MainWindow : Window
 
     private void UpdateAppIcon()
     {
-        // Client-area mark reacts to theme and uses an unscaled ICO frame at the current DPI.
+        // The 48-DIP in-window icon follows the content theme and uses native
+        // source pixels at the current DPI, as in KeePassXC Cloud Sync.
         // The OS-level window/taskbar icon always stays white, regardless of theme.
         var logo = this.FindControl<Image>("AppHeaderIcon");
         if (logo is not null)
-            BrandArtwork.Apply(logo, ActualThemeVariant == ThemeVariant.Dark, RenderScaling, 40);
+            BrandArtwork.Apply(logo, ActualThemeVariant == ThemeVariant.Dark, RenderScaling, 48);
         _titleIconWhite ??= LoadTitleIcon("avares://KeePassXCCardPrint/assets/CardPrint_white.ico");
         if (!ReferenceEquals(Icon, _titleIconWhite)) Icon = _titleIconWhite;
     }
@@ -1528,8 +1529,171 @@ public partial class MainWindow : Window
     private void OnPreviewFront(object? sender, RoutedEventArgs e) => _vm.PreviewFront();
     private void OnPreviewBack(object? sender, RoutedEventArgs e) => _vm.PreviewBack();
     private void OnSaveAppearance(object? sender, RoutedEventArgs e) => _vm.SaveChangesToTemplate();
-    private void OnLoadCardTemplate(object? sender, RoutedEventArgs e) => _vm.LoadCardTemplate();
-    private void OnSaveCardTemplate(object? sender, RoutedEventArgs e) => _vm.SaveCardTemplate();
+    // Both template selectors refer to the same preview model. A selection is
+    // a load request; do not process the echo from the other selector.
+    private bool _handlingTemplateSelection;
+
+    private async void OnCardTemplateSelectionChanged(object? sender, SelectionChangedEventArgs e)
+    {
+        if (_handlingTemplateSelection || sender is not ComboBox { SelectedItem: string selection } ||
+            _vm is null) return;
+        var vm = _vm;
+        _handlingTemplateSelection = true;
+        try
+        {
+            if (string.Equals(selection, vm.ActiveTemplateSelection, StringComparison.Ordinal)) return;
+            if (vm.HasUnsavedTemplateChanges)
+            {
+                var language = Localizer.ResolveLanguage(vm.Settings.Language);
+                var accepted = await AppConfirmations.AskAsync(this,
+                    language switch
+                    {
+                        "uk" => "Незбережені зміни шаблона",
+                        "en" => "Unsaved template changes",
+                        _ => "Несохранённые изменения шаблона"
+                    },
+                    language switch
+                    {
+                        "uk" => "Поточний шаблон має незбережені зміни. Відкинути їх і завантажити вибраний шаблон?",
+                        "en" => "The current template has unsaved changes. Discard them and load the selected template?",
+                        _ => "В текущем шаблоне есть несохранённые изменения. Отменить их и загрузить выбранный шаблон?"
+                    },
+                    language switch
+                    {
+                        "uk" => "Завантажити", "en" => "Load", _ => "Загрузить"
+                    },
+                    sensitive: true, actionIcon: "warning",
+                    cancelText: language switch
+                    {
+                        "uk" => "Скасувати", "en" => "Cancel", _ => "Отмена"
+                    });
+                if (!accepted)
+                {
+                    if (ReferenceEquals(_vm, vm)) vm.SelectedTemplate = vm.ActiveTemplateSelection;
+                    return;
+                }
+            }
+            if (!ReferenceEquals(_vm, vm)) return;
+            // Explicitly synchronize the chosen value before the load: Avalonia
+            // may deliver SelectionChanged before a TwoWay binding updates.
+            vm.SelectedTemplate = selection;
+            if (!vm.LoadCardTemplate(discardUnsavedChanges: true))
+                vm.SelectedTemplate = vm.ActiveTemplateSelection;
+        }
+        catch (Exception ex)
+        {
+            try { CloudSyncDiagnostics.Record("template-selection", ex); }
+            catch { /* Diagnostics must not crash the Avalonia dispatcher. */ }
+            try
+            {
+                if (ReferenceEquals(_vm, vm)) vm.SelectedTemplate = vm.ActiveTemplateSelection;
+            }
+            catch { /* Keep the dispatcher alive if the view model was disposed. */ }
+        }
+        finally { _handlingTemplateSelection = false; }
+    }
+
+    private async void OnSaveCardTemplate(object? sender, RoutedEventArgs e)
+    {
+        try { await ShowCreateTemplateDialogAsync(); }
+        catch (Exception ex)
+        {
+            try { CloudSyncDiagnostics.Record("create-template-dialog", ex); }
+            catch { /* A logging failure must not crash the Avalonia dispatcher. */ }
+        }
+    }
+
+    private async Task ShowCreateTemplateDialogAsync()
+    {
+        var vm = _vm;
+        var language = Localizer.ResolveLanguage(_settings.Language);
+        var caption = language switch
+        {
+            "uk" => "Створити шаблон",
+            "en" => "Create template",
+            _ => "Создать шаблон"
+        };
+        var dialog = new Window
+        {
+            Title = "KeePassXC Card Print — " + caption,
+            Width = 440,
+            MinWidth = 370,
+            SizeToContent = SizeToContent.Height,
+            CanResize = false,
+            ShowInTaskbar = false,
+            WindowStartupLocation = WindowStartupLocation.CenterOwner,
+            Background = Background
+        };
+        PrintWindowIcons.Attach(dialog);
+        var nameBox = new TextBox
+        {
+            Text = vm.TemplateName,
+            PlaceholderText = vm.UiTemplateNamePlaceholder
+        };
+        var feedback = new TextBlock
+        {
+            TextWrapping = TextWrapping.Wrap,
+            IsVisible = false
+        };
+        var createText = language switch
+        {
+            "uk" => "Створити", "en" => "Create", _ => "Создать"
+        };
+        var cancelText = language switch
+        {
+            "uk" => "Скасувати", "en" => "Cancel", _ => "Отмена"
+        };
+        var create = new Button { Content = createText, MinWidth = 94 };
+        var cancel = new Button { Content = cancelText, MinWidth = 94 };
+        var buttons = new StackPanel
+        {
+            Orientation = Avalonia.Layout.Orientation.Horizontal,
+            Spacing = 8,
+            HorizontalAlignment = Avalonia.Layout.HorizontalAlignment.Right
+        };
+        buttons.Children.Add(create);
+        buttons.Children.Add(cancel);
+        var content = new StackPanel { Spacing = 9 };
+        content.Children.Add(new TextBlock { Text = caption, FontWeight = Avalonia.Media.FontWeight.SemiBold });
+        content.Children.Add(nameBox);
+        content.Children.Add(feedback);
+        content.Children.Add(buttons);
+        var card = new Border { Margin = new Thickness(12), Padding = new Thickness(12), Child = content };
+        card.Classes.Add("settings-card");
+        dialog.Content = card;
+        create.Click += (_, _) =>
+        {
+            var name = nameBox.Text?.Trim() ?? "";
+            if (string.IsNullOrWhiteSpace(name))
+            {
+                feedback.Text = language switch
+                {
+                    "uk" => "Вкажіть назву шаблону.",
+                    "en" => "Enter a template name.",
+                    _ => "Укажите название шаблона."
+                };
+                feedback.IsVisible = true;
+                return;
+            }
+            vm.TemplateName = name;
+            vm.SaveCardTemplate();
+            if (vm.HasDesignMessage)
+            {
+                feedback.Text = vm.DesignMessage;
+                feedback.IsVisible = true;
+                return;
+            }
+            dialog.Close(true); // SaveCardTemplate already activates and selects the new template.
+        };
+        cancel.Click += (_, _) => dialog.Close(false);
+        dialog.KeyDown += (_, args) =>
+        {
+            if (args.Key == Key.Escape) { args.Handled = true; dialog.Close(false); }
+        };
+        dialog.Opened += (_, _) => { nameBox.Focus(); nameBox.SelectAll(); };
+        await dialog.ShowDialog<bool>(this);
+    }
+
     private async void OnResetMapping(object? sender, RoutedEventArgs e)
     {
         if(await AppConfirmations.AskAsync(this,"Сбросить маппинг?",

@@ -28,7 +28,9 @@
         <TextBlock Grid.Row="0" x:Name="DomainLead" Classes="section-heading" Text="Удаляются только начальные служебные поддомены."/>
         <TextBlock Grid.Row="1" x:Name="DomainHint" Classes="hint" TextWrapping="Wrap"
                    Text="Правило применяется ко всем URL, но не изменяет данные KDBX."/>
-        <ListBox Grid.Row="2" x:Name="PrefixList" SelectionMode="Multiple"
+        <ListBox Grid.Row="2" x:Name="PrefixList" Classes="domain-prefix-list"
+                 SelectionMode="Multiple" Background="{DynamicResource KpInputBrush}"
+                 Foreground="{DynamicResource KpTextBrush}"
                  BorderThickness="1" BorderBrush="{DynamicResource KpBorderBrush}"/>
         <Grid Grid.Row="3" ColumnDefinitions="*,Auto,Auto,Auto" ColumnSpacing="6">
           <TextBox Grid.Column="0" x:Name="PrefixInput" KeyDown="OnInputKeyDown" PlaceholderText="Поддомен без точки"/>

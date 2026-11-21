@@ -1,5 +1,83 @@
 # Changelog
 
+## [8.0.32] - 2026-11-20
+
+### Fixed
+- Use the common Avalonia Window type when choosing the application or updater window; correct CS0173 during managed/AOT compilation.
+- Guard the Windows-only EventWaitHandle.OpenExisting call with OperatingSystem.IsWindows to satisfy CA1416 without disabling platform warnings.
+
+## [8.0.31] - 2026-11-20
+
+### Fixed
+- Correct the single-instance startup regression check to match the actual main window assignment and activation attachment.
+- Keep the mutex, activation signal and worker/self-test isolation checks unchanged.
+
+## [8.0.30] - 2026-11-20
+
+### Changed
+- Increase spacing between the Theme/Language selectors and the following header labels without changing selector widths.
+- Reduce only the right-side header padding from 24 to 12 DIP while preserving the 24-DIP left margin.
+
+## [8.0.29] - 2026-11-20
+
+### Added
+- Enforce a single interactive window per Windows logon session using a named kernel mutex.
+- A second launch signals the existing process, restores a minimized window and requests foreground activation instead of starting a second window.
+- Keep update/recovery/reset workers and CLI self-tests independent of the UI instance gate.
+- Add a build regression guard for singleton startup and existing-window activation.
+
+## [8.0.28] - 2026-11-20
+
+### Fixed
+- Use the same 14-DIP text size for header labels, selected values and expanded items in Theme, Language and Storage selectors.
+- Add a build regression check for header dropdown typography in all three selectors.
+
+## [8.0.27] - 2026-11-20
+
+### Changed
+- Match the Cloud Sync header: 48-DIP DPI-aware icon, 23-DIP application title, 12-DIP subtitle, and 76-DIP header.
+- Match the Cloud Sync theme/language selectors (132/142 DIP wide, 34 DIP high) and typography; keep the Card Print storage selector in the same visual family.
+- Update the build-time header/icon regression checks for the new dimensions.
+
+## [8.0.26] - 2026-11-20
+
+### Fixed
+- Give the service-subdomain list a theme-aware input background instead of the default Fluent graphite color.
+- Theme the list items, hover states, and multi-selection using the Card Print light/dark palette without affecting other lists.
+
+## [8.0.25] - 2026-11-20
+
+### Fixed
+- Remove the 152-DIP minimum width from the mapping Save button; it now sizes to its icon and short label.
+
+## [8.0.24] - 2026-11-20
+
+### Fixed
+- Correct the mapping toolbar build preflight XPath: `Grid.Column` is a single XML attribute name, not an XML namespace-qualified `Column` attribute.
+- Verify that the scope description occupies column 2 and is right-aligned next to the single Save button.
+
+## [8.0.23] - 2026-11-20
+
+### Changed
+- Selecting a template in either design editor now loads it immediately; remove the separate Load button.
+- Keep Create next to the picker and Save at the right edge; the Create button now has a short caption.
+- Prompt before discarding unsaved template edits, restoring the active selection on cancellation or load failure.
+- Right-align the mapping scope description beside Save; hide the redundant Saved status and shorten Save in all three languages.
+- Update UI build preflight rules to validate the new template selector behavior and compact mapping toolbar.
+
+## [8.0.22] - 2026-11-20
+
+### Fixed
+- Update the mapping toolbar UI preflight for the new four-column layout, preserving single Save action, mapping reset and no-Apply checks.
+
+## [8.0.21] - 2026-11-20
+
+### Changed
+- Align the YubiKey panel background with the surrounding storage card.
+- Compress template management in both design editors to two lines: template selection, Create…, Load and Save, followed by a single status line.
+- Create personal templates in a named modal with Create and Cancel; successfully created templates become active immediately.
+- Put mapping scope information on the title row and shorten Save labels in Russian, Ukrainian and English.
+
 ## [8.0.20] - 2026-11-20
 
 ### Fixed

@@ -15,7 +15,7 @@
     <Setter Property="Background" Value="{DynamicResource KpHeaderBrush}" />
     <Setter Property="BorderThickness" Value="0" />
     <Setter Property="CornerRadius" Value="0" />
-    <Setter Property="Padding" Value="17,10" />
+    <Setter Property="Padding" Value="24,10,12,10" />
   </Style>
   <Style Selector="Border.app-footer">
     <Setter Property="Background" Value="{DynamicResource KpFooterBrush}" />
@@ -24,7 +24,7 @@
     <Setter Property="Padding" Value="17,9" />
   </Style>
   <Style Selector="TextBlock.app-title">
-    <Setter Property="FontSize" Value="18" />
+    <Setter Property="FontSize" Value="23" />
     <Setter Property="FontWeight" Value="SemiBold" />
     <Setter Property="Foreground" Value="{DynamicResource KpHeaderTextBrush}" />
   </Style>
@@ -33,6 +33,7 @@
     <Setter Property="Foreground" Value="{DynamicResource KpHeaderSubtleBrush}" />
   </Style>
   <Style Selector="TextBlock.chrome-label">
+    <Setter Property="FontSize" Value="14" />
     <Setter Property="Foreground" Value="{DynamicResource KpHeaderTextBrush}" />
   </Style>
   <Style Selector="TextBlock.app-footer-text">
@@ -234,7 +235,7 @@
     <Setter Property="FontSize" Value="11" />
   </Style>
   <Style Selector="Button.mapping-save">
-    <Setter Property="MinWidth" Value="152" />
+    <Setter Property="MinWidth" Value="0" />
   </Style>
   <Style Selector="TextBox:focus">
     <Setter Property="BorderBrush" Value="{DynamicResource KpAccentBrush}" />
@@ -268,8 +269,9 @@
     <Setter Property="Foreground" Value="{DynamicResource KpSelectedTextBrush}" />
   </Style>
   <Style Selector="ComboBox.header-select">
-    <Setter Property="MinHeight" Value="28" />
-    <Setter Property="Padding" Value="5,3" />
+    <Setter Property="MinHeight" Value="34" />
+    <Setter Property="Padding" Value="7,5" />
+    <Setter Property="FontSize" Value="14" />
   </Style>
 
   <Style Selector="ComboBoxItem">
@@ -376,6 +378,30 @@
   <Style Selector="Border.vault-row:focus">
     <Setter Property="BorderBrush" Value="{DynamicResource KpAccentBrush}" />
     <Setter Property="BorderThickness" Value="0,1,0,1" />
+  </Style>
+  <!-- The domain editor must not inherit Avalonia Fluent's graphite ListBox
+       background. Restrict these item states to this dialog's list only. -->
+  <Style Selector="ListBox.domain-prefix-list">
+    <Setter Property="Background" Value="{DynamicResource KpInputBrush}" />
+    <Setter Property="Foreground" Value="{DynamicResource KpTextBrush}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource KpBorderBrush}" />
+  </Style>
+  <Style Selector="ListBox.domain-prefix-list ListBoxItem">
+    <Setter Property="Background" Value="Transparent" />
+    <Setter Property="Foreground" Value="{DynamicResource KpTextBrush}" />
+    <Setter Property="Padding" Value="5,3" />
+    <Setter Property="CornerRadius" Value="0" />
+  </Style>
+  <Style Selector="ListBox.domain-prefix-list ListBoxItem:pointerover">
+    <Setter Property="Background" Value="{DynamicResource KpRowHoverBrush}" />
+  </Style>
+  <Style Selector="ListBox.domain-prefix-list ListBoxItem:selected">
+    <Setter Property="Background" Value="{DynamicResource KpSelectedBrush}" />
+    <Setter Property="Foreground" Value="{DynamicResource KpSelectedTextBrush}" />
+  </Style>
+  <Style Selector="ListBox.domain-prefix-list ListBoxItem:selected:pointerover">
+    <Setter Property="Background" Value="{DynamicResource KpRowMarkedHoverBrush}" />
+    <Setter Property="Foreground" Value="{DynamicResource KpSelectedTextBrush}" />
   </Style>
   <Style Selector="ListBox.mapping-list ListBoxItem">
     <Setter Property="MinHeight" Value="25" />

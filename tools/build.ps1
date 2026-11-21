@@ -434,14 +434,17 @@ Write-Host "Verified $propertyCount unique appearance JSON properties and matchi
 
 # Custom chrome regression: exact Icons8 icon and no blank gray ComboBox popup bands.
 $chromeXaml = Get-Content -LiteralPath (Join-Path $root 'source\keepassxccardprint\MainWindow.axaml') -Raw -Encoding UTF8
-# Header selector dimensions and defaults are validated below.
-# Avalonia DIP already scales together with text under Windows display scaling:
-# do not require the former 120-DIP width after reducing it to 112 DIP.
-$headerColumns = [regex]::Match($chromeXaml, 'ColumnDefinitions="Auto,\d+,Auto,(?<languageWidth>\d+),Auto,\d+"')
-if (-not $headerColumns.Success -or [int]$headerColumns.Groups['languageWidth'].Value -lt 112) {
-    throw 'UI check: compact language selector must be at least 112 DIP.'
+# Keep the Cloud Sync header proportions while retaining Card Print's storage selector.
+$headerColumns = [regex]::Match($chromeXaml,
+    'ColumnDefinitions="Auto,(?<themeWidth>\d+),Auto,(?<languageWidth>\d+),Auto,(?<storageWidth>\d+)"')
+if (-not $headerColumns.Success -or
+    [int]$headerColumns.Groups['themeWidth'].Value -ne 132 -or
+    [int]$headerColumns.Groups['languageWidth'].Value -ne 142 -or
+    [int]$headerColumns.Groups['storageWidth'].Value -ne 132 -or
+    $chromeXaml -notmatch 'MinHeight="56"') {
+    throw 'UI check: header must match Cloud Sync selector sizes and 76-DIP height.'
 }
-Write-Host '[PASS] compact language selector width (112 DIP minimum).' -ForegroundColor Green
+Write-Host '[PASS] Cloud Sync header proportions and Card Print storage selector.' -ForegroundColor Green
 
 # Quick record presets must stay view-only, mutually exclusive and theme aware.
 $recordFilterVm = Get-Content -LiteralPath (Join-Path $sourceRoot 'viewmodels\VaultViewModel.cs') -Raw -Encoding UTF8
@@ -589,6 +592,25 @@ if (-not $phoneText.Contains('public static string Format(string input, bool ena
 }
 Write-Host '[PASS] background preview worker and opt-in phone display formatting.' -ForegroundColor Green
 
+# The singleton guard is only for a normal UI startup. Update/reset workers
+# and executable self-tests must remain independently runnable.
+$programEntry = Get-Content -LiteralPath (Join-Path $sourceRoot 'platforms\windows\Program.cs') -Raw -Encoding UTF8
+$appEntry = Get-Content -LiteralPath (Join-Path $sourceRoot 'App.axaml.cs') -Raw -Encoding UTF8
+$singletonSource = Get-Content -LiteralPath (Join-Path $sourceRoot 'platforms\windows\WindowsSingleInstance.cs') -Raw -Encoding UTF8
+# Verify the window assignment and attachment use the same local variable.
+if ($programEntry -notmatch 'WindowsSingleInstance\.EnterOrActivate\(\)' -or
+    $programEntry.IndexOf('WindowsSingleInstance.EnterOrActivate()') -lt $programEntry.IndexOf('--self-test-layout') -or
+    $programEntry.IndexOf('WindowsSingleInstance.EnterOrActivate()') -gt $programEntry.IndexOf('ConfigurationMaintenance.CleanOnStartup()') -or
+    $appEntry -notmatch 'desktop\.MainWindow\s*=\s*mainWindow\s*;' -or
+    $appEntry -notmatch 'WindowsSingleInstance\.Attach\(mainWindow\)' -or
+    $singletonSource -notmatch 'new Mutex\(true, MutexName, out var createdNew\)' -or
+    $singletonSource -notmatch 'EventWaitHandle\.OpenExisting\(ActivateEventName\)' -or
+    $singletonSource -notmatch 'WindowState\.Minimized' -or
+    $singletonSource -notmatch 'SetForegroundWindow\(hwnd\)') {
+    throw 'STARTUP REGRESSION: one interactive window with existing-window activation is required.'
+}
+Write-Host '[PASS] one interactive Card Print window; worker and self-test startup preserved.' -ForegroundColor Green
+
 # Fail early if either second-level tab strip disappears or leaves the
 # template manager. Both strips must remain navigable for built-in presets.
 $mainXaml = Join-Path $root 'source\keepassxccardprint\MainWindow.axaml'
@@ -607,6 +629,24 @@ foreach ($captionProperty in @('TabSource', 'TabMapping', 'TabDesign', 'TabDuple
     }
 }
 Write-Host '[PASS] all four tab headers use compiled ShellViewModel bindings (Native AOT).' -ForegroundColor Green
+# All three selectors must show identical 14-DIP text in the caption, selection box
+# and expanded popup; never revert to the 12-DIP Fluent ComboBoxItem default.
+$headerControls = @($ui.SelectNodes("//*[local-name()='Border' and @Classes='app-header']//*[local-name()='ComboBox' and @Classes='header-select']"))
+if ($headerControls.Count -ne 3) {
+    throw 'UI check: expected exactly three header selectors.'
+}
+foreach ($selector in $headerControls) {
+    $templateText = $selector.SelectSingleNode("./*[local-name()='ComboBox.ItemTemplate']//*[local-name()='TextBlock']")
+    $popupFont = $selector.SelectSingleNode("./*[local-name()='ComboBox.Styles']/*[local-name()='Style']/*[local-name()='Setter' and @Property='FontSize']")
+    if ($null -eq $templateText -or $templateText.GetAttribute('FontSize') -ne '14' -or
+        $null -eq $popupFont -or $popupFont.GetAttribute('Value') -ne '14') {
+        throw 'UI check: header selector and popup font sizes must both be 14 DIP.'
+    }
+}
+if ($compactTheme -notmatch '(?s)<Style Selector="TextBlock.chrome-label">.*?<Setter Property="FontSize" Value="14"') {
+    throw 'UI check: header captions must match the selector font size (14 DIP).'
+}
+Write-Host '[PASS] identical 14-DIP header captions, selected text and dropdown items.' -ForegroundColor Green
 # The header and About brandmarks use optically padded high-DPI UI art.
 # External EXE/window/taskbar icons stay light for every theme; in-app art must switch.
 # Retain the general Avalonia XAML guard against unsupported WPF attributes.
@@ -619,17 +659,17 @@ $headerIcon = if ($null -ne $header) {
     $header.SelectSingleNode(".//*[local-name()='Image' and @*[local-name()='Name' and .='AppHeaderIcon']]")
 } else { $null }
 if ($null -eq $headerIcon -or
-    $headerIcon.GetAttribute('Source') -ne 'avares://KeePassXCCardPrint/assets/CardPrint_black_40.png' -or
-    $headerIcon.GetAttribute('Width') -ne '40' -or
-    $headerIcon.GetAttribute('Height') -ne '40') {
-    throw 'UI check: expected the supplied Card Print Image in the header.'
+    $headerIcon.GetAttribute('Source') -ne 'avares://KeePassXCCardPrint/assets/CardPrint_black_48.png' -or
+    $headerIcon.GetAttribute('Width') -ne '48' -or
+    $headerIcon.GetAttribute('Height') -ne '48') {
+    throw 'UI check: expected the 48-DIP Card Print image in the header.'
 }
 if ($null -ne $header.SelectSingleNode(".//*[local-name()='Path']")) {
     throw 'UI artwork contract: unrelated shield/checkmark paths must not replace Card Print artwork.'
 }
 $iconCode = Get-Content -LiteralPath (Join-Path $root 'source\keepassxccardprint\MainWindow.axaml.cs') -Raw -Encoding UTF8
 foreach ($expected in @('UpdateAppIcon()', 'BrandArtwork.Apply(logo,',
-                         'CardPrint_white.ico', 'RenderScaling, 40')) {
+                         'CardPrint_white.ico', 'RenderScaling, 48')) {
     if (-not $iconCode.Contains($expected)) {
         throw "UI check: fixed light Card Print icon support is missing: $expected"
     }
@@ -660,7 +700,7 @@ if ($brandSelector -notmatch 'nativePixels / scale' -or
     $brandSelector -notmatch 'new Bitmap\(stream\)' -or
     $brandSelector -notmatch 'NativeSizes' -or
     $brandSelector -match '\.(?:Resize|Resample|Blur|GrayBorder)\s*\(' -or
-    $chromeXaml -notmatch 'x:Name="AppHeaderIcon" Width="40" Height="40"' -or
+    $chromeXaml -notmatch 'x:Name="AppHeaderIcon" Width="48" Height="48"' -or
     $aboutBrand -notmatch 'x:Name="AboutAppIcon" Width="32" Height="32"') {
     throw 'APP BRANDING REGRESSION: internal icons must use native source pixels at current DPI.'
 }
@@ -725,8 +765,13 @@ foreach ($tab in @(
     $load = $toolbar.SelectSingleNode(".//*[local-name()='Button' and @Click='OnLoadCardTemplate']")
     $manager = $toolbar.SelectSingleNode(".//*[local-name()='Button' and @Click='OnSaveCardTemplate']")
     $save = $toolbar.SelectSingleNode(".//*[local-name()='Button' and @Click='OnSaveAppearance']")
-    if ($null -eq $selector -or $null -eq $load -or $null -eq $manager -or $null -eq $save) {
-        throw "UI check: template toolbar actions are missing in $($tab.Header)"
+    if ($null -eq $selector -or $null -ne $load -or $null -eq $manager -or $null -eq $save -or
+        $selector.GetAttribute('SelectionChanged') -ne 'OnCardTemplateSelectionChanged' -or
+        $selector.GetAttribute('Grid.Column') -ne '1' -or
+        $manager.GetAttribute('Grid.Column') -ne '2' -or
+        $save.GetAttribute('Grid.Column') -ne '4' -or
+        $manager.ParentNode.GetAttribute('ColumnDefinitions') -ne 'Auto,Auto,Auto,*,Auto') {
+        throw "UI check: template selection must load immediately, with Create next to picker and no Load button in $($tab.Header)"
     }
     if ($save.GetAttribute('IsEnabled') -ne '{Binding CanSaveTemplateChanges}') {
         throw "UI check: template save button must respect editable-template state in $($tab.Header)"
@@ -736,20 +781,26 @@ foreach ($tab in @(
 }
 Write-Host '[PASS] both subsection tab strips and template management.' -ForegroundColor Green
 # Guard against accidental reintroduction of two-stage field mapping edits.
+# The compact mapping toolbar uses 4 columns: title, scope, status, Save.
 $mappingTab = $ui.SelectSingleNode("//*[local-name()='TabItem' and *[local-name()='TabItem.Header']//*[local-name()='TextBlock' and @Text='{Binding TabMapping}']]")
 if ($null -eq $mappingTab) { throw 'UI check: missing mapping tab.' }
 $mappingSave = $mappingTab.SelectSingleNode(".//*[local-name()='Button' and @Click='OnSaveMapping']")
 $mappingReset = $mappingTab.SelectSingleNode(".//*[local-name()='Button' and @Click='OnResetMapping']")
 $mappingApply = $mappingTab.SelectSingleNode(".//*[local-name()='Button' and @Click='OnApplyMapping']")
-if ($null -eq $mappingSave -or $mappingSave.GetAttribute('Grid.Column') -ne '2' -or
-    $null -eq $mappingSave.ParentNode -or $mappingSave.ParentNode.GetAttribute('Grid.Row') -ne '0') {
-    throw 'UI check: the single mapping Save changes button must be on the top toolbar.'
+if ($null -eq $mappingSave -or
+    [regex]::Matches($chromeXaml, 'Click="OnSaveMapping"').Count -ne 1 -or
+    $mappingSave.GetAttribute('Grid.Column') -ne '3' -or
+    $null -eq $mappingSave.ParentNode -or $mappingSave.ParentNode.GetAttribute('Grid.Row') -ne '0' -or
+    $mappingSave.ParentNode.GetAttribute('ColumnDefinitions') -ne 'Auto,*,2*,Auto' -or
+    $null -eq $mappingSave.ParentNode.SelectSingleNode("./*[local-name()='TextBlock' and @Text='{Binding MappingScopeDescription}' and @Grid.Column='2' and @TextAlignment='Right']") -or
+    $null -ne $mappingSave.ParentNode.SelectSingleNode("./*[local-name()='TextBlock' and @Text='{Binding MappingMessage}']")) {
+    throw 'UI check: mapping description must be right-aligned beside the single Save button, without the saved-status label.'
 }
 if ($null -eq $mappingReset -or $null -ne $mappingApply -or
     $mappingSave.GetAttribute('IsEnabled') -ne '{Binding MappingCanSave}') {
     throw 'UI check: mapping must have an editor-only reset and no Apply stage.'
 }
-Write-Host '[PASS] top mapping Save changes action, editor reset and live editing.' -ForegroundColor Green
+Write-Host '[PASS] compact top mapping Save action, editor reset and live editing.' -ForegroundColor Green
 # Each editor now has its own vertical scroll viewport. The rounded cards remain
 # direct children of the content Grid inside that viewport, not of the TabItem.
 # Validate all four viewports before checking card ownership and actions.
