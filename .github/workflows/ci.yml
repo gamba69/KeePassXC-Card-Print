@@ -29,6 +29,15 @@ jobs:
         with:
           dotnet-version: 10.0.x
 
+      - name: Verify the selected .NET 10 SDK
+        shell: powershell
+        run: |
+          $selectedSdk = (& dotnet --version).Trim()
+          if ($LASTEXITCODE -ne 0 -or $selectedSdk -notmatch '^10\.0\.\d+$') {
+            throw "[FAIL] Expected .NET 10 selected by global.json; got: $selectedSdk"
+          }
+          Write-Host "[PASS] .NET 10 SDK selected: $selectedSdk"
+
       - name: Run all source checks, tests, and Native AOT build
         shell: cmd
         run: build.bat --no-pause

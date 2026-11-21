@@ -923,6 +923,26 @@ Write-Host '[PASS] Avalonia 12 clipboard extension import.' -ForegroundColor Gre
 
 
 
+# The repository must select .NET 10 even when the Windows runner also has
+# .NET 11. setup-dotnet installs an SDK but does not pin SDK resolution.
+$globalJsonPath = Join-Path $root 'global.json'
+if (-not (Test-Path -LiteralPath $globalJsonPath -PathType Leaf)) {
+    throw 'SDK SELECTION CONTRACT: missing root global.json; Windows runners may select .NET 11.'
+}
+try {
+    $sdkPolicy = Get-Content -LiteralPath $globalJsonPath -Raw -Encoding UTF8 | ConvertFrom-Json
+    $minimumSdk = [Version]::Parse([string]$sdkPolicy.sdk.version)
+}
+catch {
+    throw 'SDK SELECTION CONTRACT: invalid global.json SDK policy.'
+}
+if ($minimumSdk.Major -ne 10 -or $minimumSdk.Minor -ne 0 -or
+    $minimumSdk -lt [Version]'10.0.114' -or
+    [string]$sdkPolicy.sdk.rollForward -cne 'latestFeature' -or
+    $sdkPolicy.sdk.allowPrerelease -ne $false) {
+    throw 'SDK SELECTION CONTRACT: pin patched .NET 10.0 with latestFeature and no prereleases.'
+}
+Write-Host '[PASS] patched .NET 10 SDK selection policy (global.json).' -ForegroundColor Green
 if (-not (Get-Command dotnet -ErrorAction SilentlyContinue)) {
     throw 'The .NET 10 SDK is required to build.'
 }

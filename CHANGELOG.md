@@ -1,5 +1,12 @@
 # Changelog
 
+## [9.1.4] - 2026-11-21
+
+### Fixed
+- Pin patched .NET 10 SDK selection with a root global.json (latestFeature within .NET 10.0), preventing Windows GitHub runners with preinstalled .NET 11 from overriding the installed .NET 10 SDK.
+- Verify the resolved SDK in both Windows CI and draft-release workflows immediately after setup-dotnet, before Native AOT compilation.
+- Add an explicit SDK-selection regression guard while retaining the existing patched Native AOT compiler security checks.
+
 ## [9.1.3] - 2026-11-21
 
 ### Fixed
