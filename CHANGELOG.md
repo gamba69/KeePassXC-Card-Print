@@ -1,5 +1,20 @@
 # Changelog
 
+## [9.1.6] - 2026-11-22
+
+### Changed
+- Compress the About performance panel: place all four metrics in a single row, with the diagnostics switch and Copy action on the heading row when space permits.
+- Reserve 2x2 metrics and stacked actions for genuinely narrow windows, avoiding the premature 1020-DIP breakpoint and unnecessary vertical whitespace.
+- Preserve the existing measurements, diagnostics behavior, update controls and technical information sections.
+
+## [9.1.5] - 2026-11-22
+
+### Changed
+- Make the About page update panel the first full-width card, with status on the left and the check/install-or-repair actions aligned on the right.
+- Place the full-width preview performance card second; arrange four metrics in a compact row and the diagnostics actions at the right.
+- Keep Components & Versions, Graphics & Environment, and Printing & Export below in their original layout, with responsive behavior for narrow windows.
+- Keep the safe diagnostic-copy hint as a tooltip and retain visible feedback after copying.
+
 ## [9.1.4] - 2026-11-21
 
 ### Fixed
