@@ -6,13 +6,17 @@
     <ResourceDictionary>
       <ResourceDictionary.ThemeDictionaries>
       <ResourceDictionary x:Key="Light">
-        <SolidColorBrush x:Key="KpWindowBrush" Color="#f3f4f7" />
-        <SolidColorBrush x:Key="KpSurfaceBrush" Color="#ffffff" />
-        <SolidColorBrush x:Key="KpTextBrush" Color="#1c2730" />
-        <SolidColorBrush x:Key="KpSubtleBrush" Color="#637280" />
-        <SolidColorBrush x:Key="KpBorderBrush" Color="#ced4dc" />
+        <SolidColorBrush x:Key="KpWindowBrush" Color="#F4F7FB" />
+        <SolidColorBrush x:Key="KpSurfaceBrush" Color="#FFFFFF" />
+        <SolidColorBrush x:Key="KpTextBrush" Color="#182B40" />
+        <SolidColorBrush x:Key="KpSubtleBrush" Color="#64788D" />
+        <SolidColorBrush x:Key="KpBorderBrush" Color="#DBE4EE" />
         <!-- Dedicated, deliberately visible window frame: not a form-field separator. -->
-        <SolidColorBrush x:Key="KpFrameBrush" Color="#697f98" />
+        <SolidColorBrush x:Key="KpFrameBrush" Color="#C9D7E6" />
+        <SolidColorBrush x:Key="KpTabWindowBrush" Color="#f3f4f7" />
+        <SolidColorBrush x:Key="KpTabSurfaceBrush" Color="#ffffff" />
+        <SolidColorBrush x:Key="KpTabTextBrush" Color="#1c2730" />
+        <SolidColorBrush x:Key="KpTabBorderBrush" Color="#ced4dc" />
         <SolidColorBrush x:Key="KpSelectedBrush" Color="#dbeafe" />
         <SolidColorBrush x:Key="KpSelectedTextBrush" Color="#172b45" />
         <SolidColorBrush x:Key="KpButtonBrush" Color="#e8edf4" />
@@ -28,14 +32,14 @@
         <SolidColorBrush x:Key="KpStripeBrush" Color="#f3f7fc" />
         <SolidColorBrush x:Key="KpRowMarkedBrush" Color="#cce1f8" />
         <SolidColorBrush x:Key="KpRowMarkedHoverBrush" Color="#b6d6f8" />
-        <SolidColorBrush x:Key="KpHeaderBrush" Color="#ffffff" />
+        <SolidColorBrush x:Key="KpHeaderBrush" Color="#E9F1F8" />
         <SolidColorBrush x:Key="KpHeaderBorderBrush" Color="#d7dde5" />
-        <SolidColorBrush x:Key="KpHeaderTextBrush" Color="#1f2a34" />
-        <SolidColorBrush x:Key="KpHeaderSubtleBrush" Color="#5f6b78" />
+        <SolidColorBrush x:Key="KpHeaderTextBrush" Color="#182B40" />
+        <SolidColorBrush x:Key="KpHeaderSubtleBrush" Color="#556E85" />
         <SolidColorBrush x:Key="KpHeaderIconBrush" Color="#252f39" />
-        <SolidColorBrush x:Key="KpFooterBrush" Color="#eef2f6" />
-        <SolidColorBrush x:Key="KpFooterTextBrush" Color="#304050" />
-        <SolidColorBrush x:Key="KpFooterMetaBrush" Color="#65788a" />
+        <SolidColorBrush x:Key="KpFooterBrush" Color="#EAF0F7" />
+        <SolidColorBrush x:Key="KpFooterTextBrush" Color="#64788D" />
+        <SolidColorBrush x:Key="KpFooterMetaBrush" Color="#64788D" />
         <!-- A PopupBorder in the Fluent template uses LOCAL DynamicResource values.
              Override those resource keys; a Border style setter cannot win. -->
         <SolidColorBrush x:Key="FlyoutPresenterBackground" Color="#ffffff" />
@@ -46,12 +50,16 @@
         <SolidColorBrush x:Key="ComboBoxDropDownBorderBrush" Color="#ced4dc" />
       </ResourceDictionary>
       <ResourceDictionary x:Key="Dark">
-        <SolidColorBrush x:Key="KpWindowBrush" Color="#081524" />
-        <SolidColorBrush x:Key="KpSurfaceBrush" Color="#182b3f" />
-        <SolidColorBrush x:Key="KpTextBrush" Color="#eef4fb" />
-        <SolidColorBrush x:Key="KpSubtleBrush" Color="#b2c0cf" />
-        <SolidColorBrush x:Key="KpBorderBrush" Color="#31475f" />
-        <SolidColorBrush x:Key="KpFrameBrush" Color="#6689a8" />
+        <SolidColorBrush x:Key="KpWindowBrush" Color="#101821" />
+        <SolidColorBrush x:Key="KpSurfaceBrush" Color="#182633" />
+        <SolidColorBrush x:Key="KpTextBrush" Color="#E9F0F9" />
+        <SolidColorBrush x:Key="KpSubtleBrush" Color="#A2B6C9" />
+        <SolidColorBrush x:Key="KpBorderBrush" Color="#35495C" />
+        <SolidColorBrush x:Key="KpFrameBrush" Color="#2A3C4E" />
+        <SolidColorBrush x:Key="KpTabWindowBrush" Color="#081524" />
+        <SolidColorBrush x:Key="KpTabSurfaceBrush" Color="#182b3f" />
+        <SolidColorBrush x:Key="KpTabTextBrush" Color="#eef4fb" />
+        <SolidColorBrush x:Key="KpTabBorderBrush" Color="#31475f" />
         <SolidColorBrush x:Key="KpSelectedBrush" Color="#243b56" />
         <SolidColorBrush x:Key="KpSelectedTextBrush" Color="#ffffff" />
         <SolidColorBrush x:Key="KpButtonBrush" Color="#20384e" />
@@ -67,14 +75,14 @@
         <SolidColorBrush x:Key="KpStripeBrush" Color="#1f3448" />
         <SolidColorBrush x:Key="KpRowMarkedBrush" Color="#2a5075" />
         <SolidColorBrush x:Key="KpRowMarkedHoverBrush" Color="#37638d" />
-        <SolidColorBrush x:Key="KpHeaderBrush" Color="#102133" />
+        <SolidColorBrush x:Key="KpHeaderBrush" Color="#172738" />
         <SolidColorBrush x:Key="KpHeaderBorderBrush" Color="#27425d" />
         <SolidColorBrush x:Key="KpHeaderTextBrush" Color="#ffffff" />
-        <SolidColorBrush x:Key="KpHeaderSubtleBrush" Color="#b9c7d4" />
+        <SolidColorBrush x:Key="KpHeaderSubtleBrush" Color="#AEC8DF" />
         <SolidColorBrush x:Key="KpHeaderIconBrush" Color="#ffffff" />
-        <SolidColorBrush x:Key="KpFooterBrush" Color="#102133" />
-        <SolidColorBrush x:Key="KpFooterTextBrush" Color="#d9e5f0" />
-        <SolidColorBrush x:Key="KpFooterMetaBrush" Color="#b4c3d1" />
+        <SolidColorBrush x:Key="KpFooterBrush" Color="#172432" />
+        <SolidColorBrush x:Key="KpFooterTextBrush" Color="#A2B6C9" />
+        <SolidColorBrush x:Key="KpFooterMetaBrush" Color="#A2B6C9" />
         <SolidColorBrush x:Key="FlyoutPresenterBackground" Color="#13273b" />
         <SolidColorBrush x:Key="FlyoutBorderThemeBrush" Color="#31475f" />
         <SolidColorBrush x:Key="MenuFlyoutPresenterBackground" Color="#13273b" />
@@ -99,11 +107,11 @@
     <!-- Fluent's template/popup colors must be configured as well as our app brushes. -->
     <FluentTheme DensityStyle="Compact">
       <FluentTheme.Palettes>
-        <ColorPaletteResources x:Key="Light" Accent="#2b68b6" RegionColor="#f3f4f7"
-                               BaseHigh="#1c2730" BaseMedium="#637280"
+        <ColorPaletteResources x:Key="Light" Accent="#2b68b6" RegionColor="#F4F7FB"
+                               BaseHigh="#182B40" BaseMedium="#64788D"
                                ChromeLow="#e8edf4" ChromeMedium="#ced4dc" />
-        <ColorPaletteResources x:Key="Dark" Accent="#6ea8ff" RegionColor="#081524"
-                               BaseHigh="#eef4fb" BaseMedium="#b2c0cf"
+        <ColorPaletteResources x:Key="Dark" Accent="#6ea8ff" RegionColor="#101821"
+                               BaseHigh="#E9F0F9" BaseMedium="#A2B6C9"
                                ChromeLow="#20384e" ChromeMedium="#31475f" />
       </FluentTheme.Palettes>
     </FluentTheme>

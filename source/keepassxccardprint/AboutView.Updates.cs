@@ -67,9 +67,9 @@ public partial class AboutView
         {
             var updater=UpdaterHost.Service;
             UpdateHeader.Text=L("Обновления приложения","Оновлення програми","Application updates");
-            UpdateCheckButton.Content=L("Проверить обновления","Перевірити оновлення","Check for updates");
-            UpdateInstallButton.Content=L("Установить сейчас","Установити зараз","Install now");
-            UpdateRepairButton.Content=L("Восстановить…","Відновити…","Repair…");
+            UpdateCheckButtonLabel.Text=L("Проверить обновления","Перевірити оновлення","Check for updates");
+            UpdateInstallButtonLabel.Text=L("Установить сейчас","Установити зараз","Install now");
+            UpdateRepairButtonLabel.Text=L("Восстановить…","Відновити…","Repair…");
             var snapshot=updater.Snapshot;
             var description=snapshot.Status switch
             {

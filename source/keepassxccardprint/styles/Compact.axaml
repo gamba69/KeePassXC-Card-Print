@@ -292,20 +292,20 @@
     <Setter Property="Foreground" Value="{DynamicResource KpTextBrush}" />
   </Style>
   <Style Selector="TabControl">
-    <Setter Property="Background" Value="{DynamicResource KpWindowBrush}" />
-    <Setter Property="Foreground" Value="{DynamicResource KpTextBrush}" />
+    <Setter Property="Background" Value="{DynamicResource KpTabWindowBrush}" />
+    <Setter Property="Foreground" Value="{DynamicResource KpTabTextBrush}" />
   </Style>
   <Style Selector="TabItem">
     <Setter Property="MinHeight" Value="29" />
     <Setter Property="Padding" Value="11,5" />
     <Setter Property="FontSize" Value="12" />
     <Setter Property="Background" Value="{DynamicResource KpButtonBrush}" />
-    <Setter Property="Foreground" Value="{DynamicResource KpTextBrush}" />
-    <Setter Property="BorderBrush" Value="{DynamicResource KpBorderBrush}" />
+    <Setter Property="Foreground" Value="{DynamicResource KpTabTextBrush}" />
+    <Setter Property="BorderBrush" Value="{DynamicResource KpTabBorderBrush}" />
   </Style>
   <Style Selector="TabItem:selected">
-    <Setter Property="Background" Value="{DynamicResource KpSurfaceBrush}" />
-    <Setter Property="Foreground" Value="{DynamicResource KpTextBrush}" />
+    <Setter Property="Background" Value="{DynamicResource KpTabSurfaceBrush}" />
+    <Setter Property="Foreground" Value="{DynamicResource KpTabTextBrush}" />
   </Style>
   <!-- Avalonia 12 Fluent TabItem template draws a thin selected underline.
        Hide its PART_SelectedPipe in every state, keeping the compact

@@ -185,12 +185,24 @@
               <WrapPanel x:Name="UpdateActions" Grid.Column="1" Grid.Row="0" Grid.RowSpan="2"
                          Orientation="Horizontal" ItemSpacing="7" LineSpacing="5"
                          HorizontalAlignment="Right" VerticalAlignment="Center">
-                <Button x:Name="UpdateCheckButton" Content="Проверить обновления"
-                        Click="OnCheckUpdatesClicked"/>
-                <Button x:Name="UpdateInstallButton" Content="Установить сейчас"
-                        Click="OnInstallUpdateClicked"/>
-                <Button x:Name="UpdateRepairButton" Content="Восстановить…"
-                        Click="OnRepairUpdateClicked"/>
+                <Button x:Name="UpdateCheckButton" Click="OnCheckUpdatesClicked">
+                  <StackPanel Orientation="Horizontal" Spacing="6">
+                    <fi:FluentIcon Icon="ArrowSync" IconSize="Size20" Width="16" Height="16"/>
+                    <TextBlock x:Name="UpdateCheckButtonLabel" Text="Проверить обновления" VerticalAlignment="Center"/>
+                  </StackPanel>
+                </Button>
+                <Button x:Name="UpdateInstallButton" Click="OnInstallUpdateClicked">
+                  <StackPanel Orientation="Horizontal" Spacing="6">
+                    <fi:FluentIcon Icon="ArrowDownload" IconSize="Size20" Width="16" Height="16"/>
+                    <TextBlock x:Name="UpdateInstallButtonLabel" Text="Установить сейчас" VerticalAlignment="Center"/>
+                  </StackPanel>
+                </Button>
+                <Button x:Name="UpdateRepairButton" Click="OnRepairUpdateClicked">
+                  <StackPanel Orientation="Horizontal" Spacing="6">
+                    <fi:FluentIcon Icon="Settings" IconSize="Size20" Width="16" Height="16"/>
+                    <TextBlock x:Name="UpdateRepairButtonLabel" Text="Восстановить…" VerticalAlignment="Center"/>
+                  </StackPanel>
+                </Button>
               </WrapPanel>
             </Grid>
           </Border>

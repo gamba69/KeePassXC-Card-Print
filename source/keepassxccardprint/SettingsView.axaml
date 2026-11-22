@@ -1,6 +1,7 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:vm="using:KeePassXCCardPrint.ViewModels"
+             xmlns:fi="using:FluentIcons.Avalonia"
              x:Class="KeePassXCCardPrint.SettingsView"
              x:DataType="vm:ShellViewModel"
              Background="{DynamicResource KpSurfaceBrush}">
@@ -52,10 +53,30 @@
           <TextBlock x:Name="SecretCaption" Text="Пароль / Secret Key / OAuth Client Secret (если изменяется)" TextWrapping="Wrap"/>
           <TextBox x:Name="SecretBox" PasswordChar="●"/>
           <WrapPanel Orientation="Horizontal" ItemSpacing="6" LineSpacing="6">
-            <Button x:Name="SaveCloudButton" Click="OnSaveConnection" Content="Сохранить подключение"/>
-            <Button x:Name="LoginCloudButton" Click="OnAuthenticate" Content="Авторизоваться"/>
-            <Button x:Name="TestCloudButton" Click="OnTestConnection" Content="Проверить"/>
-            <Button x:Name="SyncCloudButton" Click="OnSyncNow" Content="Синхронизировать сейчас"/>
+            <Button x:Name="SaveCloudButton" Click="OnSaveConnection">
+              <StackPanel Orientation="Horizontal" Spacing="6">
+                <fi:FluentIcon Icon="Save" IconSize="Size20" Width="16" Height="16"/>
+                <TextBlock x:Name="SaveCloudButtonLabel" Text="Сохранить подключение" VerticalAlignment="Center"/>
+              </StackPanel>
+            </Button>
+            <Button x:Name="LoginCloudButton" Click="OnAuthenticate">
+              <StackPanel Orientation="Horizontal" Spacing="6">
+                <fi:FluentIcon Icon="Key" IconSize="Size20" Width="16" Height="16"/>
+                <TextBlock x:Name="LoginCloudButtonLabel" Text="Авторизоваться" VerticalAlignment="Center"/>
+              </StackPanel>
+            </Button>
+            <Button x:Name="TestCloudButton" Click="OnTestConnection">
+              <StackPanel Orientation="Horizontal" Spacing="6">
+                <fi:FluentIcon Icon="CheckmarkCircle" IconSize="Size20" Width="16" Height="16"/>
+                <TextBlock x:Name="TestCloudButtonLabel" Text="Проверить" VerticalAlignment="Center"/>
+              </StackPanel>
+            </Button>
+            <Button x:Name="SyncCloudButton" Click="OnSyncNow">
+              <StackPanel Orientation="Horizontal" Spacing="6">
+                <fi:FluentIcon Icon="ArrowSync" IconSize="Size20" Width="16" Height="16"/>
+                <TextBlock x:Name="SyncCloudButtonLabel" Text="Синхронизировать сейчас" VerticalAlignment="Center"/>
+              </StackPanel>
+            </Button>
           </WrapPanel>
           <Border x:Name="CloudActivity" Classes="settings-card" Padding="10,9" IsVisible="False">
             <StackPanel Spacing="7">
@@ -90,8 +111,12 @@
           <TextBlock x:Name="MaintenanceCaption" Classes="section-heading" Text="Обслуживание"/>
           <TextBlock x:Name="ResetHelp" TextWrapping="Wrap" FontSize="11"
                      Text="Сброс настроек с резервным копированием. История печати сохраняется, если явно не выбрать её удаление."/>
-          <Button x:Name="ResetSettingsButton" HorizontalAlignment="Left"
-                  Click="OnResetSettings" Content="Сбросить настройки…"/>
+          <Button x:Name="ResetSettingsButton" HorizontalAlignment="Left" Click="OnResetSettings">
+            <StackPanel Orientation="Horizontal" Spacing="6">
+              <fi:FluentIcon Icon="Settings" IconSize="Size20" Width="16" Height="16"/>
+              <TextBlock x:Name="ResetSettingsButtonLabel" Text="Сбросить настройки…" VerticalAlignment="Center"/>
+            </StackPanel>
+          </Button>
           <TextBlock x:Name="ResetStatus" TextWrapping="Wrap" FontSize="11" IsVisible="False"/>
         </StackPanel>
       </Border>

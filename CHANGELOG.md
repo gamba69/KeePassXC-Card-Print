@@ -1,5 +1,18 @@
 # Changelog
 
+## [9.1.9] - 2026-11-22
+
+### Fixed
+- Preserve the Test connection and Sync now Fluent icons during cloud progress refreshes by updating only their localized text labels, not the buttons' contents.
+- Keep status changes (Checking / Synchronizing) and all three UI languages working without losing the action icons.
+
+## [9.1.8] - 2026-11-22
+
+### Changed
+- Align the complete application light/dark palette with Cloud Sync's rendered shell: backgrounds, cards, borders, primary/secondary text, header and footer, plus Fluent region colors.
+- Preserve Cloud Sync's reference navigation-tab shades separately from the new main-window surfaces, and retain the dedicated printing canvas colors.
+- Add real Fluent vector icons to cloud and update actions without replacing localized button content at runtime.
+
 ## [9.1.7] - 2026-11-22
 
 ### Fixed

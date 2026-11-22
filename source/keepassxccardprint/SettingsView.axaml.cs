@@ -171,11 +171,11 @@ public partial class SettingsView : UserControl
     }
     private void RefreshCloudActivity()
     {
-        TestCloudButton.Content = _cloudCommandRunning && _cloudCommand ==
+        TestCloudButtonLabel.Text = _cloudCommandRunning && _cloudCommand ==
             L("Проверка подключения", "Перевірка підключення", "Connection test")
             ? L("Проверяется…", "Перевіряється…", "Checking…")
             : L("Проверить подключение", "Перевірити підключення", "Test connection");
-        SyncCloudButton.Content = _cloudCommandRunning && _cloudCommand ==
+        SyncCloudButtonLabel.Text = _cloudCommandRunning && _cloudCommand ==
             L("Синхронизация", "Синхронізація", "Synchronization")
             ? L("Синхронизация…", "Синхронізація…", "Synchronizing…")
             : L("Синхронизировать сейчас", "Синхронізувати зараз", "Sync now");
@@ -237,13 +237,13 @@ public partial class SettingsView : UserControl
             SecretCaption.Text = L("Пароль / Secret Key / OAuth Client Secret (если изменяется)",
                 "Пароль / Secret Key / OAuth Client Secret (якщо змінюється)",
                 "Password / Secret Key / OAuth Client Secret (only when changing)");
-            SaveCloudButton.Content = L("Сохранить подключение", "Зберегти підключення", "Save connection");
-            LoginCloudButton.Content = L("Авторизоваться", "Авторизуватися", "Sign in");
-            TestCloudButton.Content = L("Проверить подключение", "Перевірити підключення", "Test connection");
-            SyncCloudButton.Content = L("Синхронизировать сейчас", "Синхронізувати зараз", "Sync now");
+            SaveCloudButtonLabel.Text = L("Сохранить подключение", "Зберегти підключення", "Save connection");
+            LoginCloudButtonLabel.Text = L("Авторизоваться", "Авторизуватися", "Sign in");
+            TestCloudButtonLabel.Text = L("Проверить подключение", "Перевірити підключення", "Test connection");
+            SyncCloudButtonLabel.Text = L("Синхронизировать сейчас", "Синхронізувати зараз", "Sync now");
             UpdatesCaption.Text = L("Обновления программы", "Оновлення програми", "Application updates");
             MaintenanceCaption.Text = L("Обслуживание", "Обслуговування", "Maintenance");
-            ResetSettingsButton.Content = L("Сбросить настройки…", "Скинути налаштування…", "Reset settings…");
+            ResetSettingsButtonLabel.Text = L("Сбросить настройки…", "Скинути налаштування…", "Reset settings…");
             ResetHelp.Text = L(
                 "Создать резервную копию и вернуть настройки к исходным. История печати сохраняется по умолчанию.",
                 "Створити резервну копію та скинути налаштування. Історія друку зберігається за замовчуванням.",
