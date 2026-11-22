@@ -1,5 +1,12 @@
 # Changelog
 
+## [9.1.7] - 2026-11-22
+
+### Fixed
+- Make update, recovery and post-restart result dialogs size to their actual content, matching Cloud Sync instead of reserving a fixed 230-DIP height.
+- Collapse empty progress details and the hidden helper action button so the temporary updater stays compact.
+- Use Fluent graphical icons with the localized Cancel/Close button labels and preserve the theme-aware Card Print branding.
+
 ## [9.1.6] - 2026-11-22
 
 ### Changed

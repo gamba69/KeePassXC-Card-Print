@@ -37,13 +37,26 @@ public sealed partial class UpdateOperationWindow : Window
         Title = "KeePassXC Card Print — " + OperationTitle.Text;
         OperationVersions.Text = fromVersion == toVersion
             ? fromVersion : fromVersion + " → " + toVersion;
-        OperationButton.Content = Text("cancel");
+        OperationButtonLabel.Text = Text("cancel");
         Closing += (_, e) => { if (_working) e.Cancel = true; };
         SetProgress(new UpdateOperationProgress("preparing"));
     }
 
     private void UpdateIcon() => BrandArtwork.Apply(OperationIcon,
         ActualThemeVariant == ThemeVariant.Dark, RenderScaling, 32);
+
+    private void SetDetail(string? detail)
+    {
+        OperationDetail.Text = detail ?? "";
+        OperationDetail.IsVisible = !string.IsNullOrWhiteSpace(detail);
+    }
+
+    private void ShowCloseButton()
+    {
+        OperationButtonLabel.Text = Text("close");
+        OperationCancelIcon.IsVisible = false;
+        OperationCloseIcon.IsVisible = true;
+    }
 
     private string Text(string key)
     {
@@ -122,10 +135,10 @@ public sealed partial class UpdateOperationWindow : Window
         if (!Dispatcher.UIThread.CheckAccess())
         { Dispatcher.UIThread.Post(() => SetProgress(progress)); return; }
         OperationPhase.Text = Text(progress.Phase);
-        OperationDetail.Text = progress.Percent is { } percent
+        SetDetail(progress.Percent is { } percent
             ? percent.ToString(System.Globalization.CultureInfo.InvariantCulture) + "%" +
               (progress.Detail.Length == 0 ? "" : " · " + progress.Detail)
-            : progress.Detail;
+            : progress.Detail);
         OperationBar.IsIndeterminate = progress.Percent is null;
         if (progress.Percent is { } value) OperationBar.Value = Math.Clamp(value, 0, 100);
     }
@@ -169,7 +182,8 @@ public sealed partial class UpdateOperationWindow : Window
         OperationBar.IsVisible = false;
         OperationPhase.Text = message;
         OperationButton.IsEnabled = true;
-        OperationButton.Content = Text("close");
+        SetDetail(null);
+        ShowCloseButton();
     }
 
     internal static async Task ShowResultAsync(Window owner, string language, UpdateOperationResult result)
@@ -186,9 +200,9 @@ public sealed partial class UpdateOperationWindow : Window
             _ => result.Status
         };
         window.OperationPhase.Text = window.Text(message);
-        window.OperationDetail.Text = result.Detail;
+        window.SetDetail(result.Detail);
         window.OperationBar.IsVisible = false;
-        window.OperationButton.Content = window.Text("close");
+        window.ShowCloseButton();
         await window.ShowDialog(owner);
     }
 

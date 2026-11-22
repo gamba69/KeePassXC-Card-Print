@@ -1,32 +1,40 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:fi="using:FluentIcons.Avalonia"
         x:Class="KeePassXCCardPrint.Platforms.Windows.Updates.UpdateOperationWindow"
         Title="KeePassXC Card Print"
-        Width="470" MinWidth="420" Height="230" MinHeight="220"
-        SizeToContent="Manual" CanResize="False" ShowInTaskbar="True"
+        Width="470" MinWidth="420"
+        SizeToContent="Height" CanResize="False" ShowInTaskbar="True"
         WindowStartupLocation="CenterScreen" WindowDecorations="Full"
         Icon="avares://KeePassXCCardPrint/assets/CardPrint_white.ico"
         Background="{DynamicResource KpWindowBrush}">
-  <Border Margin="12" Padding="14,12" Classes="settings-card">
-    <Grid RowDefinitions="Auto,Auto,Auto,Auto,*" RowSpacing="12">
-      <StackPanel Orientation="Horizontal" Spacing="10">
-        <Image x:Name="OperationIcon" Width="28" Height="28" Source="avares://KeePassXCCardPrint/assets/CardPrint_black_32.png"/>
+  <Border Margin="10" Padding="14,12" Classes="settings-card">
+    <StackPanel Spacing="10">
+      <StackPanel Orientation="Horizontal" Spacing="12">
+        <Image x:Name="OperationIcon" Width="32" Height="32" Source="avares://KeePassXCCardPrint/assets/CardPrint_black_32.png"/>
         <StackPanel Spacing="2" VerticalAlignment="Center">
-          <TextBlock x:Name="OperationTitle" FontWeight="SemiBold" FontSize="15"
+          <TextBlock x:Name="OperationTitle" FontWeight="SemiBold" FontSize="16"
                      Text="KeePassXC Card Print"/>
-          <TextBlock x:Name="OperationVersions" FontSize="11"
+          <TextBlock x:Name="OperationVersions" FontSize="12"
                      Foreground="{DynamicResource KpSubtleBrush}"/>
         </StackPanel>
       </StackPanel>
-      <TextBlock x:Name="OperationPhase" Grid.Row="1" FontSize="12" TextWrapping="Wrap"/>
-      <ProgressBar x:Name="OperationBar" Grid.Row="2" Minimum="0" Maximum="100"
-                   Height="7" IsIndeterminate="True"/>
-      <TextBlock x:Name="OperationDetail" Grid.Row="3" FontSize="11"
-                 TextWrapping="Wrap" MaxHeight="42"
+      <TextBlock x:Name="OperationPhase" FontSize="13" TextWrapping="Wrap"/>
+      <ProgressBar x:Name="OperationBar" Minimum="0" Maximum="100"
+                   Height="8" IsIndeterminate="True"/>
+      <TextBlock x:Name="OperationDetail" FontSize="12" IsVisible="False"
+                 TextWrapping="Wrap" MaxHeight="48"
                  Foreground="{DynamicResource KpSubtleBrush}"/>
-      <Button x:Name="OperationButton" Grid.Row="4" HorizontalAlignment="Right"
-              VerticalAlignment="Bottom" MinWidth="92" Click="OnOperationButton"
-              Content="Cancel"/>
-    </Grid>
+      <Button x:Name="OperationButton" HorizontalAlignment="Right"
+              MinWidth="112" HorizontalContentAlignment="Center" Click="OnOperationButton">
+        <StackPanel Orientation="Horizontal" Spacing="6">
+          <fi:FluentIcon x:Name="OperationCancelIcon" Icon="Dismiss" IconSize="Size20"
+                         Width="16" Height="16"/>
+          <fi:FluentIcon x:Name="OperationCloseIcon" Icon="Checkmark" IconSize="Size20"
+                         Width="16" Height="16" IsVisible="False"/>
+          <TextBlock x:Name="OperationButtonLabel" VerticalAlignment="Center" Text="Cancel"/>
+        </StackPanel>
+      </Button>
+    </StackPanel>
   </Border>
 </Window>
