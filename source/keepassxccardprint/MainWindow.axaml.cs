@@ -1695,6 +1695,87 @@ public partial class MainWindow : Window
         await dialog.ShowDialog<bool>(this);
     }
 
+    private async void OnRenameCardTemplate(object? sender, RoutedEventArgs e)
+    {
+        var vm = _vm;
+        if (!vm.CanManagePersonalTemplate) return;
+        var language = Localizer.ResolveLanguage(_settings.Language);
+        var title = language switch
+        {
+            "uk" => "Перейменувати шаблон", "en" => "Rename template", _ => "Переименовать шаблон"
+        };
+        var renameLabel = language switch
+        {
+            "uk" => "Перейменувати", "en" => "Rename", _ => "Переименовать"
+        };
+        var cancelLabel = language switch
+        {
+            "uk" => "Скасувати", "en" => "Cancel", _ => "Отмена"
+        };
+        var dialog = new Window
+        {
+            Title = "KeePassXC Card Print — " + title,
+            Width = 440, MinWidth = 370, SizeToContent = SizeToContent.Height,
+            CanResize = false, ShowInTaskbar = false,
+            WindowStartupLocation = WindowStartupLocation.CenterOwner,
+            Background = Background
+        };
+        PrintWindowIcons.Attach(dialog);
+        var input = new TextBox { Text = vm.ActivePersonalTemplateName, MaxLength = 64 };
+        var feedback = new TextBlock { TextWrapping = TextWrapping.Wrap, IsVisible = false };
+        var rename = PrintDialogButtons.Create(renameLabel, "settings");
+        var cancel = PrintDialogButtons.Create(cancelLabel, "cancel");
+        var actions = new StackPanel
+        {
+            Orientation = Avalonia.Layout.Orientation.Horizontal, Spacing = 8,
+            HorizontalAlignment = Avalonia.Layout.HorizontalAlignment.Right
+        };
+        actions.Children.Add(rename);
+        actions.Children.Add(cancel);
+        var contents = new StackPanel { Spacing = 9 };
+        contents.Children.Add(new TextBlock { Text = title, FontWeight = Avalonia.Media.FontWeight.SemiBold });
+        contents.Children.Add(input);
+        contents.Children.Add(feedback);
+        contents.Children.Add(actions);
+        var card = new Border { Margin = new Thickness(12), Padding = new Thickness(12), Child = contents };
+        card.Classes.Add("settings-card");
+        dialog.Content = card;
+        rename.Click += (_, _) =>
+        {
+            if (vm.RenameCurrentPersonalTemplate(input.Text ?? "")) dialog.Close(true);
+            else { feedback.Text = vm.DesignMessage; feedback.IsVisible = true; }
+        };
+        cancel.Click += (_, _) => dialog.Close(false);
+        dialog.KeyDown += (_, args) =>
+        {
+            if (args.Key == Key.Escape) { args.Handled = true; dialog.Close(false); }
+        };
+        dialog.Opened += (_, _) => { input.Focus(); input.SelectAll(); };
+        await dialog.ShowDialog<bool>(this);
+    }
+
+    private async void OnDeleteCardTemplate(object? sender, RoutedEventArgs e)
+    {
+        var vm = _vm;
+        if (!vm.CanManagePersonalTemplate) return;
+        var language = Localizer.ResolveLanguage(_settings.Language);
+        var title = language switch
+        {
+            "uk" => "Видалити шаблон?", "en" => "Delete template?", _ => "Удалить шаблон?"
+        };
+        var description = language switch
+        {
+            "uk" => $"Шаблон «{vm.ActivePersonalTemplateName}» буде видалено без можливості скасування. Незбережені зміни буде втрачено. Продовжити?",
+            "en" => $"Template “{vm.ActivePersonalTemplateName}” will be permanently deleted. Unsaved changes will be lost. Continue?",
+            _ => $"Шаблон «{vm.ActivePersonalTemplateName}» будет удалён без возможности отмены. Несохранённые изменения пропадут. Продолжить?"
+        };
+        var delete = language switch { "uk" => "Видалити", "en" => "Delete", _ => "Удалить" };
+        var cancel = language switch { "uk" => "Скасувати", "en" => "Cancel", _ => "Отмена" };
+        if (await AppConfirmations.AskAsync(this, title, description, delete,
+                sensitive: true, actionIcon: "warning", cancelText: cancel) && ReferenceEquals(_vm, vm))
+            vm.DeleteCurrentPersonalTemplate();
+    }
+
     private async void OnResetMapping(object? sender, RoutedEventArgs e)
     {
         if(await AppConfirmations.AskAsync(this,"Сбросить маппинг?",

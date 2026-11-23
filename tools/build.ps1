@@ -775,12 +775,19 @@ foreach ($tab in @(
     $load = $toolbar.SelectSingleNode(".//*[local-name()='Button' and @Click='OnLoadCardTemplate']")
     $manager = $toolbar.SelectSingleNode(".//*[local-name()='Button' and @Click='OnSaveCardTemplate']")
     $save = $toolbar.SelectSingleNode(".//*[local-name()='Button' and @Click='OnSaveAppearance']")
+    $rename = $toolbar.SelectSingleNode(".//*[local-name()='Button' and @Click='OnRenameCardTemplate']")
+    $delete = $toolbar.SelectSingleNode(".//*[local-name()='Button' and @Click='OnDeleteCardTemplate']")
     if ($null -eq $selector -or $null -ne $load -or $null -eq $manager -or $null -eq $save -or
+        $null -eq $rename -or $null -eq $delete -or
         $selector.GetAttribute('SelectionChanged') -ne 'OnCardTemplateSelectionChanged' -or
         $selector.GetAttribute('Grid.Column') -ne '1' -or
         $manager.GetAttribute('Grid.Column') -ne '2' -or
-        $save.GetAttribute('Grid.Column') -ne '4' -or
-        $manager.ParentNode.GetAttribute('ColumnDefinitions') -ne 'Auto,Auto,Auto,*,Auto') {
+        $rename.GetAttribute('Grid.Column') -ne '3' -or
+        $delete.GetAttribute('Grid.Column') -ne '4' -or
+        $rename.GetAttribute('IsEnabled') -ne '{Binding CanManagePersonalTemplate}' -or
+        $delete.GetAttribute('IsEnabled') -ne '{Binding CanManagePersonalTemplate}' -or
+        $save.GetAttribute('Grid.Column') -ne '6' -or
+        $manager.ParentNode.GetAttribute('ColumnDefinitions') -ne 'Auto,Auto,Auto,Auto,Auto,*,Auto') {
         throw "UI check: template selection must load immediately, with Create next to picker and no Load button in $($tab.Header)"
     }
     if ($save.GetAttribute('IsEnabled') -ne '{Binding CanSaveTemplateChanges}') {
@@ -797,16 +804,25 @@ if ($null -eq $mappingTab) { throw 'UI check: missing mapping tab.' }
 $toolbar = $mappingTab.SelectSingleNode(".//*[local-name()='Border' and @Classes='template-toolbar' and @Grid.Row='0']")
 $mappingSave = $toolbar.SelectSingleNode(".//*[local-name()='Button' and @Click='OnSaveAppearance']")
 $mappingCreate = $toolbar.SelectSingleNode(".//*[local-name()='Button' and @Click='OnSaveCardTemplate']")
+$mappingRename = $toolbar.SelectSingleNode(".//*[local-name()='Button' and @Click='OnRenameCardTemplate']")
+$mappingDelete = $toolbar.SelectSingleNode(".//*[local-name()='Button' and @Click='OnDeleteCardTemplate']")
 $mappingSelect = $toolbar.SelectSingleNode(".//*[local-name()='ComboBox' and @ItemsSource='{Binding TemplateNames}']")
 $mappingReset = $mappingTab.SelectSingleNode(".//*[local-name()='Button' and @Click='OnResetMapping']")
 $mappingApply = $mappingTab.SelectSingleNode(".//*[local-name()='Button' and @Click='OnApplyMapping']")
 $domainButton = $mappingTab.SelectSingleNode(".//*[local-name()='Button' and @Click='OnEditDomains']")
 $fieldListHeading = $mappingTab.SelectSingleNode(".//*[local-name()='TextBlock' and @Text='{Binding MappingFieldsHeading}']")
 if ($null -eq $toolbar -or $null -eq $mappingSave -or $null -eq $mappingCreate -or
+    $null -eq $mappingRename -or $null -eq $mappingDelete -or
     $null -eq $mappingSelect -or $null -eq $fieldListHeading -or $null -eq $domainButton -or
     $mappingSelect.GetAttribute('SelectionChanged') -ne 'OnCardTemplateSelectionChanged' -or
     $mappingSave.GetAttribute('IsEnabled') -ne '{Binding CanSaveTemplateChanges}' -or
-    $mappingSave.GetAttribute('Grid.Column') -ne '4' -or
+    $mappingCreate.GetAttribute('Grid.Column') -ne '2' -or
+    $mappingRename.GetAttribute('Grid.Column') -ne '3' -or
+    $mappingDelete.GetAttribute('Grid.Column') -ne '4' -or
+    $mappingRename.GetAttribute('IsEnabled') -ne '{Binding CanManagePersonalTemplate}' -or
+    $mappingDelete.GetAttribute('IsEnabled') -ne '{Binding CanManagePersonalTemplate}' -or
+    $mappingSave.GetAttribute('Grid.Column') -ne '6' -or
+    $mappingSave.ParentNode.GetAttribute('ColumnDefinitions') -ne 'Auto,Auto,Auto,Auto,Auto,*,Auto' -or
     [regex]::Matches($chromeXaml, 'Click="OnSaveMapping"').Count -ne 0 -or
     [regex]::Matches($chromeXaml, 'Click="OnSaveAppearance"').Count -ne 3) {
     throw 'UI check: Mapping, Design and Duplex must share the same complete-template toolbar.'

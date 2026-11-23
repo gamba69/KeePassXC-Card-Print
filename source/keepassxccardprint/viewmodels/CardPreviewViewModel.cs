@@ -79,6 +79,17 @@ public sealed partial class ShellViewModel
         _ => null
     };
     public bool CanEditAppearance => _activeTemplateOrigin != TemplateOrigin.BuiltIn;
+    public bool CanManagePersonalTemplate => _activeTemplateOrigin == TemplateOrigin.Personal &&
+        _activePersonalTemplatePath is not null;
+    public string ActivePersonalTemplateName => CanManagePersonalTemplate ? _activeTemplateName : "";
+    public string UiRenameTemplate => Localizer.ResolveLanguage(_settings.Language) switch
+    { "uk" => "Перейменувати шаблон", "en" => "Rename template", _ => "Переименовать шаблон" };
+    public string UiDeleteTemplate => Localizer.ResolveLanguage(_settings.Language) switch
+    { "uk" => "Видалити шаблон", "en" => "Delete template", _ => "Удалить шаблон" };
+    public string UiRenameTemplateAction => Localizer.ResolveLanguage(_settings.Language) switch
+    { "uk" => "Перейменувати", "en" => "Rename", _ => "Переименовать" };
+    public string UiDeleteTemplateAction => Localizer.ResolveLanguage(_settings.Language) switch
+    { "uk" => "Видалити", "en" => "Delete", _ => "Удалить" };
     public bool CanSaveTemplateChanges => _activeTemplateOrigin == TemplateOrigin.Personal &&
         !MappingHasInvalidDrafts && HasUnsavedTemplateChanges;
     public string ActiveTemplateNotice => Localizer.ResolveLanguage(_settings.Language) switch
@@ -111,6 +122,12 @@ public sealed partial class ShellViewModel
         MappingEditor?.SetEditable(CanEditAppearance);
         Changed(nameof(CanEditAppearance));
         Changed(nameof(MappingCanEdit));
+        Changed(nameof(CanManagePersonalTemplate));
+        Changed(nameof(ActivePersonalTemplateName));
+        Changed(nameof(UiRenameTemplate));
+        Changed(nameof(UiDeleteTemplate));
+        Changed(nameof(UiRenameTemplateAction));
+        Changed(nameof(UiDeleteTemplateAction));
         Changed(nameof(CanSaveTemplateChanges));
         Changed(nameof(ActiveTemplateNotice));
     }
@@ -650,6 +667,50 @@ public sealed partial class ShellViewModel
         }
         catch (Exception e) when(e is IOException or UnauthorizedAccessException or InvalidDataException or ArgumentException or System.Text.Json.JsonException)
         { DesignMessage="Не удалось сохранить изменения в свой шаблон."; }
+    }
+
+    public bool RenameCurrentPersonalTemplate(string newName)
+    {
+        if (!CanManagePersonalTemplate) return false;
+        try
+        {
+            var path = CardAppearanceStore.RenamePersonalTemplate(_activePersonalTemplatePath!, newName);
+            _activePersonalTemplatePath = path;
+            _activeTemplateName = CardAppearanceStore.ReadTemplateName(path);
+            TemplateName = _activeTemplateName + CopySuffix;
+            ReloadTemplates();
+            SelectedTemplate = _personalTemplatePaths.First(kv =>
+                string.Equals(kv.Value, path, PlatformServices.Current.FileNameComparison)).Key;
+            if (!HasUnsavedTemplateChanges) SaveCardAppearance();
+            NotifyTemplateState();
+            DesignMessage = "";
+            return true;
+        }
+        catch (Exception e) when (e is IOException or UnauthorizedAccessException or InvalidDataException or
+            ArgumentException or System.Text.Json.JsonException)
+        {
+            DesignMessage = e.Message;
+            return false;
+        }
+    }
+
+    public bool DeleteCurrentPersonalTemplate()
+    {
+        if (!CanManagePersonalTemplate) return false;
+        try
+        {
+            CardAppearanceStore.DeletePersonalTemplate(_activePersonalTemplatePath!);
+            SelectedTemplate = BuiltinLabel("archive");
+            var loaded = LoadCardTemplate(discardUnsavedChanges: true);
+            ReloadTemplates();
+            return loaded;
+        }
+        catch (Exception e) when (e is IOException or UnauthorizedAccessException or InvalidDataException or
+            ArgumentException or System.Text.Json.JsonException)
+        {
+            DesignMessage = e.Message;
+            return false;
+        }
     }
 
     private void PreviewStep(int direction)

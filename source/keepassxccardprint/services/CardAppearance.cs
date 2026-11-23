@@ -376,16 +376,23 @@ public static class CardAppearanceStore
         ",\"settings\":" + JsonSerializer.Serialize(model, CardAppearanceJsonContext.Default.CardAppearance) +
         ",\"mapping\":" + JsonSerializer.Serialize(mapping, VaultJsonContext.Default.DictionaryStringFieldRule) + "}";
 
+    internal static bool IsValidPersonalTemplateName(string? name)
+    {
+        if (name is null) return false;
+        name = name.Trim();
+        return name.Length is >= 1 and <= 64 && !name.EndsWith('.') &&
+            !name.Any(c => !(char.IsLetterOrDigit(c) || c is ' ' or '-' or '_')) &&
+            !new[] { "CON", "PRN", "AUX", "NUL" }.Contains(name, StringComparer.OrdinalIgnoreCase) &&
+            !((name.StartsWith("COM", StringComparison.OrdinalIgnoreCase) ||
+               name.StartsWith("LPT", StringComparison.OrdinalIgnoreCase)) &&
+              name.Length == 4 && char.IsDigit(name[3]));
+    }
+
     // New personal copies cannot overwrite existing templates.
     public static string CreatePersonalTemplate(string name, CardAppearance model, Dictionary<string, FieldRule> mapping)
     {
         name = name.Trim();
-        if (name.Length is < 1 or > 64 || name.EndsWith('.') ||
-            name.Any(c => !(char.IsLetterOrDigit(c) || c is ' ' or '-' or '_')) ||
-            new[] { "CON", "PRN", "AUX", "NUL" }.Contains(name, StringComparer.OrdinalIgnoreCase) ||
-            ((name.StartsWith("COM", StringComparison.OrdinalIgnoreCase) ||
-              name.StartsWith("LPT", StringComparison.OrdinalIgnoreCase)) &&
-             name.Length == 4 && char.IsDigit(name[3])))
+        if (!IsValidPersonalTemplateName(name))
             throw new ArgumentException("Имя шаблона: 1–64 символа, буквы, цифры, пробелы, - или _.");
         var dir = TemplatesDirectory;
         Directory.CreateDirectory(dir);
@@ -419,4 +426,63 @@ public static class CardAppearanceStore
         finally { if (File.Exists(tmp)) File.Delete(tmp); }
     }
 
+    // A rename keeps the complete saved template (front, reverse and mapping).
+    // Never rename an arbitrary file outside the currently selected settings root.
+    public static string RenamePersonalTemplate(string path, string newName)
+    {
+        path = EnsurePersonalPath(path);
+        newName = newName.Trim();
+        if (!IsValidPersonalTemplateName(newName))
+            throw new ArgumentException("Имя шаблона: 1–64 символа, буквы, цифры, пробелы, - или _.");
+        if (!File.Exists(path)) throw new FileNotFoundException("Пользовательский шаблон не найден.", path);
+        var currentName = ReadTemplateName(path);
+        if (string.Equals(currentName, newName, StringComparison.Ordinal)) return path;
+
+        var target = Path.Combine(TemplatesDirectory, newName + ".json");
+        var samePath = string.Equals(path, target, PlatformServices.Current.FileNameComparison);
+        if (!samePath && Directory.EnumerateFiles(TemplatesDirectory, "*.json").Any(file =>
+                !string.Equals(file, path, PlatformServices.Current.FileNameComparison) &&
+                string.Equals(Path.GetFileNameWithoutExtension(file), newName,
+                    PlatformServices.Current.FileNameComparison)))
+            throw new IOException("Шаблон с таким именем уже существует. Укажите другое имя.");
+
+        // Read and validate the saved file, never an in-memory unsaved draft.
+        var model = ReadTemplate(path);
+        var mapping = ReadTemplateMapping(path);
+        var active = string.Equals(ReadActivePersonalTemplate(), Path.GetFileName(path),
+            PlatformServices.Current.FileNameComparison);
+        var tmp = path + ".tmp-" + Guid.NewGuid().ToString("N");
+        try
+        {
+            File.WriteAllText(tmp, MakeEnvelope(newName, model, mapping));
+            if (samePath)
+            {
+                File.Move(tmp, path, true);
+                return path;
+            }
+            File.Move(tmp, target, false);
+            try
+            {
+                if (active) SaveActivePersonalTemplate(Path.GetFileName(target));
+            }
+            catch
+            {
+                File.Delete(target); // Original file is still intact.
+                throw;
+            }
+            File.Delete(path);
+            return target;
+        }
+        finally { if (File.Exists(tmp)) File.Delete(tmp); }
+    }
+
+    public static void DeletePersonalTemplate(string path)
+    {
+        path = EnsurePersonalPath(path);
+        if (!File.Exists(path)) throw new FileNotFoundException("Пользовательский шаблон не найден.", path);
+        var active = string.Equals(ReadActivePersonalTemplate(), Path.GetFileName(path),
+            PlatformServices.Current.FileNameComparison);
+        File.Delete(path);
+        if (active) SaveActivePersonalTemplate(null);
+    }
 }

@@ -1,5 +1,34 @@
 # Changelog
 
+## [9.1.13] - 2026-11-23
+
+### Fixed
+- Display clearly labeled Rename and Delete buttons next to Create in all three print-template toolbars.
+- Increase the Rename/Delete Fluent icons to a legible 16-DIP size, consistent with other application actions.
+- Localize action captions in Russian, Ukrainian and English, while retaining full descriptive tooltips and personal-template-only availability.
+
+## [9.1.12] - 2026-11-23
+
+### Fixed
+- Update the build-time UI regression checks for the seven-column template toolbar shared by Mapping, Appearance, and Duplex.
+- Verify Rename/Delete actions and their personal-template-only enabled state while retaining immediate template loading, Create next to the picker, and Save at the far right.
+
+## [9.1.11] - 2026-11-23
+
+### Added
+- Rename and delete actions for personal print templates in Mapping, Appearance, and Duplex editors.
+- Confirmation before deleting a template, with explicit warning about losing unsaved changes.
+- Keep complete front/reverse appearance and mapping when renaming; update active template selection.
+- Protect built-in templates, reject duplicate or invalid names, and return to the built-in Archive template after deletion.
+- Add native self-test assertions for safe personal template naming.
+
+## [9.1.10] - 2026-11-23
+
+### Changed
+- Replace the bright blue accent in the dark theme with a subdued slate-blue tint for checked controls, progress indicators and selection accents.
+- Soften selected and hovered row backgrounds, preserving clear selection and accessible contrast with light text.
+- Leave the light theme, neutral dark-theme surfaces and behavior unchanged.
+
 ## [9.1.9] - 2026-11-22
 
 ### Fixed

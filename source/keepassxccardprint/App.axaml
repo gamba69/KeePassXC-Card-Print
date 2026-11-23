@@ -60,21 +60,21 @@
         <SolidColorBrush x:Key="KpTabSurfaceBrush" Color="#182b3f" />
         <SolidColorBrush x:Key="KpTabTextBrush" Color="#eef4fb" />
         <SolidColorBrush x:Key="KpTabBorderBrush" Color="#31475f" />
-        <SolidColorBrush x:Key="KpSelectedBrush" Color="#243b56" />
+        <SolidColorBrush x:Key="KpSelectedBrush" Color="#213347" />
         <SolidColorBrush x:Key="KpSelectedTextBrush" Color="#ffffff" />
         <SolidColorBrush x:Key="KpButtonBrush" Color="#20384e" />
         <SolidColorBrush x:Key="KpInputBrush" Color="#13273b" />
         <SolidColorBrush x:Key="KpCanvasBrush" Color="#06111c" />
-        <SolidColorBrush x:Key="KpAccentBrush" Color="#6ea8ff" />
+        <SolidColorBrush x:Key="KpAccentBrush" Color="#567A9C" />
         <SolidColorBrush x:Key="KpErrorBrush" Color="#ff8585" />
         <SolidColorBrush x:Key="KpDangerButtonBrush" Color="#b42318" />
         <SolidColorBrush x:Key="KpDangerButtonHoverBrush" Color="#cd3329" />
         <SolidColorBrush x:Key="KpDangerButtonPressedBrush" Color="#961f17" />
         <SolidColorBrush x:Key="KpDangerButtonTextBrush" Color="#ffffff" />
-        <SolidColorBrush x:Key="KpRowHoverBrush" Color="#29445d" />
+        <SolidColorBrush x:Key="KpRowHoverBrush" Color="#23384d" />
         <SolidColorBrush x:Key="KpStripeBrush" Color="#1f3448" />
-        <SolidColorBrush x:Key="KpRowMarkedBrush" Color="#2a5075" />
-        <SolidColorBrush x:Key="KpRowMarkedHoverBrush" Color="#37638d" />
+        <SolidColorBrush x:Key="KpRowMarkedBrush" Color="#264664" />
+        <SolidColorBrush x:Key="KpRowMarkedHoverBrush" Color="#315673" />
         <SolidColorBrush x:Key="KpHeaderBrush" Color="#172738" />
         <SolidColorBrush x:Key="KpHeaderBorderBrush" Color="#27425d" />
         <SolidColorBrush x:Key="KpHeaderTextBrush" Color="#ffffff" />
@@ -110,7 +110,7 @@
         <ColorPaletteResources x:Key="Light" Accent="#2b68b6" RegionColor="#F4F7FB"
                                BaseHigh="#182B40" BaseMedium="#64788D"
                                ChromeLow="#e8edf4" ChromeMedium="#ced4dc" />
-        <ColorPaletteResources x:Key="Dark" Accent="#6ea8ff" RegionColor="#101821"
+        <ColorPaletteResources x:Key="Dark" Accent="#567A9C" RegionColor="#101821"
                                BaseHigh="#E9F0F9" BaseMedium="#A2B6C9"
                                ChromeLow="#20384e" ChromeMedium="#31475f" />
       </FluentTheme.Palettes>

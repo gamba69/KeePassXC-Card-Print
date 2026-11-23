@@ -25,6 +25,13 @@ public static class MappingSelfTests
             Check(!editor.Enabled, "built-in template mapping editor stays read-only");
             editor.SetEditable(true);
             Check(editor.Enabled, "personal template mapping editor becomes editable");
+            Check(CardAppearanceStore.IsValidPersonalTemplateName("My template 2"),
+                "personal template rename accepts valid names");
+            Check(!CardAppearanceStore.IsValidPersonalTemplateName("../unsafe") &&
+                !CardAppearanceStore.IsValidPersonalTemplateName("CON") &&
+                !CardAppearanceStore.IsValidPersonalTemplateName(" ") &&
+                !CardAppearanceStore.IsValidPersonalTemplateName(new string('a', 65)),
+                "rename rejects traversal, reserved, empty and oversized names");
             using (var embedded = System.Text.Json.JsonDocument.Parse(
                 "{\"mapping\":{\"USERNAME\":{\"Role\":\"secret\",\"Order\":7}}}"))
             {
