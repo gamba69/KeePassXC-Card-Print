@@ -13,7 +13,7 @@
     <ApplicationIcon>assets\CardPrint_white.ico</ApplicationIcon>
     <AssemblyName>KeePassXCCardPrint</AssemblyName>
     <RootNamespace>KeePassXCCardPrint</RootNamespace>
-    <Version>9.1.14</Version>
+    <Version>9.1.16</Version>
     <WarningsAsErrors>$(WarningsAsErrors);CA1416;IL2026;IL2070;IL2072;IL2075;IL3050;IL3053;AVLN5001</WarningsAsErrors>
   </PropertyGroup>
   <ItemGroup>

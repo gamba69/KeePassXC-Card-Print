@@ -156,6 +156,14 @@ public sealed class CardAppearance
     [JsonPropertyName("empty_back_show_header")] public bool EmptyBackShowHeader { get; set; } = false;
     [JsonPropertyName("empty_back_show_footer")] public bool EmptyBackShowFooter { get; set; } = true;
     [JsonPropertyName("empty_back_show_art")] public bool EmptyBackShowArt { get; set; } = true;
+    // Defaults inherit the original title/label typography and language-specific point sizes.
+    // Zero size selects the original automatic point size for the chosen reverse language.
+    [JsonPropertyName("back_caption_title_font")] public string BackCaptionTitleFont { get; set; } = "inherit";
+    [JsonPropertyName("back_caption_title_size_pt")] public double BackCaptionTitleSizePt { get; set; } = 0;
+    [JsonPropertyName("back_caption_title_weight")] public string BackCaptionTitleWeight { get; set; } = "inherit";
+    [JsonPropertyName("back_caption_subtitle_font")] public string BackCaptionSubtitleFont { get; set; } = "inherit";
+    [JsonPropertyName("back_caption_subtitle_size_pt")] public double BackCaptionSubtitleSizePt { get; set; } = 0;
+    [JsonPropertyName("back_caption_subtitle_weight")] public string BackCaptionSubtitleWeight { get; set; } = "inherit";
     [JsonPropertyName("empty_back_show_icon")] public bool EmptyBackShowIcon { get; set; } = true;
     [JsonPropertyName("empty_back_show_frame")] public bool EmptyBackShowFrame { get; set; } = false;
     [JsonPropertyName("back_art_icon")] public string BackArtIcon { get; set; } = "lock";
@@ -195,6 +203,10 @@ public sealed class CardAppearance
         BackBgContrast=Safe(BackBgContrast,30,0,100);
         EmptyBackBgGray=Safe(EmptyBackBgGray,0,0,100);
         EmptyBackBgContrast=Safe(EmptyBackBgContrast,30,0,100);
+        BackCaptionTitleSizePt=Safe(BackCaptionTitleSizePt,0,0,18);
+        BackCaptionSubtitleSizePt=Safe(BackCaptionSubtitleSizePt,0,0,18);
+        if (BackCaptionTitleSizePt>0) BackCaptionTitleSizePt=Math.Max(2,BackCaptionTitleSizePt);
+        if (BackCaptionSubtitleSizePt>0) BackCaptionSubtitleSizePt=Math.Max(2,BackCaptionSubtitleSizePt);
         BackArtIconSizeMm=Safe(BackArtIconSizeMm,13,4,28);
         BackArtTextGapMm=Safe(BackArtTextGapMm,4,2,12);
         BackArtIconOpacity=Safe(BackArtIconOpacity,75,0,100);

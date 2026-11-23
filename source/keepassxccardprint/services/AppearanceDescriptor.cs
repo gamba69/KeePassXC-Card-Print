@@ -118,7 +118,8 @@ public sealed class AppearanceField : INotifyPropertyChanged
         "card_bg_gray" or "card_bg_contrast" or "front_bg_gray" or "front_bg_contrast" or
         "back_bg_gray" or "back_bg_contrast" or "empty_back_bg_gray" or "empty_back_bg_contrast" or
         "back_art_icon_opacity" or "back_rules_opacity" => 5,
-        "header_group_size_pt" or "footer_uuid_size_pt" or "footer_date_size_pt" => .1,
+        "header_group_size_pt" or "footer_uuid_size_pt" or "footer_date_size_pt" or
+        "back_caption_title_size_pt" or "back_caption_subtitle_size_pt" => .1,
         "header_height_mm" or "header_top_mm" or "header_gap_mm" or "footer_height_mm" or "footer_bottom_shift_mm" => .1,
         "header_group_column_pct" or "footer_uuid_length" => 1,
         "frame_width_pt" or "cut_cross_width_pt" => .05,
@@ -151,6 +152,7 @@ public sealed class AppearanceField : INotifyPropertyChanged
         "header_accent_width_mm" => (.2, 3),
         "footer_uuid_length" => (4, 32),
         "footer_uuid_size_pt" or "footer_date_size_pt" => (2, 18),
+        "back_caption_title_size_pt" or "back_caption_subtitle_size_pt" => (0, 18),
         "frame_width_pt" or "cut_cross_width_pt" => (0, 5),
         "group_spaces" => (0, 2),
         "line_spacing" => (.8, 2),
@@ -196,7 +198,9 @@ public sealed class AppearanceField : INotifyPropertyChanged
     public void Reload()
     {
         _text = _read(_appearance);
-        if(Key.EndsWith("_weight",StringComparison.Ordinal))
+        // Reverse captions may inherit existing title/label weights. Do not turn
+        // that explicit choice into 400 while rebuilding the editor.
+        if(Key.EndsWith("_weight",StringComparison.Ordinal) && _text!="inherit")
         {
             _text=FontWeights.Normalize(_text);
             _write(_appearance,_text); // Keep the displayed weight in canonical numeric form
@@ -211,13 +215,21 @@ public static class AppearanceDescriptor
 {
     private static int ParseInt(string s,int fallback) => int.TryParse(s,NumberStyles.Integer,CultureInfo.InvariantCulture,out var v) ? v : fallback;
     private static double ParseDouble(string s,double fallback) => double.TryParse(s.Replace(',','.'),NumberStyles.Float,CultureInfo.InvariantCulture,out var v) && double.IsFinite(v) ? v : fallback;
+    // Zero keeps the historic language-dependent sizing; positive values are 2–18 pt.
+    private static double CaptionSize(double value) => value<=0 ? 0 : Math.Clamp(value,2,18);
     public static IReadOnlyList<AppearanceField> Create(CardAppearance model)
         => Create(model, "ru");
     public static IReadOnlyList<AppearanceField> Create(CardAppearance model, string language)
     {
-        var result = new List<AppearanceField>(140);
+        var result = new List<AppearanceField>(146);
         void Add(string group,string label,string key,string type,Func<CardAppearance,string> reader,Action<CardAppearance,string> writer,string? choices)
             => result.Add(new AppearanceField(group,label,key,type,model,reader,writer,choices,language));
+        // Both proportional system faces and bundled monospaced faces work for
+        // either decorative caption line; "inherit" preserves older templates.
+        string captionFonts = string.Join(",", ("inherit," + PlatformServices.Current.SystemFontOptions +
+            ",Atkinson Hyperlegible Mono,JetBrains Mono NL,Recursive Mono,IBM Plex Mono,Source Code Pro,Geist Mono,Cascadia Mono,Consolas,Courier New")
+            .Split(',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries)
+            .Distinct(StringComparer.OrdinalIgnoreCase));
             Add("Геометрия", "Ширина, мм", "width_mm", "double", a => a.WidthMm.ToString(CultureInfo.InvariantCulture), (a,v) => a.WidthMm = ParseDouble(v,a.WidthMm), null);
             Add("Геометрия", "Высота, мм", "height_mm", "double", a => a.HeightMm.ToString(CultureInfo.InvariantCulture), (a,v) => a.HeightMm = ParseDouble(v,a.HeightMm), null);
             Add("Геометрия", "Плотность", "density", "string", a => a.Density.ToString(), (a,v) => a.Density = v, "compact,normal,large");
@@ -347,6 +359,12 @@ public static class AppearanceDescriptor
             Add("Пустой оборот", "Шапка пустого оборота", "empty_back_show_header", "bool", a=>a.EmptyBackShowHeader.ToString(), (a,v)=>a.EmptyBackShowHeader=v.Equals("true",StringComparison.OrdinalIgnoreCase), null);
             Add("Пустой оборот", "Подвал пустого оборота", "empty_back_show_footer", "bool", a=>a.EmptyBackShowFooter.ToString(), (a,v)=>a.EmptyBackShowFooter=v.Equals("true",StringComparison.OrdinalIgnoreCase), null);
             Add("Пустой оборот", "Надпись на обороте", "empty_back_show_art", "bool", a=>a.EmptyBackShowArt.ToString(), (a,v)=>a.EmptyBackShowArt=v.Equals("true",StringComparison.OrdinalIgnoreCase), null);
+            Add("Пустой оборот", "Верхняя надпись: шрифт", "back_caption_title_font", "string", a=>a.BackCaptionTitleFont, (a,v)=>a.BackCaptionTitleFont=v, captionFonts);
+            Add("Пустой оборот", "Верхняя надпись: pt", "back_caption_title_size_pt", "double", a=>a.BackCaptionTitleSizePt.ToString(CultureInfo.InvariantCulture), (a,v)=>a.BackCaptionTitleSizePt=CaptionSize(ParseDouble(v,a.BackCaptionTitleSizePt)), null);
+            Add("Пустой оборот", "Верхняя надпись: вес", "back_caption_title_weight", "string", a=>a.BackCaptionTitleWeight, (a,v)=>a.BackCaptionTitleWeight=v, "inherit,200,300,400,500,600,700,800");
+            Add("Пустой оборот", "Нижняя надпись: шрифт", "back_caption_subtitle_font", "string", a=>a.BackCaptionSubtitleFont, (a,v)=>a.BackCaptionSubtitleFont=v, captionFonts);
+            Add("Пустой оборот", "Нижняя надпись: pt", "back_caption_subtitle_size_pt", "double", a=>a.BackCaptionSubtitleSizePt.ToString(CultureInfo.InvariantCulture), (a,v)=>a.BackCaptionSubtitleSizePt=CaptionSize(ParseDouble(v,a.BackCaptionSubtitleSizePt)), null);
+            Add("Пустой оборот", "Нижняя надпись: вес", "back_caption_subtitle_weight", "string", a=>a.BackCaptionSubtitleWeight, (a,v)=>a.BackCaptionSubtitleWeight=v, "inherit,200,300,400,500,600,700,800");
             Add("Пустой оборот", "Иконка пустого оборота", "empty_back_show_icon", "bool", a=>a.EmptyBackShowIcon.ToString(), (a,v)=>a.EmptyBackShowIcon=v.Equals("true",StringComparison.OrdinalIgnoreCase), null);
             Add("Пустой оборот", "Рамка пустого оборота", "empty_back_show_frame", "bool", a=>a.EmptyBackShowFrame.ToString(), (a,v)=>a.EmptyBackShowFrame=v.Equals("true",StringComparison.OrdinalIgnoreCase), null);
             Add("Фоновая иконка", "Векторная иконка", "back_art_icon", "string", a=>a.BackArtIcon, (a,v)=>a.BackArtIcon=v, "none,shield,lock,key,card,vault");
@@ -360,7 +378,7 @@ public static class AppearanceDescriptor
             Add("Линии оборота", "Толщина линий, мм", "back_rules_thickness_mm", "double", a=>a.BackRulesThicknessMm.ToString(CultureInfo.InvariantCulture), (a,v)=>a.BackRulesThicknessMm=Math.Clamp(ParseDouble(v,a.BackRulesThicknessMm),.05,1), null);
             Add("Линии оборота", "Отступ линий, мм", "back_rules_gap_mm", "double", a=>a.BackRulesGapMm.ToString(CultureInfo.InvariantCulture), (a,v)=>a.BackRulesGapMm=Math.Clamp(ParseDouble(v,a.BackRulesGapMm),.1,8), null);
             Add("Линии оборота", "Видимость линий, %", "back_rules_opacity", "double", a=>a.BackRulesOpacity.ToString(CultureInfo.InvariantCulture), (a,v)=>a.BackRulesOpacity=Math.Clamp(ParseDouble(v,a.BackRulesOpacity),0,100), null);
-        if (result.Count != 140) throw new InvalidOperationException($"Appearance property registry out of sync: {result.Count} found, 140 expected.");
+        if (result.Count != 146) throw new InvalidOperationException($"Appearance property registry out of sync: {result.Count} found, 146 expected.");
         return result;
     }
 }

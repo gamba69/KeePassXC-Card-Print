@@ -1,5 +1,22 @@
 # Changelog
 
+## [9.1.16] - 2026-11-23
+
+### Fixed
+- Synchronize the Native AOT JSON serialization tests with the 146 appearance settings introduced in 9.1.15 (previously 140).
+- Restore the appearance preflight check without weakening the registry and persisted-key consistency guards.
+
+## [9.1.15] - 2026-11-23
+
+### Added
+- Expose independent font family, point size and font weight settings for both lines of the decorative empty reverse caption.
+- Include installed system and bundled monospaced fonts in the reverse-side caption selectors, with Russian, Ukrainian and English labels and help.
+- Preserve legacy typography for existing templates through inherited weights/fonts and automatic language-specific sizes.
+
+### Fixed
+- Fit oversized decorative reverse captions to the printable width and adjust line spacing to avoid overlaps or printing failures.
+- Add AOT-safe descriptor, JSON round-trip and raster-output regression checks for reverse caption typography.
+
 ## [9.1.14] - 2026-11-23
 
 ### Changed

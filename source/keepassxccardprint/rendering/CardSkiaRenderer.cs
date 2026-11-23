@@ -588,6 +588,21 @@ public static class CardSkiaRenderer
         return result;
     }
 
+    // Inherited values reproduce old templates, including larger EN captions.
+    internal static (string Font,string Weight,float SizePt) BackCaptionTypography(CardAppearance a,bool title)
+    {
+        string selectedFont=title ? a.BackCaptionTitleFont : a.BackCaptionSubtitleFont;
+        string inheritedFont=title ? a.TitleFont : a.LabelFont;
+        string selectedWeight=title ? a.BackCaptionTitleWeight : a.BackCaptionSubtitleWeight;
+        string inheritedWeight=title ? a.TitleWeight : a.LabelWeight;
+        double explicitPt=title ? a.BackCaptionTitleSizePt : a.BackCaptionSubtitleSizePt;
+        float legacyPt=title ? (a.DuplexBackLanguage=="en" ? 6.6f : 5.8f)
+                             : (a.DuplexBackLanguage=="en" ? 5f : 4.65f);
+        return (string.IsNullOrWhiteSpace(selectedFont) || selectedFont=="inherit" ? inheritedFont : selectedFont,
+                string.IsNullOrWhiteSpace(selectedWeight) || selectedWeight=="inherit" ? inheritedWeight : selectedWeight,
+                double.IsFinite(explicitPt) && explicitPt>0 ? (float)Math.Clamp(explicitPt,2,18) : legacyPt);
+    }
+
     /// <summary>Decorative reverse side without credential data.  Each layer is
     /// optional and independently enabled, while a blank duplex_back_fill
     /// always means an entirely blank back.</summary>
@@ -615,14 +630,22 @@ public static class CardSkiaRenderer
             "en"=>["PRIVATE","CREDENTIALS"],
             _=>["КОНФИДЕНЦИАЛЬНО","УЧЁТНЫЕ ДАННЫЕ"]
         };
-        float titlePx=Pt(a.DuplexBackLanguage=="en" ? 6.6f : 5.8f);
-        float subPx=Pt(a.DuplexBackLanguage=="en" ? 5f : 4.65f);
-        float titleBaseline0=CenteredBaseline(titles[0],0,titlePx,a.TitleFont,a.TitleWeight);
-        float subBaseline0=CenteredBaseline(titles[1],PxMm(4),subPx,a.LabelFont,a.LabelWeight);
-        using var titleFont=new SKFont(CardTextMetrics.Typeface(a.TitleFont,a.TitleWeight),titlePx);
-        using var subFont=new SKFont(CardTextMetrics.Typeface(a.LabelFont,a.LabelWeight),subPx);
+        var titleStyle=BackCaptionTypography(a,true);
+        var subStyle=BackCaptionTypography(a,false);
+        float maxWidth=Math.Min(w-PxMm(14),PxMm(43));
+        float titlePx=Pt(titleStyle.SizePt);
+        float subPx=Pt(subStyle.SizePt);
+        // Fit each line independently to the printable width. A large selected
+        // point size must never make preview or printing throw an exception.
+        titlePx*=Math.Min(1f,maxWidth/Math.Max(1f,Width(titles[0],titlePx,titleStyle.Font,titleStyle.Weight)));
+        subPx*=Math.Min(1f,maxWidth/Math.Max(1f,Width(titles[1],subPx,subStyle.Font,subStyle.Weight)));
+        using var titleFont=new SKFont(CardTextMetrics.Typeface(titleStyle.Font,titleStyle.Weight),titlePx);
+        using var subFont=new SKFont(CardTextMetrics.Typeface(subStyle.Font,subStyle.Weight),subPx);
         titleFont.MeasureText(titles[0],out SKRect titleBox);
         subFont.MeasureText(titles[1],out SKRect subBox);
+        float titleBaseline0=CenteredBaseline(titles[0],0,titlePx,titleStyle.Font,titleStyle.Weight);
+        float subCenter=Math.Max(PxMm(4),(titleBox.Height+subBox.Height)*.5f+PxMm(.9));
+        float subBaseline0=CenteredBaseline(titles[1],subCenter,subPx,subStyle.Font,subStyle.Weight);
         bool rules=drawCaption && a.DuplexBackStyle=="rules";
         float rulePadding=rules?PxMm(a.BackRulesGapMm):0;
         float captionTop0=titleBaseline0+titleBox.Top-rulePadding;
@@ -644,13 +667,12 @@ public static class CardSkiaRenderer
             float offset=layout.CaptionTopY-captionTop0;
             float titleBaseline=titleBaseline0+offset;
             float subBaseline=subBaseline0+offset;
-            float maxWidth=Math.Min(w-PxMm(14),PxMm(43));
-            float titleWidth=Math.Min(maxWidth,Width(titles[0],titlePx,a.TitleFont,a.TitleWeight));
-            float subWidth=Math.Min(maxWidth,Width(titles[1],subPx,a.LabelFont,a.LabelWeight));
-            Fit(c,titles[0],centerX-titleWidth*.5f,titleBaseline,maxWidth,titlePx,80,
-                ink,a.TitleFont,a.TitleWeight);
-            Fit(c,titles[1],centerX-subWidth*.5f,subBaseline,maxWidth,subPx,80,
-                muted,a.LabelFont,a.LabelWeight);
+            float titleWidth=Math.Min(maxWidth,Width(titles[0],titlePx,titleStyle.Font,titleStyle.Weight));
+            float subWidth=Math.Min(maxWidth,Width(titles[1],subPx,subStyle.Font,subStyle.Weight));
+            DrawText(c,titles[0],centerX-titleWidth*.5f,titleBaseline,titlePx,
+                ink,titleStyle.Font,titleStyle.Weight);
+            DrawText(c,titles[1],centerX-subWidth*.5f,subBaseline,subPx,
+                muted,subStyle.Font,subStyle.Weight);
             if(rules)
             {
                 float halfWidth=Math.Min(w-PxMm(12),PxMm(a.BackRulesWidthMm))*.5f;

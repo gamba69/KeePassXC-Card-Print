@@ -543,7 +543,22 @@ internal static class CardEngineSelfTests
 
             var settings=Defaults();
             var appearanceFields=AppearanceDescriptor.Create(settings);
-            Check(appearanceFields.Count==140,"all 140 editable appearance parameters");
+            Check(appearanceFields.Count==146,"all 146 editable appearance parameters");
+            var upperFontField=appearanceFields.Single(f=>f.Key=="back_caption_title_font");
+            var lowerFontField=appearanceFields.Single(f=>f.Key=="back_caption_subtitle_font");
+            Check(upperFontField.Group=="Пустой оборот" && lowerFontField.Group=="Пустой оборот" &&
+                  upperFontField.Choices.Any(c=>c.Code=="Consolas") &&
+                  lowerFontField.Choices.Any(c=>c.Code=="JetBrains Mono NL"),
+                  "reverse caption editors include system and bundled monospace fonts");
+            Check(CardSkiaRenderer.BackCaptionTypography(settings,true).Font==settings.TitleFont &&
+                  CardSkiaRenderer.BackCaptionTypography(settings,false).Weight==settings.LabelWeight &&
+                  Math.Abs(CardSkiaRenderer.BackCaptionTypography(settings,true).SizePt-5.8f)<.001f,
+                  "legacy reverse caption fonts and sizes remain unchanged");
+            settings.DuplexBackLanguage="en";
+            Check(Math.Abs(CardSkiaRenderer.BackCaptionTypography(settings,true).SizePt-6.6f)<.001f &&
+                  Math.Abs(CardSkiaRenderer.BackCaptionTypography(settings,false).SizePt-5f)<.001f,
+                  "legacy English caption sizes remain unchanged");
+            settings.DuplexBackLanguage="ru";
             // A standard template must be truly read-only, not merely greyed out.
             // These tests do not require Windows UI or any disk access.
             var lockedAppearance = new CardAppearance();
@@ -575,12 +590,20 @@ internal static class CardEngineSelfTests
                 BackArtIconColor = "#223344",
                 BackRulesOpacity = 55,
                 DuplexBackFill = "design",
-                DuplexEnabled = true
+                DuplexEnabled = true,
+                BackCaptionTitleFont = "JetBrains Mono NL",
+                BackCaptionTitleSizePt = 9.5,
+                BackCaptionTitleWeight = "800",
+                BackCaptionSubtitleFont = "Cascadia Mono",
+                BackCaptionSubtitleSizePt = 7.2,
+                BackCaptionSubtitleWeight = "600"
             };
             var fullJson = JsonSerializer.SerializeToUtf8Bytes(fullTemplate, CardAppearanceJsonContext.Default.CardAppearance);
             var reloaded = JsonSerializer.Deserialize(fullJson, CardAppearanceJsonContext.Default.CardAppearance);
-            Check(reloaded is not null && CardAppearanceStore.ContentEquals(fullTemplate, reloaded),
-                "templates serialize complete front and reverse configuration");
+            Check(reloaded is not null && CardAppearanceStore.ContentEquals(fullTemplate, reloaded) &&
+                  reloaded.BackCaptionTitleFont=="JetBrains Mono NL" &&
+                  reloaded.BackCaptionSubtitleWeight=="600",
+                "templates serialize complete front and reverse typography");
             Check(PortableFonts.ReleaseFiles.Length==8 &&
                   PortableFonts.ReleaseFiles.Distinct(StringComparer.Ordinal).Count()==8 &&
                   PortableFonts.ReleaseFiles.All(f=>!f.Contains("Intel",StringComparison.OrdinalIgnoreCase)),
@@ -617,9 +640,9 @@ internal static class CardEngineSelfTests
             var serializedKeys = serializedAppearance.RootElement.EnumerateObject()
                 .Select(p => p.Name).ToArray();
             var keyNames = serializedKeys.ToHashSet(StringComparer.Ordinal);
-            Check(serializedKeys.Length == 140,
-                $"persisted appearance JSON has 140 properties (actual {serializedKeys.Length})");
-            Check(keyNames.Count==140,
+            Check(serializedKeys.Length == 146,
+                $"persisted appearance JSON has 146 properties (actual {serializedKeys.Length})");
+            Check(keyNames.Count==146,
                 $"original and new appearance keys (actual {keyNames.Count})");
             Check(appearanceFields.Select(f=>f.Key).Distinct(StringComparer.Ordinal).Count()==appearanceFields.Count,
                 "appearance editor has unique property keys");
@@ -1471,6 +1494,25 @@ internal static class CardEngineSelfTests
             var noRulesImage=Picture(decorativeCard,settings,true);
             Check(!SHA256.HashData(rulesImage).SequenceEqual(SHA256.HashData(noRulesImage)),
                 "original paired lines actually appear");
+            var baselineCaption=Picture(decorativeCard,settings,true);
+            settings.BackCaptionTitleFont="JetBrains Mono NL";
+            settings.BackCaptionTitleWeight="800";
+            settings.BackCaptionTitleSizePt=12;
+            var updatedTitle=Picture(decorativeCard,settings,true);
+            Check(!SHA256.HashData(baselineCaption).SequenceEqual(SHA256.HashData(updatedTitle)),
+                "independent upper caption typography alters printed pixels");
+            settings.BackCaptionSubtitleFont="Cascadia Mono";
+            settings.BackCaptionSubtitleWeight="700";
+            settings.BackCaptionSubtitleSizePt=12;
+            var updatedSubtitle=Picture(decorativeCard,settings,true);
+            Check(!SHA256.HashData(updatedTitle).SequenceEqual(SHA256.HashData(updatedSubtitle)),
+                "independent lower caption typography alters printed pixels");
+            settings.BackCaptionTitleSizePt=18;
+            settings.BackCaptionSubtitleSizePt=18;
+            var fittedCaption=Picture(decorativeCard,settings,true);
+            Check(fittedCaption.Length>1000,"large reverse captions fit without render errors");
+            Array.Clear(baselineCaption);Array.Clear(updatedTitle);Array.Clear(updatedSubtitle);
+            Array.Clear(fittedCaption);
             Array.Clear(plain);Array.Clear(withHeader);Array.Clear(withFooter);
             Array.Clear(rulesImage);Array.Clear(noRulesImage);
 
