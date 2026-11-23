@@ -1,5 +1,11 @@
 # Changelog
 
+## [9.1.14] - 2026-11-23
+
+### Changed
+- Update GitHub Actions to their Node.js 24-based major versions: checkout v7, setup-dotnet v6, upload-artifact v7 and download-artifact v8.
+- Retain the .NET 10 Native AOT build, security checks, SHA-256 validation and manual draft-release publishing workflow.
+
 ## [9.1.13] - 2026-11-23
 
 ### Fixed
