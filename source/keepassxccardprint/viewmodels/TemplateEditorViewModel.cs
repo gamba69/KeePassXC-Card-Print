@@ -63,6 +63,9 @@ public sealed partial class ShellViewModel
     {
         foreach (var field in AppearanceFields)
         {
+            // A switch to individual icon coloring may freeze a formerly linked tint.
+            if (field.Key == "entry_icon_tint_color" && field.TextValue != _appearance.EntryIconTintColor)
+                field.Reload();
             field.EditorVisible = TemplateEditorLayout.Visible(field.Key, _appearance);
             field.RefreshColorPresentation();
         }
@@ -81,6 +84,7 @@ public sealed partial class ShellViewModel
     {
         Changed(nameof(TemplateEditorActive));
         _templateHoverRegion=null;
+        ClearTemplatePreviewSelection();
         NotifyTemplateHighlight();
         if (!TemplateEditorActive) ResetTemplatePreview();
     }

@@ -543,7 +543,71 @@ internal static class CardEngineSelfTests
 
             var settings=Defaults();
             var appearanceFields=AppearanceDescriptor.Create(settings);
-            Check(appearanceFields.Count==173,"all 173 editable appearance parameters");
+            Check(appearanceFields.Count==175,"all 175 editable appearance parameters");
+            var iconColorModel=Defaults();
+            var iconColorFields=AppearanceDescriptor.Create(iconColorModel).ToDictionary(f=>f.Key,StringComparer.Ordinal);
+            var iconSharedField=iconColorFields["palette_icon_color_mode"];
+            var iconEntryField=iconColorFields["entry_icon_color_mode"];
+            var iconTintField=iconColorFields["entry_icon_tint_color"];
+            Check(CardPalette.Schemes.Select(s=>s.IconColorMode).SequenceEqual(new[]{"original","gray","palette:accent_color","palette:accent_color"}),"ready-made schemes set independent icon coloring");
+            var iconLegacy=JsonSerializer.Deserialize("{}",CardAppearanceJsonContext.Default.CardAppearance)!;
+            Check(iconLegacy.PaletteIconColorMode=="original" && iconLegacy.EntryIconColorMode=="inherit","old JSON preserves original icon coloring");
+            iconSharedField.SelectedChoice=iconSharedField.Choices.Single(c=>c.Code=="gray");
+            Check(CardIconColoring.EffectiveMode(iconColorModel)=="gray","entry icon inherits shared grayscale");
+            iconEntryField.SelectedChoice=iconEntryField.Choices.Single(c=>c.Code=="original");
+            Check(CardIconColoring.EffectiveMode(iconColorModel)=="original","explicit original overrides shared grayscale");
+            iconEntryField.SelectedChoice=iconEntryField.Choices.Single(c=>c.Code=="palette:accent_color");
+            iconColorModel.AccentColor="#AABBCC";
+            Check(CardIconColoring.Resolve(iconColorModel).Tint==new SKColor(170,187,204),"explicit icon palette role follows palette edits");
+            iconTintField.SetColorSource("palette:accent_color");
+            iconEntryField.SelectedChoice=iconEntryField.Choices.Single(c=>c.Code=="custom");
+            iconTintField.Reload();
+            Check(iconColorModel.EntryIconTintColor=="#AABBCC" && iconTintField.IconCustomTintOnly,"individual mode freezes a previous color link");
+            iconColorModel.AccentColor="#112233";
+            iconTintField.SetColorSource("palette:accent_color");
+            Check(iconColorModel.EntryIconTintColor=="#AABBCC","individual icon color rejects a new palette link");
+            iconTintField.SetColorSource("#123456");
+            Check(CardIconColoring.Resolve(iconColorModel).Tint==new SKColor(18,52,86),"individual icon RGB has priority");
+            var iconSaved=JsonSerializer.Deserialize(JsonSerializer.SerializeToUtf8Bytes(iconColorModel,CardAppearanceJsonContext.Default.CardAppearance),CardAppearanceJsonContext.Default.CardAppearance)!;
+            Check(iconSaved.EntryIconColorMode=="custom" && iconSaved.PaletteIconColorMode=="gray" && iconSaved.EntryIconTintColor=="#123456","icon coloring survives template JSON round trip");
+            iconEntryField.SelectedChoice=iconEntryField.Choices.Single(c=>c.Code=="inherit");
+            Check(CardIconColoring.EffectiveMode(iconColorModel)=="gray" && iconColorModel.EntryIconTintColor=="#123456","return to inheritance retains individual RGB");
+            iconEntryField.IsReadOnly=true;
+            iconEntryField.SelectedChoice=iconEntryField.Choices.Single(c=>c.Code=="original");
+            Check(iconColorModel.EntryIconColorMode=="inherit","built-in icon coloring is read-only");
+            iconEntryField.IsReadOnly=false;
+            iconColorModel.EntryIconMode="all";iconColorModel.EntryIconPrintMode="original";
+            Check(TemplateEditorLayout.Visible("entry_icon_color_mode",iconColorModel) && !TemplateEditorLayout.Visible("entry_icon_tint_color",iconColorModel),"gray icon hides irrelevant tint editor");
+            iconColorModel.EntryIconColorMode="custom";
+            Check(TemplateEditorLayout.Visible("entry_icon_tint_color",iconColorModel),"individual icon shows RGB editor");
+            iconColorModel.EntryIconPrintMode="none";
+            Check(!TemplateEditorLayout.Visible("entry_icon_color_mode",iconColorModel) && !TemplateEditorLayout.Visible("entry_icon_tint_color",iconColorModel),"hidden icon hides coloring without resetting settings");
+            using(var iconPixels=new SKBitmap(3,3,SKColorType.Rgba8888,SKAlphaType.Premul))
+            {
+                iconPixels.Erase(SKColors.Transparent);
+                iconPixels.SetPixel(0,0,new SKColor(0,64,192));
+                iconPixels.SetPixel(1,0,SKColors.Black);
+                iconPixels.SetPixel(2,0,SKColors.White);
+                iconPixels.SetPixel(0,1,new SKColor(120,60,200,128));
+                var originalPolicy=new CardIconColoring.Resolved("original",SKColors.Black);
+                var grayPolicy=new CardIconColoring.Resolved("gray",SKColors.Black);
+                var tintPolicy=new CardIconColoring.Resolved("custom",new SKColor(18,52,86));
+                using var originalIcon=CardSkiaRenderer.TransformIcon(iconPixels,"original",SKColors.Black,originalPolicy);
+                using var grayIcon=CardSkiaRenderer.TransformIcon(iconPixels,"original",SKColors.Black,grayPolicy);
+                using var tintIcon=CardSkiaRenderer.TransformIcon(iconPixels,"original",SKColors.Black,tintPolicy);
+                var grayPixel=grayIcon.GetPixel(0,0);
+                Check(originalIcon.GetPixel(0,0)==iconPixels.GetPixel(0,0) && grayPixel.Red==grayPixel.Green && grayPixel.Green==grayPixel.Blue,"grayscale transforms actual source pixels without mutating the original");
+                Check(tintIcon.GetPixel(1,0)==tintPolicy.Tint && tintIcon.GetPixel(2,0)==SKColors.White && tintIcon.GetPixel(2,2).Alpha==0,"tint preserves tonal detail and transparent pixels");
+                Check(grayIcon.GetPixel(0,1).Alpha==128 && tintIcon.GetPixel(0,1).Alpha==128,"grayscale and tint preserve partially transparent pixels");
+                foreach(var processing in new[]{"auto","backdrop","outline","silhouette"})
+                {
+                    using var processedGray=CardSkiaRenderer.TransformIcon(iconPixels,processing,new SKColor(32,43,56),grayPolicy);
+                    var processedPixel=processedGray.GetPixel(0,0);
+                    Check(processedPixel.Alpha==255 && processedPixel.Red==processedPixel.Green && processedPixel.Green==processedPixel.Blue && processedGray.GetPixel(2,2).Alpha==0,"grayscale after independent processing: "+processing);
+                }
+                using var shapedIcon=CardSkiaRenderer.TransformIcon(iconPixels,"outline",SKColors.Black,tintPolicy);
+                Check(shapedIcon.GetPixel(0,0)==tintPolicy.Tint && shapedIcon.GetPixel(2,2).Alpha==0,"outline processing stays independent of tint");
+            }
             var paletteModel=Defaults();
             var paletteFields=AppearanceDescriptor.Create(paletteModel).ToDictionary(f=>f.Key,StringComparer.Ordinal);
             Check(CardPalette.RoleKeys.Length==7 && CardPalette.RoleKeys.Distinct().Count()==7,"seven distinct shared palette roles");
@@ -617,7 +681,7 @@ internal static class CardEngineSelfTests
             foreach (var field in appearanceFields) field.Relocalize("ru");
             TemplateEditorLayout.Validate(appearanceFields.Select(f=>f.Key));
             var ownership=TemplateEditorLayout.Groups.SelectMany(g=>g.Keys).ToArray();
-            Check(ownership.Length==173 && ownership.Distinct().Count()==173,"unified editor owns every setting exactly once");
+            Check(ownership.Length==175 && ownership.Distinct().Count()==175,"unified editor owns every setting exactly once");
             var navigationGlyphs=TemplateEditorLayout.Sections
                 .Select(s=>new TemplateEditorSection(s.Id,s.En).Glyph).ToArray();
             Check(navigationGlyphs.Length==10 && navigationGlyphs.Distinct().Count()==10,
@@ -800,9 +864,9 @@ internal static class CardEngineSelfTests
             var serializedKeys = serializedAppearance.RootElement.EnumerateObject()
                 .Select(p => p.Name).ToArray();
             var keyNames = serializedKeys.ToHashSet(StringComparer.Ordinal);
-            Check(serializedKeys.Length == 173,
-                $"persisted appearance JSON has 173 properties (actual {serializedKeys.Length})");
-            Check(keyNames.Count==173,
+            Check(serializedKeys.Length == 175,
+                $"persisted appearance JSON has 175 properties (actual {serializedKeys.Length})");
+            Check(keyNames.Count==175,
                 $"original and new appearance keys (actual {keyNames.Count})");
             Check(appearanceFields.Select(f=>f.Key).Distinct(StringComparer.Ordinal).Count()==appearanceFields.Count,
                 "appearance editor has unique property keys");

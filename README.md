@@ -4,7 +4,7 @@
 
 ![KeePassXC Card Print — editor and printed-card collage](docs/images/hero-collage.png)
 
-**Version 10.1.1 · Windows x64 · .NET 10 Native AOT**
+**Version 10.1.3 · Windows x64 · .NET 10 Native AOT**
 
 KeePassXC Card Print is a portable desktop application for preparing and printing
 compact account-information cards from a KeePassXC-compatible KDBX database.
@@ -29,8 +29,11 @@ an official KeePassXC project**.
   Choose a section on the left; the single template toolbar saves the complete template.
   Built-in templates remain read-only; create a personal copy to edit them.
 - Apply a seven-color template palette or a ready-made scheme; individual elements can
-  use any palette role or their own RGB/HEX color.
-- Hold Ctrl over the existing preview to outline an element, and Ctrl-click to open its settings, or choose
+  use any palette role or their own RGB/HEX color. Entry icons have independent
+  processing and coloring: follow the scheme, keep original colors, use grayscale,
+  or choose a palette role or individual RGB color.
+- From any main tab, hold Ctrl over the preview to outline an element and Ctrl-click to open its settings.
+  Press Esc or click the preview without Ctrl to clear the fixed outline. In Template, choose
   Front, Data back or Empty back to inspect a side. A labelled synthetic sample is used
   when selected entries cannot supply that side; it is never added to the print job.
 - Preview the same document model used for printing, with zoom, pan, caching

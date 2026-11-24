@@ -19,7 +19,7 @@ internal static class CardPalette
         ["title_color"] = new("Цвет заголовка","Колір заголовка","Title color","ink_color"),
         ["page_badge_text_color"] = new("Цвет номера","Колір номера","Number color","muted_color"),
         ["page_badge_background_color"] = new("Фон номера","Тло номера","Number background","header_color"),
-        ["entry_icon_tint_color"] = new("Цвет контура / силуэта","Колір контуру / силуету","Outline / silhouette color","ink_color"),
+        ["entry_icon_tint_color"] = new("Цвет иконки","Колір іконки","Icon color","ink_color"),
         ["entry_icon_background_color"] = new("Цвет подложки иконки","Колір підкладки іконки","Icon backdrop color","header_color"),
         ["header_fill_color"] = new("Цвет заливки шапки","Колір заливки шапки","Header fill color","header_color"),
         ["header_accent_color"] = new("Цвет акцентной полосы","Колір акцентної смуги","Header accent color","accent_color"),
@@ -166,12 +166,12 @@ internal static class CardPalette
         a.FooterDateColor=Link(a.FooterDateColor,"muted_color");
         a.BackArtIconColor=Link(a.BackArtIconColor,"accent_color");
     }
-    internal sealed record Scheme(string Ru,string Uk,string En,string[] Colors);
+    internal sealed record Scheme(string Ru,string Uk,string En,string[] Colors,string IconColorMode);
     internal static readonly Scheme[] Schemes =
     [
-        new("Архивная","Архівна","Archive",["#FFFFFF","#1A2B40","#53616E","#36618D","#F4F7FA","#CCD5E0","#C1C8D0"]),
-        new("Монохромная","Монохромна","Monochrome",["#FFFFFF","#202020","#606060","#404040","#EEEEEE","#CCCCCC","#999999"]),
-        new("Тёплая","Тепла","Warm",["#FFFCF3","#433529","#89745E","#986B3D","#EEE4D0","#D5C8B6","#B5A48C"]),
-        new("Техническая","Технічна","Technical",["#FFFFFF","#173B39","#54706B","#248578","#E6F1EF","#BED4CF","#92B4AE"])
+        new("Архивная","Архівна","Archive",["#FFFFFF","#1A2B40","#53616E","#36618D","#F4F7FA","#CCD5E0","#C1C8D0"],"original"),
+        new("Монохромная","Монохромна","Monochrome",["#FFFFFF","#202020","#606060","#404040","#EEEEEE","#CCCCCC","#999999"],"gray"),
+        new("Тёплая","Тепла","Warm",["#FFFCF3","#433529","#89745E","#986B3D","#EEE4D0","#D5C8B6","#B5A48C"],"palette:accent_color"),
+        new("Техническая","Технічна","Technical",["#FFFFFF","#173B39","#54706B","#248578","#E6F1EF","#BED4CF","#92B4AE"],"palette:accent_color")
     ];
 }

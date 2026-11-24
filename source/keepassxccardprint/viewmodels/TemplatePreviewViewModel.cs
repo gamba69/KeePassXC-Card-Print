@@ -26,20 +26,24 @@ public sealed partial class ShellViewModel
             bool changedMode = value.Id != _templatePreviewMode?.Id;
             _templatePreviewMode = value;
             Changed();
-            if (changedMode) ScheduleTemplatePreview();
+            if (changedMode)
+            {
+                ClearTemplatePreviewSelection();
+                ScheduleTemplatePreview();
+            }
             else NotifyTemplatePreview();
         }
     }
     public string TemplateHighlightSection => TemplateEditorActive && _templateHighlightGroup.Length>0 ? _selectedTemplateEditorSection?.Id ?? "" : "";
     public string TemplateHighlightGroup => TemplateEditorActive ? _templateHighlightGroup : "";
-    public PreviewHitRegion? TemplateHoverRegion => TemplateEditorActive ? _templateHoverRegion : null;
+    public PreviewHitRegion? TemplateHoverRegion => _templateHoverRegion;
     public PreviewHitRegion? TemplateSelectedRegion => TemplateEditorActive ? _templateSelectedRegion : null;
     public string TemplateHighlightCaption
     {
         get
         {
             var scene=PreviewScene;
-            if(!TemplateEditorActive || PreviewUpdating || scene is null || (PreviewPreviousScene is not null && PreviewOldOpacity>.1))return "";
+            if(PreviewUpdating || scene is null || (PreviewPreviousScene is not null && PreviewOldOpacity>.1))return "";
             var hover=TemplateHoverRegion;
             var group=hover is not null && scene.HitRegions.Contains(hover) ? hover.Group : TemplateHighlightGroup;
             return scene.HitRegions.Any(h=>h.Group==group) ? TemplateEditorLayout.GroupCaption(group,_settings.Language) : "";
@@ -56,6 +60,14 @@ public sealed partial class ShellViewModel
     {
         if(Equals(_templateHoverRegion,hit))return;
         _templateHoverRegion=hit;
+        NotifyTemplateHighlight();
+    }
+    // Clear only the preview overlay, not the selected section or template data.
+    public void ClearTemplatePreviewSelection()
+    {
+        if(_templateSelectedRegion is null && _templateHighlightGroup.Length==0)return;
+        _templateSelectedRegion=null;
+        _templateHighlightGroup="";
         NotifyTemplateHighlight();
     }
     public void FixTemplatePreviewRegion(PreviewHitRegion hit)

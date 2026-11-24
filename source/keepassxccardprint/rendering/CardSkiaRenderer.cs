@@ -228,7 +228,7 @@ public static class CardSkiaRenderer
                             c.DrawRoundRect(new SKRect(iconLeft,iconTop,iconLeft+iconSize,iconTop+iconSize),
                                 Px(.8),Px(.8),iconFill);
                         }
-                        using var styledIcon=TransformIcon(icon,a.EntryIconPrintMode,CardPalette.Resolve(a,a.EntryIconTintColor,new SKColor(32,43,56)));
+                        using var styledIcon=TransformIcon(icon,a.EntryIconPrintMode,CardPalette.Resolve(a,a.EntryIconTintColor,new SKColor(32,43,56)),CardIconColoring.Resolve(a));
                         c.DrawBitmap(styledIcon,new SKRect(iconLeft,iconTop,iconLeft+iconSize,iconTop+iconSize),
                             new SKSamplingOptions(SKCubicResampler.Mitchell));
                     }
@@ -593,7 +593,7 @@ public static class CardSkiaRenderer
     // Available icon modes. Never mutate the KDBX custom-icon bytes.
     // Auto darkens mostly-white glyphs; silhouette preserves alpha; outline
     // retains just the contour. All processing is in memory.
-    private static SKBitmap TransformIcon(SKBitmap source,string mode,SKColor tint)
+    internal static SKBitmap TransformIcon(SKBitmap source,string mode,SKColor tint,CardIconColoring.Resolved coloring)
     {
         var result=new SKBitmap(source.Width,source.Height,SKColorType.Rgba8888,SKAlphaType.Premul);
         int light=0,painted=0;
@@ -621,7 +621,7 @@ public static class CardSkiaRenderer
                 "auto" when autoInvert=>new SKColor((byte)(255-c.Red),(byte)(255-c.Green),(byte)(255-c.Blue),c.Alpha),
                 _=>c
             };
-            result.SetPixel(x,y,color);
+            result.SetPixel(x,y,CardIconColoring.Apply(color,mode,coloring));
         }
         return result;
     }

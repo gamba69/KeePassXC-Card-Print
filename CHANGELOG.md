@@ -1,5 +1,17 @@
 # Changelog
 
+## [10.1.3] - 2026-11-24
+
+### Added
+- Independent entry icon processing and coloring: shared scheme policy and per-template override with original, grayscale, palette role or individual RGB. Monochrome schemes now recolor raster entry icons; warm and technical schemes use the accent. Preserve alpha and tonal detail, existing templates, explicit overrides and QR contrast.
+- Regression tests for icon coloring, inheritance, persistence, localization and actual bitmap pixels.
+
+## [10.1.2] - 2026-11-24
+
+### Changed
+- Enable Ctrl-hover and Ctrl-click preview navigation from every main tab.
+- Clear fixed preview highlights with Escape, a plain preview click, a repeated Ctrl-click, an empty-area Ctrl-click on the page, a preview mode change or a main tab change. Clearing does not modify template data or reset the chosen section.
+
 ## [10.1.1] - 2026-11-24
 
 ### Fixed

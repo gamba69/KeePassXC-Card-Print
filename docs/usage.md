@@ -65,7 +65,10 @@ In Background and colors, edit the seven shared palette colors or choose a color
 scheme. Each printable element has its own color control in its relevant group.
 Choose a palette role to link the element, Default to retain its original style
 behavior, or Individual color to set an independent RGB/HEX value. Applying a
-scheme changes the seven shared colors only. Existing personal templates retain
+scheme changes the seven shared colors and the shared entry icon coloring.
+Monochrome uses grayscale; Warm and Technical use the accent; Archive uses original
+colors. Header / Entry icon / Coloring overrides that shared policy without changing
+Processing. Individual RGB uses the existing color editor. Existing personal templates retain
 their previous explicit colors. QR modules and their quiet zone remain black and white.
 
 ## Template — Reverse side
@@ -78,11 +81,12 @@ and rules are in Reverse side. Always inspect both sides before printing or expo
 
 ## Preview and diagnostics
 
-Use the existing preview toolbar for page/card navigation, zoom and pan. In Template,
-hold Ctrl while moving the pointer to outline one element. Ctrl-click fixes the
-selection and jumps to its settings. Release Ctrl to clear temporary hover; the
-fixed selection remains. Ordinary dragging pans the preview. The name appears in
-a small overlay in the viewport. Neither the outline nor the label is printed.
+Use the existing preview toolbar for page/card navigation, zoom and pan. From any
+main tab, hold Ctrl while moving the pointer to outline one element. Ctrl-click
+fixes the selection and opens its settings in Template. Release Ctrl to clear
+temporary hover. Clear a fixed outline with Escape, a plain preview click, a repeated
+Ctrl-click on that element or by leaving Template. Ordinary dragging pans the preview.
+The name appears in a small overlay; neither the outline nor the label is printed.
 Use Actual, Front, Data back or Empty back to inspect the desired side. If a selected
 record cannot supply the chosen side, a labelled synthetic example is shown. The
 sample never enters the print job. Return to Actual to enable printing/export.

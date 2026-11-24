@@ -35,7 +35,19 @@ public partial class MainWindow
     {
         AddHandler(KeyDownEvent, OnTemplatePreviewKeyDown, RoutingStrategies.Tunnel, handledEventsToo:true);
         AddHandler(KeyUpEvent, OnTemplatePreviewKeyUp, RoutingStrategies.Tunnel, handledEventsToo:true);
+        if(this.FindControl<Canvas>("PreviewViewport") is { } viewport)
+            viewport.AddHandler(PointerPressedEvent, OnTemplatePreviewViewportPressed, RoutingStrategies.Tunnel, handledEventsToo:true);
         Deactivated+=(_,_)=>ClearTemplatePreviewHover();
+    }
+    private void OnTemplatePreviewViewportPressed(object? sender,PointerPressedEventArgs e)
+    {
+        // Includes the empty canvas around the card, not just the page host.
+        if(sender is Canvas viewport && e.GetCurrentPoint(viewport).Properties.IsLeftButtonPressed &&
+            (e.KeyModifiers & KeyModifiers.Control)==0)
+        {
+            _vm.SetTemplatePreviewHover(null);
+            _vm.ClearTemplatePreviewSelection();
+        }
     }
     private void ClearTemplatePreviewHover()
     {
@@ -44,7 +56,13 @@ public partial class MainWindow
     }
     private void OnTemplatePreviewKeyDown(object? sender,KeyEventArgs e)
     {
-        if(e.Key is not (Key.LeftCtrl or Key.RightCtrl) || !_vm.TemplateEditorActive)return;
+        if(e.Key==Key.Escape)
+        {
+            ClearTemplatePreviewHover();
+            _vm.ClearTemplatePreviewSelection();
+            return;
+        }
+        if(e.Key is not (Key.LeftCtrl or Key.RightCtrl))return;
         _templatePreviewControlHeld=true;
         if(!_previewPanning && _templatePreviewPointer is Point pointer && this.FindControl<Grid>("PreviewPageHost") is { } page)
             _vm.SetTemplatePreviewHover(PreviewElementAt(pointer,page));
@@ -55,7 +73,7 @@ public partial class MainWindow
     }
     private PreviewHitRegion? PreviewElementAt(Point point, Grid page)
     {
-        if (!_vm.TemplateEditorActive || _vm.PreviewUpdating || page.Bounds.Width <= 0 || page.Bounds.Height <= 0 ||
+        if (_vm.PreviewUpdating || page.Bounds.Width <= 0 || page.Bounds.Height <= 0 ||
             point.X<0 || point.Y<0 || point.X>page.Bounds.Width || point.Y>page.Bounds.Height) return null;
         var scene = _vm.PreviewScene;
         if (scene is null || (_vm.PreviewPreviousScene is not null && _vm.PreviewOldOpacity > .1)) return null;
@@ -80,7 +98,7 @@ public partial class MainWindow
     private void OnTemplatePreviewPointerPressed(object? sender,PointerPressedEventArgs e)
     {
         if(sender is Grid page && e.GetCurrentPoint(page).Properties.IsLeftButtonPressed &&
-           _vm.TemplateEditorActive && (e.KeyModifiers & KeyModifiers.Control)!=0)
+           (e.KeyModifiers & KeyModifiers.Control)!=0)
         {
             if(this.FindControl<Canvas>("PreviewViewport") is not { } viewport)return;
             StopPreviewZoomAtCurrentFrame();
@@ -93,12 +111,19 @@ public partial class MainWindow
             e.Pointer.Capture(page); e.Handled=true; return;
         }
         _vm.SetTemplatePreviewHover(null);
+        if(sender is Grid normalPage && e.GetCurrentPoint(normalPage).Properties.IsLeftButtonPressed)
+            _vm.ClearTemplatePreviewSelection();
         OnPreviewPanPressed(sender,e);
     }
     private void OnTemplatePreviewPointerMoved(object? sender,PointerEventArgs e)
     {
         if(sender is not Grid page)return;
-        if(_previewPanning) { OnPreviewPanMoved(sender,e); return; }
+        if(_previewPanning)
+        {
+            OnPreviewPanMoved(sender,e);
+            _templatePreviewPointer=e.GetPosition(page);
+            return;
+        }
         if(_templatePreviewGesture && this.FindControl<Canvas>("PreviewViewport") is { } viewport)
         {
             var delta=e.GetPosition(viewport)-_templatePreviewPressPoint;
@@ -110,7 +135,8 @@ public partial class MainWindow
     private void OnTemplatePreviewPointerReleased(object? sender,PointerReleasedEventArgs e)
     {
         if(!_templatePreviewGesture) { OnPreviewPanReleased(sender,e); return; }
-        var pressed=ReferenceEquals(_templatePreviewPressedScene,_vm.PreviewScene)?_templatePreviewPress:null;
+        bool sameScene=ReferenceEquals(_templatePreviewPressedScene,_vm.PreviewScene);
+        var pressed=sameScene?_templatePreviewPress:null;
         _templatePreviewGesture=false;_templatePreviewPress=null;_templatePreviewPressedScene=null;
         if(sender is Grid page && this.FindControl<Canvas>("PreviewViewport") is { } viewport)
         {
@@ -118,7 +144,15 @@ public partial class MainWindow
             var hit=PreviewElementAt(e.GetPosition(page),page);
             bool ctrl=(e.KeyModifiers & KeyModifiers.Control)!=0;
             if(PreviewHitRegion.CanCommit(pressed,hit,ctrl,_templatePreviewDragged,delta.X,delta.Y))
-                SelectPreviewElement(hit!);
+            {
+                if(Equals(_vm.TemplateSelectedRegion,hit))
+                    _vm.ClearTemplatePreviewSelection();
+                else
+                    SelectPreviewElement(hit!);
+            }
+            else if(sameScene && ctrl && pressed is null && hit is null && !_templatePreviewDragged &&
+                    Math.Abs(delta.X)<4 && Math.Abs(delta.Y)<4)
+                _vm.ClearTemplatePreviewSelection();
             UpdateTemplatePreviewPointer(page,e);
         }
         e.Pointer.Capture(null);e.Handled=true;
@@ -161,7 +195,7 @@ public partial class MainWindow
         var sourceCodes=new List<string>();
         ComboBox? sourcePicker=null;
         const string custom="custom";
-        if(!CardPalette.IsRole(field.Key))
+        if(!CardPalette.IsRole(field.Key) && !field.IconCustomTintOnly)
         {
             if(field.Key is not ("header_group_color" or "footer_uuid_color" or "footer_date_color" or "back_art_icon_color"))
                 sourceCodes.Add(CardPalette.DefaultSource);
@@ -279,9 +313,9 @@ public partial class MainWindow
         };
         var panel=new StackPanel { Margin=new Thickness(12), Spacing=7 };
         dialog.Content=panel;
-        panel.Children.Add(new TextBlock { Text=L("Меняются только семь общих цветов. Индивидуальные цвета сохраняются.",
-            "Змінюються лише сім спільних кольорів. Індивідуальні кольори зберігаються.",
-            "Only the seven shared colors change. Individual colors are preserved."), TextWrapping=TextWrapping.Wrap });
+        panel.Children.Add(new TextBlock { Text=L("Меняются семь общих цветов и общая окраска иконок. Индивидуальные настройки сохраняются.",
+            "Змінюються сім спільних кольорів і спільне забарвлення іконок. Індивідуальні налаштування зберігаються.",
+            "The seven shared colors and shared icon coloring change. Individual settings are preserved."), TextWrapping=TextWrapping.Wrap });
         for(int i=0;i<CardPalette.Schemes.Length;i++)
         {
             int choice=i;
@@ -307,8 +341,13 @@ public partial class MainWindow
             int? result=await dialog.ShowDialog<int?>(this);
             if(result is not int selected || selected<0 || selected>=CardPalette.Schemes.Length || !_vm.CanEditAppearance) return;
             if(CardPalette.RoleKeys.Any(key=>!fields.TryGetValue(key,out var field) || !field.IsEditable || !_vm.AppearanceFields.Contains(field)))return;
+            if(!fields.TryGetValue("palette_icon_color_mode",out var iconColorMode) || !iconColorMode.IsEditable || !_vm.AppearanceFields.Contains(iconColorMode))return;
+            var scheme=CardPalette.Schemes[selected];
+            var iconChoice=iconColorMode.Choices.FirstOrDefault(c=>c.Code==scheme.IconColorMode);
+            if(iconChoice is null)return;
             for(int i=0;i<CardPalette.RoleKeys.Length;i++)
-                fields[CardPalette.RoleKeys[i]].SetColorSource(CardPalette.Schemes[selected].Colors[i]);
+                fields[CardPalette.RoleKeys[i]].SetColorSource(scheme.Colors[i]);
+            iconColorMode.SelectedChoice=iconChoice;
         }
         catch(Exception ex) { CloudSyncDiagnostics.Record("template-palette-dialog",ex); }
     }

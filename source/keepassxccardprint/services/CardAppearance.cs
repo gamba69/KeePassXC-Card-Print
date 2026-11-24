@@ -185,6 +185,8 @@ public sealed class CardAppearance
     [JsonPropertyName("page_badge_text_color")] public string PageBadgeTextColor { get; set; } = "inherit";
     [JsonPropertyName("page_badge_background_color")] public string PageBadgeBackgroundColor { get; set; } = "#E5EBF2";
     [JsonPropertyName("entry_icon_tint_color")] public string EntryIconTintColor { get; set; } = "#202B38";
+    [JsonPropertyName("palette_icon_color_mode")] public string PaletteIconColorMode { get; set; } = "original";
+    [JsonPropertyName("entry_icon_color_mode")] public string EntryIconColorMode { get; set; } = "inherit";
     [JsonPropertyName("entry_icon_background_color")] public string EntryIconBackgroundColor { get; set; } = "inherit";
     [JsonPropertyName("header_fill_color")] public string HeaderFillColor { get; set; } = "inherit";
     [JsonPropertyName("header_accent_color")] public string HeaderAccentColor { get; set; } = "inherit";

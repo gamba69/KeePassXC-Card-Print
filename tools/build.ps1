@@ -895,6 +895,16 @@ if ($editorCode -notmatch 'KeyModifiers\.Control' -or $editorCode -notmatch 'Pre
     $editorCode -notmatch 'OnTemplatePreviewKeyUp' -or $editorCode -notmatch 'SetTemplatePreviewHover\(null\)') {
     throw 'UI check: preview selection must require Ctrl, and releasing Ctrl must clear hover.'
 }
+$templatePreviewCode = Get-Content -LiteralPath (Join-Path $sourceRoot 'viewmodels\TemplatePreviewViewModel.cs') -Raw -Encoding UTF8
+if ($editorCode -match '!_vm\.TemplateEditorActive' -or
+    $editorCode -match '_vm\.TemplateEditorActive\s*&&' -or
+    $templatePreviewCode -notmatch 'TemplateHoverRegion\s*=>\s*_templateHoverRegion\s*;' -or
+    $editorCode -notmatch 'Key\.Escape' -or
+    $editorCode -notmatch 'OnTemplatePreviewViewportPressed' -or
+    $editorCode -notmatch 'Equals\(_vm\.TemplateSelectedRegion,hit\)' -or
+    $templatePreviewCode -notmatch 'public void ClearTemplatePreviewSelection\(') {
+    throw 'UI check: Ctrl preview navigation must work on every tab and fixed highlights must be dismissible.'
+}
 Write-Host '[PASS] unified editor, palette sources, single preview and Ctrl selection.' -ForegroundColor Green
 # Guard against accidental reintroduction of two-stage field mapping edits.
 # The compact mapping toolbar uses 4 columns: title, scope, status, Save.

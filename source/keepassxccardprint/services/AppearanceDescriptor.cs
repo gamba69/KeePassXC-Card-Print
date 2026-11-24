@@ -32,7 +32,8 @@ public sealed class DesignChoice(string code, string language, string? fieldKey 
 
     // Translate choices in the context of their owning field. Persisted codes
     // and actual installed font-family names are not presentation strings.
-    public string Label => fieldKey is not null && fieldKey.EndsWith("_font", StringComparison.Ordinal) && Code != "inherit"
+    public string Label => CardIconColoring.IsModeKey(fieldKey) ? CardIconColoring.ModeLabel(Code,_language)
+        : fieldKey is not null && fieldKey.EndsWith("_font", StringComparison.Ordinal) && Code != "inherit"
         ? Code : (fieldKey, Code) switch
     {
         ("notes_mode", "normal") => L("Обычный размер", "Звичайний розмір", "Normal size"),
@@ -170,8 +171,10 @@ public sealed class AppearanceField : INotifyPropertyChanged
     public string ColorCaption => CardPalette.SourceCaption(Key,_text,_language,EffectiveColorHex);
     public IBrush? SwatchBrush => IsColor && Color.TryParse(EffectiveColorHex,out var color) ? new SolidColorBrush(color) : null;
     public string ColorHexForSource(string source) => CardPalette.EditorHex(_appearance,Key,source);
+    public bool IconCustomTintOnly => Key == "entry_icon_tint_color" && CardIconColoring.EffectiveMode(_appearance) == "custom";
     public void SetColorSource(string source)
     {
+        if (IconCustomTintOnly && (source is null || !source.StartsWith('#'))) return;
         if (!IsReadOnly && CardPalette.TryNormalize(Key,source,out var normalized)) TextValue=normalized;
     }
     internal void RefreshColorPresentation()
@@ -344,7 +347,7 @@ public static class AppearanceDescriptor
         => Create(model, "ru");
     public static IReadOnlyList<AppearanceField> Create(CardAppearance model, string language)
     {
-        var result = new List<AppearanceField>(173);
+        var result = new List<AppearanceField>(175);
         void Add(string group,string label,string key,string type,Func<CardAppearance,string> reader,Action<CardAppearance,string> writer,string? choices)
             => result.Add(new AppearanceField(group,label,key,type,model,reader,writer,choices,language));
         // Both proportional system faces and bundled monospaced faces work for
@@ -528,7 +531,9 @@ public static class AppearanceDescriptor
             Add("Иконки и цвета", "Цвет фона лица", "front_background_color", "string", a=>a.FrontBackgroundColor, (a,v)=>a.FrontBackgroundColor=v, null);
             Add("Иконки и цвета", "Цвет фона оборота с данными", "back_background_color", "string", a=>a.BackBackgroundColor, (a,v)=>a.BackBackgroundColor=v, null);
             Add("Иконки и цвета", "Цвет фона пустого оборота", "empty_back_background_color", "string", a=>a.EmptyBackBackgroundColor, (a,v)=>a.EmptyBackBackgroundColor=v, null);
-        if (result.Count != 173) throw new InvalidOperationException($"Appearance property registry out of sync: {result.Count} found, 173 expected.");
+            Add("Иконки и цвета", "Окраска иконок", "palette_icon_color_mode", "string", a=>CardIconColoring.NormalizeShared(a.PaletteIconColorMode), (a,v)=>a.PaletteIconColorMode=CardIconColoring.NormalizeShared(v), CardIconColoring.SharedOptions);
+            Add("Иконки и цвета", "Окраска", "entry_icon_color_mode", "string", a=>CardIconColoring.NormalizeEntry(a.EntryIconColorMode), (a,v)=>CardIconColoring.SetEntryMode(a,v), CardIconColoring.EntryOptions);
+        if (result.Count != 175) throw new InvalidOperationException($"Appearance property registry out of sync: {result.Count} found, 175 expected.");
         return result;
     }
 }

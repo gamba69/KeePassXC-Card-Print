@@ -390,7 +390,8 @@ internal static class AppearanceTranslations
         };
 
     public static string Field(string key, string original, string language)
-        => CardPalette.TryLabel(key, language, out var colorLabel) ? colorLabel
+        => CardIconColoring.IsModeKey(key) ? CardIconColoring.FieldLabel(key,language)
+            : CardPalette.TryLabel(key, language, out var colorLabel) ? colorLabel
             : key == "notes_size_pt"
             ? TemplateEditorLayout.L(language, "Размер шрифта заметок, pt", "Розмір шрифту нотаток, pt", "Notes font size, pt")
             : Fields.TryGetValue(key, out var value) ? Pick(language, value, original) : original;
@@ -414,6 +415,7 @@ internal static class AppearanceTranslations
     public static string Description(string key, string label, string language)
     {
         var lang = Localizer.ResolveLanguage(language);
+        if (CardIconColoring.IsModeKey(key)) return CardIconColoring.Help(key,label,language);
         if (CardPalette.IsColorKey(key)) return CardPalette.Help(key, label, language);
         if (key == "notes_mode")
             return label + "\n\n" + TemplateEditorLayout.L(language,

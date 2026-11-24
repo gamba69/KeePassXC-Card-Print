@@ -56,13 +56,18 @@ Inactive options disappear without losing saved values. Edit the seven shared co
 or apply a color scheme in Background and colors. Individual element color controls
 are in their relevant groups: choose a shared role, the original default or an
 independent RGB/HEX value. Existing explicit colors are preserved; QR modules stay
-black and white. Configure duplex usage and decorative artwork in Reverse side.
+black and white. Color schemes also set shared entry icon coloring. In Header,
+Entry icon, keep the existing Processing option and choose Coloring: shared scheme,
+original, grayscale, a palette role or individual RGB. Configure duplex usage
+and decorative artwork in Reverse side.
 
 ## 5. Inspect the preview
 
-Use the existing preview toolbar to navigate cards and sheets, zoom and pan. On the
-Template tab, hold Ctrl to outline the element under the pointer and see its name.
-Ctrl-click fixes the element and opens its settings; ordinary dragging pans. Choose Actual,
+Use the existing preview toolbar to navigate cards and sheets, zoom and pan. From any
+main tab, hold Ctrl to outline the element under the pointer and see its name.
+Ctrl-click opens Template and fixes the element. Press Escape, click the preview
+without Ctrl or Ctrl-click the same element again to clear the outline. Ordinary
+dragging pans. In Template, choose Actual,
 Front, Data back or Empty back to inspect the corresponding side. A labelled synthetic
 sample is used when the selected records cannot provide that side; it is never printed
 or exported. Printing and export are disabled until you return to Actual. Confirm the content,
