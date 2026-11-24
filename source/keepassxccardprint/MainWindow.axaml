@@ -79,7 +79,7 @@
                   <Grid ColumnDefinitions="*,30" ColumnSpacing="4">
                     <TextBox x:Name="DatabaseBox" Grid.Column="0" Text="{Binding DatabasePath, Mode=TwoWay}" PlaceholderText="*.kdbx" IsVisible="{Binding IsRealMode}"/>
                     <TextBox Grid.Column="0" Text="{Binding DemoDatabasePlaceholder}" IsVisible="{Binding IsDemoMode}" IsReadOnly="True"/>
-                    <Button Grid.Column="1" Click="OnBrowseDatabase" IsVisible="{Binding IsRealMode}" ToolTip.Tip="Выбрать файл базы KeePassXC"><fi:FluentIcon Icon="FolderOpen" IconSize="Size20" Width="17" Height="17" FontSize="17" HorizontalAlignment="Center" VerticalAlignment="Center" Foreground="{DynamicResource KpTextBrush}"/></Button>
+                    <Button Grid.Column="1" Click="OnBrowseDatabase" IsVisible="{Binding IsRealMode}" ToolTip.Tip="Выбрать файл базы KeePassXC"><fi:FluentIcon Icon="FolderOpen" IconVariant="Regular" IconSize="Size20" Width="17" Height="17" FontSize="17" HorizontalAlignment="Center" VerticalAlignment="Center" Foreground="{DynamicResource KpTextBrush}"/></Button>
                   </Grid>
                 </StackPanel>
                 <StackPanel Grid.Row="2" Spacing="2">
@@ -87,7 +87,7 @@
                   <Grid ColumnDefinitions="*,30" ColumnSpacing="4">
                     <TextBox x:Name="KeyFileBox" Grid.Column="0" Text="{Binding KeyFilePath, Mode=TwoWay}" PlaceholderText="*.keyx" IsVisible="{Binding IsRealMode}"/>
                     <TextBox Grid.Column="0" Text="{Binding DemoKeyFilePlaceholder}" IsVisible="{Binding IsDemoMode}" IsReadOnly="True"/>
-                    <Button Grid.Column="1" Click="OnBrowseKeyFile" IsVisible="{Binding IsRealMode}" ToolTip.Tip="Выбрать ключевой файл"><fi:FluentIcon Icon="FolderOpen" IconSize="Size20" Width="17" Height="17" FontSize="17" HorizontalAlignment="Center" VerticalAlignment="Center" Foreground="{DynamicResource KpTextBrush}"/></Button>
+                    <Button Grid.Column="1" Click="OnBrowseKeyFile" IsVisible="{Binding IsRealMode}" ToolTip.Tip="Выбрать ключевой файл"><fi:FluentIcon Icon="FolderOpen" IconVariant="Regular" IconSize="Size20" Width="17" Height="17" FontSize="17" HorizontalAlignment="Center" VerticalAlignment="Center" Foreground="{DynamicResource KpTextBrush}"/></Button>
                   </Grid>
                 </StackPanel>
                 <StackPanel Grid.Row="3" Spacing="2">
@@ -127,13 +127,13 @@
                 <WrapPanel Grid.Column="0" Orientation="Horizontal" HorizontalAlignment="Stretch">
                   <Button  Click="OnOpenDatabase" IsEnabled="{Binding CanOpen}" Margin="0,0,5,5">
                     <StackPanel Orientation="Horizontal" Spacing="5" VerticalAlignment="Center">
-                      <PathIcon Width="14" Height="14" VerticalAlignment="Center" Foreground="{DynamicResource KpTextBrush}" Data="M3.00026 5.5V12.1041L4.50091 9.50488C5.03681 8.57668 6.02719 8.00488 7.09898 8.00488L15.0003 8.00488V7.5C15.0003 6.67157 14.3287 6 13.5003 6H9.50026C9.36765 6 9.24047 5.94732 9.1467 5.85355L7.4396 4.14645C7.34583 4.05268 7.21865 4 7.08604 4H4.50026C3.67183 4 3.00026 4.67157 3.00026 5.5ZM4.28361 15.9845C4.35498 15.9947 4.42844 16 4.50373 16H13.9012C14.6157 16 15.276 15.6188 15.6332 15L17.7955 11.2549C18.3728 10.2549 17.6511 9.00488 16.4964 9.00488L7.09898 9.00488C6.38445 9.00488 5.7242 9.38608 5.36694 10.0049L3.20469 13.75C2.78223 14.4817 3.0553 15.3473 3.68462 15.7591C3.86197 15.8742 4.06517 15.9529 4.28361 15.9845ZM2.00026 14.4607V5.5C2.00026 4.11929 3.11955 3 4.50026 3H7.08604C7.48387 3 7.8654 3.15804 8.1467 3.43934L9.70736 5H13.5003C14.881 5 16.0003 6.11929 16.0003 7.5V8.00488H16.4964C18.4209 8.00488 19.6237 10.0882 18.6615 11.7549L16.4992 15.5C15.9633 16.4282 14.973 17 13.9012 17H4.50026C4.4378 17 4.37588 16.9977 4.31457 16.9932C3.75344 16.9527 3.26124 16.7329 2.87665 16.4011C2.36561 15.9642 2.03283 15.3249 2.00252 14.6073C2.00031 14.5586 1.99955 14.5097 2.00026 14.4607Z"/>
+                      <fi:FluentIcon Icon="FolderOpen" IconVariant="Regular" IconSize="Size20" Width="16" Height="16" FontSize="16" VerticalAlignment="Center" Foreground="{DynamicResource KpTextBrush}"/>
                       <TextBlock Text="{Binding Open}" VerticalAlignment="Center"/>
                     </StackPanel>
                   </Button>
                   <Button  Click="OnCloseDatabase" IsEnabled="{Binding CanOpen}" Margin="0,0,8,5">
                     <StackPanel Orientation="Horizontal" Spacing="5" VerticalAlignment="Center">
-                      <PathIcon Width="14" Height="14" VerticalAlignment="Center" Foreground="{DynamicResource KpTextBrush}" Data="M17.9099 2.1816C18.1052 2.37687 18.1052 2.69345 17.9099 2.88871L12.5872 8.21144C14.0023 9.97829 13.8909 12.5646 12.2531 14.2024L11.5895 14.866L9.49982 18.3488C9.4206 18.4808 9.28498 18.569 9.13216 18.5878C8.97935 18.6066 8.82639 18.554 8.71752 18.4451L1.64645 11.374C1.53758 11.2651 1.48494 11.1122 1.50375 10.9594C1.52256 10.8066 1.61073 10.6709 1.74276 10.5917L5.2255 8.50207L5.88909 7.83847C7.52695 6.20062 10.1132 6.08924 11.8801 7.50433L17.2028 2.1816C17.3981 1.98634 17.7146 1.98634 17.9099 2.1816ZM6.24265 8.89913L11.1924 13.8489L11.5459 13.4953C12.9128 12.1285 12.9128 9.91242 11.5459 8.54558C10.1791 7.17875 7.96303 7.17875 6.5962 8.54558L6.24265 8.89913ZM5.45803 9.52874L2.80638 11.1197L8.9718 17.2852L10.5628 14.6335L5.45803 9.52874Z"/>
+                      <fi:FluentIcon Icon="LockClosed" IconVariant="Regular" IconSize="Size20" Width="16" Height="16" FontSize="16" VerticalAlignment="Center" Foreground="{DynamicResource KpTextBrush}"/>
                       <TextBlock Text="{Binding Clear}" VerticalAlignment="Center"/>
                     </StackPanel>
                   </Button>
@@ -169,7 +169,7 @@
                     <fi:FluentIcon Icon="ArrowSync" IconVariant="Regular" IconSize="Size20" Width="17" Height="17" FontSize="17" Foreground="{DynamicResource KpTextBrush}"/>
                   </Button>
                   <Button Grid.Column="6" Classes="record-quick-action" Click="OnClearRecordFilters" ToolTip.Tip="{Binding ResetRecordFiltersTip}">
-                    <PathIcon Width="17" Height="17" Foreground="{DynamicResource KpTextBrush}" Data="{StaticResource KpFilterDismissGeometry}"/>
+                    <fi:FluentIcon Icon="FilterDismiss" IconVariant="Regular" IconSize="Size20" Width="17" Height="17" FontSize="17" Foreground="{DynamicResource KpTextBrush}"/>
                   </Button>
                 </Grid>
                 <Border Grid.Row="2" Classes="table-header">
@@ -189,9 +189,15 @@
                           <Border Classes="vault-row" Classes.print-selected="{Binding Selected}" Height="26" Padding="5,0" IsVisible="{Binding Visible}" Focusable="True" Cursor="Hand" PointerPressed="OnRecordRowPressed" KeyDown="OnRecordRowKeyDown">
                             <Border.ContextMenu>
                               <ContextMenu Opened="OnRecordContextMenuOpened">
-                                <MenuItem Header="Считать напечатанной" CommandParameter="{Binding}" Click="OnRecordMarkPrinted"/>
-                                <MenuItem Header="Считать не напечатанной" CommandParameter="{Binding}" Click="OnRecordMarkUnprinted"/>
-                                <MenuItem Header="Не отслеживать" CommandParameter="{Binding}" Click="OnRecordExcludeTracking"/>
+                                <MenuItem Header="Считать напечатанной" CommandParameter="{Binding}" Click="OnRecordMarkPrinted">
+                                  <MenuItem.Icon><fi:FluentIcon Icon="CheckmarkCircle" IconVariant="Regular" IconSize="Size20" Width="16" Height="16" FontSize="16"/></MenuItem.Icon>
+                                </MenuItem>
+                                <MenuItem Header="Считать не напечатанной" CommandParameter="{Binding}" Click="OnRecordMarkUnprinted">
+                                  <MenuItem.Icon><fi:FluentIcon Icon="ArrowSync" IconVariant="Regular" IconSize="Size20" Width="16" Height="16" FontSize="16"/></MenuItem.Icon>
+                                </MenuItem>
+                                <MenuItem Header="Не отслеживать" CommandParameter="{Binding}" Click="OnRecordExcludeTracking">
+                                  <MenuItem.Icon><fi:FluentIcon Icon="DismissCircle" IconVariant="Regular" IconSize="Size20" Width="16" Height="16" FontSize="16"/></MenuItem.Icon>
+                                </MenuItem>
                               </ContextMenu>
                             </Border.ContextMenu>
                             <Grid ColumnDefinitions="175,*,112,56" ColumnSpacing="0">
@@ -429,10 +435,10 @@
                           <TextBox Grid.Column="0" Width="68" Height="26" Text="{Binding Order, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" Classes.invalid="{Binding OrderInvalid}" Tag="Order" KeyDown="OnMappingNumericKeyDown"/>
                           <Grid Grid.Column="1" RowDefinitions="13,13" Height="26" Width="16">
                             <RepeatButton Grid.Row="0" Classes="spinner-arrow" Width="16" Height="13" MinWidth="0" MinHeight="0" ClickMode="Press" Focusable="False" Delay="520" Interval="300" Click="OnMappingNumericSpin" Tag="Order:+1" ToolTip.Tip="Увеличить">
-                              <fi:FluentIcon Icon="ChevronUp" IconSize="Size20" Width="11" Height="11" FontSize="11" Foreground="{DynamicResource KpTextBrush}"/>
+                              <fi:FluentIcon Icon="ChevronUp" IconVariant="Regular" IconSize="Size20" Width="11" Height="11" FontSize="11" Foreground="{DynamicResource KpTextBrush}"/>
                             </RepeatButton>
                             <RepeatButton Grid.Row="1" Classes="spinner-arrow" Width="16" Height="13" MinWidth="0" MinHeight="0" ClickMode="Press" Focusable="False" Delay="520" Interval="300" Click="OnMappingNumericSpin" Tag="Order:-1" ToolTip.Tip="Уменьшить">
-                              <fi:FluentIcon Icon="ChevronDown" IconSize="Size20" Width="11" Height="11" FontSize="11" Foreground="{DynamicResource KpTextBrush}"/>
+                              <fi:FluentIcon Icon="ChevronDown" IconVariant="Regular" IconSize="Size20" Width="11" Height="11" FontSize="11" Foreground="{DynamicResource KpTextBrush}"/>
                             </RepeatButton>
                           </Grid>
                         </Grid>
@@ -532,10 +538,10 @@
                           <TextBox Grid.Column="0" Width="68" Height="26" Text="{Binding SizePct, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" Classes.invalid="{Binding SizePctInvalid}" Tag="SizePct" KeyDown="OnMappingNumericKeyDown"/>
                           <Grid Grid.Column="1" RowDefinitions="13,13" Height="26" Width="16">
                             <RepeatButton Grid.Row="0" Classes="spinner-arrow" Width="16" Height="13" MinWidth="0" MinHeight="0" ClickMode="Press" Focusable="False" Delay="520" Interval="300" Click="OnMappingNumericSpin" Tag="SizePct:+1" ToolTip.Tip="Увеличить">
-                              <fi:FluentIcon Icon="ChevronUp" IconSize="Size20" Width="11" Height="11" FontSize="11" Foreground="{DynamicResource KpTextBrush}"/>
+                              <fi:FluentIcon Icon="ChevronUp" IconVariant="Regular" IconSize="Size20" Width="11" Height="11" FontSize="11" Foreground="{DynamicResource KpTextBrush}"/>
                             </RepeatButton>
                             <RepeatButton Grid.Row="1" Classes="spinner-arrow" Width="16" Height="13" MinWidth="0" MinHeight="0" ClickMode="Press" Focusable="False" Delay="520" Interval="300" Click="OnMappingNumericSpin" Tag="SizePct:-1" ToolTip.Tip="Уменьшить">
-                              <fi:FluentIcon Icon="ChevronDown" IconSize="Size20" Width="11" Height="11" FontSize="11" Foreground="{DynamicResource KpTextBrush}"/>
+                              <fi:FluentIcon Icon="ChevronDown" IconVariant="Regular" IconSize="Size20" Width="11" Height="11" FontSize="11" Foreground="{DynamicResource KpTextBrush}"/>
                             </RepeatButton>
                           </Grid>
                         </Grid>
@@ -550,10 +556,10 @@
                           <TextBox Grid.Column="0" Width="68" Height="26" Text="{Binding TrackingPt, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" Classes.invalid="{Binding TrackingPtInvalid}" Tag="TrackingPt" KeyDown="OnMappingNumericKeyDown"/>
                           <Grid Grid.Column="1" RowDefinitions="13,13" Height="26" Width="16">
                             <RepeatButton Grid.Row="0" Classes="spinner-arrow" Width="16" Height="13" MinWidth="0" MinHeight="0" ClickMode="Press" Focusable="False" Delay="520" Interval="300" Click="OnMappingNumericSpin" Tag="TrackingPt:+1" ToolTip.Tip="Увеличить">
-                              <fi:FluentIcon Icon="ChevronUp" IconSize="Size20" Width="11" Height="11" FontSize="11" Foreground="{DynamicResource KpTextBrush}"/>
+                              <fi:FluentIcon Icon="ChevronUp" IconVariant="Regular" IconSize="Size20" Width="11" Height="11" FontSize="11" Foreground="{DynamicResource KpTextBrush}"/>
                             </RepeatButton>
                             <RepeatButton Grid.Row="1" Classes="spinner-arrow" Width="16" Height="13" MinWidth="0" MinHeight="0" ClickMode="Press" Focusable="False" Delay="520" Interval="300" Click="OnMappingNumericSpin" Tag="TrackingPt:-1" ToolTip.Tip="Уменьшить">
-                              <fi:FluentIcon Icon="ChevronDown" IconSize="Size20" Width="11" Height="11" FontSize="11" Foreground="{DynamicResource KpTextBrush}"/>
+                              <fi:FluentIcon Icon="ChevronDown" IconVariant="Regular" IconSize="Size20" Width="11" Height="11" FontSize="11" Foreground="{DynamicResource KpTextBrush}"/>
                             </RepeatButton>
                           </Grid>
                         </Grid>
@@ -582,10 +588,10 @@
                           <TextBox Grid.Column="0" Width="68" Height="26" Text="{Binding GroupSize, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" Classes.invalid="{Binding GroupSizeInvalid}" Tag="GroupSize" KeyDown="OnMappingNumericKeyDown"/>
                           <Grid Grid.Column="1" RowDefinitions="13,13" Height="26" Width="16">
                             <RepeatButton Grid.Row="0" Classes="spinner-arrow" Width="16" Height="13" MinWidth="0" MinHeight="0" ClickMode="Press" Focusable="False" Delay="520" Interval="300" Click="OnMappingNumericSpin" Tag="GroupSize:+1" ToolTip.Tip="Увеличить">
-                              <fi:FluentIcon Icon="ChevronUp" IconSize="Size20" Width="11" Height="11" FontSize="11" Foreground="{DynamicResource KpTextBrush}"/>
+                              <fi:FluentIcon Icon="ChevronUp" IconVariant="Regular" IconSize="Size20" Width="11" Height="11" FontSize="11" Foreground="{DynamicResource KpTextBrush}"/>
                             </RepeatButton>
                             <RepeatButton Grid.Row="1" Classes="spinner-arrow" Width="16" Height="13" MinWidth="0" MinHeight="0" ClickMode="Press" Focusable="False" Delay="520" Interval="300" Click="OnMappingNumericSpin" Tag="GroupSize:-1" ToolTip.Tip="Уменьшить">
-                              <fi:FluentIcon Icon="ChevronDown" IconSize="Size20" Width="11" Height="11" FontSize="11" Foreground="{DynamicResource KpTextBrush}"/>
+                              <fi:FluentIcon Icon="ChevronDown" IconVariant="Regular" IconSize="Size20" Width="11" Height="11" FontSize="11" Foreground="{DynamicResource KpTextBrush}"/>
                             </RepeatButton>
                           </Grid>
                         </Grid>
@@ -600,10 +606,10 @@
                           <TextBox Grid.Column="0" Width="68" Height="26" Text="{Binding GroupSpaces, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" Classes.invalid="{Binding GroupSpacesInvalid}" Tag="GroupSpaces" KeyDown="OnMappingNumericKeyDown"/>
                           <Grid Grid.Column="1" RowDefinitions="13,13" Height="26" Width="16">
                             <RepeatButton Grid.Row="0" Classes="spinner-arrow" Width="16" Height="13" MinWidth="0" MinHeight="0" ClickMode="Press" Focusable="False" Delay="520" Interval="300" Click="OnMappingNumericSpin" Tag="GroupSpaces:+1" ToolTip.Tip="Увеличить">
-                              <fi:FluentIcon Icon="ChevronUp" IconSize="Size20" Width="11" Height="11" FontSize="11" Foreground="{DynamicResource KpTextBrush}"/>
+                              <fi:FluentIcon Icon="ChevronUp" IconVariant="Regular" IconSize="Size20" Width="11" Height="11" FontSize="11" Foreground="{DynamicResource KpTextBrush}"/>
                             </RepeatButton>
                             <RepeatButton Grid.Row="1" Classes="spinner-arrow" Width="16" Height="13" MinWidth="0" MinHeight="0" ClickMode="Press" Focusable="False" Delay="520" Interval="300" Click="OnMappingNumericSpin" Tag="GroupSpaces:-1" ToolTip.Tip="Уменьшить">
-                              <fi:FluentIcon Icon="ChevronDown" IconSize="Size20" Width="11" Height="11" FontSize="11" Foreground="{DynamicResource KpTextBrush}"/>
+                              <fi:FluentIcon Icon="ChevronDown" IconVariant="Regular" IconSize="Size20" Width="11" Height="11" FontSize="11" Foreground="{DynamicResource KpTextBrush}"/>
                             </RepeatButton>
                           </Grid>
                         </Grid>
@@ -696,10 +702,10 @@
                              no contribution to row height and no full-width numeric editor. -->
                         <Grid Grid.Column="1" RowDefinitions="13,13" Width="16" Height="26" IsVisible="{Binding IsNumeric}" VerticalAlignment="Center">
                           <RepeatButton Grid.Row="0" Classes="spinner-arrow" Width="16" Height="13" ClickMode="Press" Focusable="False" Delay="520" Interval="300" Click="OnAppearanceIncrease">
-                            <fi:FluentIcon Icon="ChevronUp" IconSize="Size20" Width="11" Height="11" FontSize="11" Foreground="{DynamicResource KpTextBrush}" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                            <fi:FluentIcon Icon="ChevronUp" IconVariant="Regular" IconSize="Size20" Width="11" Height="11" FontSize="11" Foreground="{DynamicResource KpTextBrush}" HorizontalAlignment="Center" VerticalAlignment="Center"/>
                           </RepeatButton>
                           <RepeatButton Grid.Row="1" Classes="spinner-arrow" Width="16" Height="13" ClickMode="Press" Focusable="False" Delay="520" Interval="300" Click="OnAppearanceDecrease">
-                            <fi:FluentIcon Icon="ChevronDown" IconSize="Size20" Width="11" Height="11" FontSize="11" Foreground="{DynamicResource KpTextBrush}" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                            <fi:FluentIcon Icon="ChevronDown" IconVariant="Regular" IconSize="Size20" Width="11" Height="11" FontSize="11" Foreground="{DynamicResource KpTextBrush}" HorizontalAlignment="Center" VerticalAlignment="Center"/>
                           </RepeatButton>
                         </Grid>
                         <Border Grid.Column="2" Width="19" Height="19" CornerRadius="3" BorderBrush="{DynamicResource KpBorderBrush}" BorderThickness="1" Background="{Binding SwatchBrush}" IsVisible="{Binding IsColor}" VerticalAlignment="Center"/>
@@ -811,10 +817,10 @@
                              no contribution to row height and no full-width numeric editor. -->
                         <Grid Grid.Column="1" RowDefinitions="13,13" Width="16" Height="26" IsVisible="{Binding IsNumeric}" VerticalAlignment="Center">
                           <RepeatButton Grid.Row="0" Classes="spinner-arrow" Width="16" Height="13" ClickMode="Press" Focusable="False" Delay="520" Interval="300" Click="OnAppearanceIncrease">
-                            <fi:FluentIcon Icon="ChevronUp" IconSize="Size20" Width="11" Height="11" FontSize="11" Foreground="{DynamicResource KpTextBrush}" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                            <fi:FluentIcon Icon="ChevronUp" IconVariant="Regular" IconSize="Size20" Width="11" Height="11" FontSize="11" Foreground="{DynamicResource KpTextBrush}" HorizontalAlignment="Center" VerticalAlignment="Center"/>
                           </RepeatButton>
                           <RepeatButton Grid.Row="1" Classes="spinner-arrow" Width="16" Height="13" ClickMode="Press" Focusable="False" Delay="520" Interval="300" Click="OnAppearanceDecrease">
-                            <fi:FluentIcon Icon="ChevronDown" IconSize="Size20" Width="11" Height="11" FontSize="11" Foreground="{DynamicResource KpTextBrush}" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                            <fi:FluentIcon Icon="ChevronDown" IconVariant="Regular" IconSize="Size20" Width="11" Height="11" FontSize="11" Foreground="{DynamicResource KpTextBrush}" HorizontalAlignment="Center" VerticalAlignment="Center"/>
                           </RepeatButton>
                         </Grid>
                         <Border Grid.Column="2" Width="19" Height="19" CornerRadius="3" BorderBrush="{DynamicResource KpBorderBrush}" BorderThickness="1" Background="{Binding SwatchBrush}" IsVisible="{Binding IsColor}" VerticalAlignment="Center"/>
@@ -848,7 +854,7 @@
               <TextBlock Text="{Binding TabSettings}" VerticalAlignment="Center"/>
             </StackPanel>
           </TabItem.Header>
-          <views:SettingsView/>
+          <views:SettingsView x:Name="ApplicationSettingsView"/>
         </TabItem>
         <TabItem ClipToBounds="True" ToolTip.Tip="{Binding TabAbout}">
           <TabItem.Header>
@@ -961,8 +967,12 @@
             <Button Classes="preview-tool" IsEnabled="{Binding PrintReady}" ToolTip.Tip="Экспорт выбранных карточек: векторный PDF или растр 600 DPI">
               <Button.Flyout>
                 <MenuFlyout Opened="OnExportMenuOpened">
-                  <MenuItem Header="Векторный PDF…" Click="OnExportPdf" IsEnabled="{Binding PrintReady}"/>
-                  <MenuItem Header="Растр 600 DPI (ZIP с PNG)…" Click="OnExportRaster" IsEnabled="{Binding PrintReady}"/>
+                  <MenuItem Header="Векторный PDF…" Click="OnExportPdf" IsEnabled="{Binding PrintReady}">
+                    <MenuItem.Icon><fi:FluentIcon Icon="DocumentOnePage" IconVariant="Regular" IconSize="Size20" Width="16" Height="16" FontSize="16"/></MenuItem.Icon>
+                  </MenuItem>
+                  <MenuItem Header="Растр 600 DPI (ZIP с PNG)…" Click="OnExportRaster" IsEnabled="{Binding PrintReady}">
+                    <MenuItem.Icon><fi:FluentIcon Icon="Image" IconVariant="Regular" IconSize="Size20" Width="16" Height="16" FontSize="16"/></MenuItem.Icon>
+                  </MenuItem>
                 </MenuFlyout>
               </Button.Flyout>
               <fi:FluentIcon Icon="ArrowDownload" IconSize="Size20" IconVariant="Regular" Width="20" Height="20" FontSize="20"/>
@@ -1008,7 +1018,7 @@
                       HorizontalAlignment="Center" VerticalAlignment="Center">
                 <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
                   <fi:FluentIcon Icon="ArrowSync" IconVariant="Regular" IconSize="Size20"
-                                 Width="17" Height="17" Foreground="{DynamicResource KpAccentBrush}"/>
+                                 Width="17" Height="17" FontSize="17" Foreground="{DynamicResource KpTextBrush}"/>
                   <TextBlock Text="{Binding PreviewUpdateLabel}" VerticalAlignment="Center"
                              TextWrapping="Wrap"/>
                 </StackPanel>
@@ -1018,7 +1028,7 @@
                       HorizontalAlignment="Center" VerticalAlignment="Center">
                 <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
                   <fi:FluentIcon Icon="DocumentOnePage" IconVariant="Regular" IconSize="Size20"
-                                 Width="17" Height="17" Foreground="{DynamicResource KpAccentBrush}"/>
+                                 Width="17" Height="17" FontSize="17" Foreground="{DynamicResource KpTextBrush}"/>
                   <TextBlock Text="{Binding PreviewNoCardsLabel}" VerticalAlignment="Center"
                              TextWrapping="Wrap"/>
                 </StackPanel>
@@ -1037,7 +1047,7 @@
       </Grid>
     </Grid>
     <Border Grid.Row="2" Classes="app-footer">
-      <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12" MinWidth="0">
+      <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="12" MinWidth="0">
         <!-- Keep the name and details immediately adjacent. Auto,* is deliberate:
              *,Auto right-aligns the details and creates a huge empty gap. -->
         <Grid Grid.Column="0" ColumnDefinitions="Auto,*" ColumnSpacing="0" MinWidth="0" ClipToBounds="True"
@@ -1055,7 +1065,13 @@
         <TextBlock Grid.Column="0" Classes="app-footer-text" Text="{Binding StatusLead}"
                    IsVisible="{Binding ShowOperationalStatus}" MinWidth="0"
                    TextWrapping="Wrap" TextTrimming="None" VerticalAlignment="Center" />
-        <TextBlock Grid.Column="1" Classes="app-footer-meta" Text="{Binding AppVersionPlatform}"
+        <StackPanel x:Name="CloudFooter" Grid.Column="1" Orientation="Horizontal"
+                    Spacing="5" VerticalAlignment="Center" IsVisible="False" MaxWidth="260">
+          <ContentControl x:Name="CloudFooterIcon" VerticalAlignment="Center"/>
+          <TextBlock x:Name="CloudFooterText" Classes="app-footer-text" VerticalAlignment="Center"
+                     TextTrimming="CharacterEllipsis"/>
+        </StackPanel>
+        <TextBlock Grid.Column="2" Classes="app-footer-meta" Text="{Binding AppVersionPlatform}"
                    HorizontalAlignment="Right" VerticalAlignment="Center"/>
       </Grid>
     </Border>

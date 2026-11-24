@@ -30,6 +30,7 @@ public partial class SettingsView : UserControl
     private readonly DispatcherTimer _protonTimer = new() { Interval = TimeSpan.FromHours(24) };
     private bool _protonChecking;
     private bool _cloudCommandRunning;
+    internal bool IsCloudCommandRunning => _cloudCommandRunning;
     private string _cloudCommand = "";
     private string _cloudStep = "";
     private CancellationTokenSource? _cloudCommandCancellation;
@@ -226,13 +227,13 @@ public partial class SettingsView : UserControl
             BucketCaption.Text = "Bucket (S3 / R2)";
             RegionCaption.Text = "Region (S3 / R2)";
             ClientIdCaption.Text = "Google OAuth Client ID";
-            BrowseProtonButton.Content = L("Обзор…", "Огляд…", "Browse…");
+            BrowseProtonLabel.Text = L("Обзор…", "Огляд…", "Browse…");
             ProtonCaption.Text = L("Путь к Proton CLI (пусто — автопоиск)",
                 "Шлях до Proton CLI (порожньо — автопошук)", "Proton CLI path (blank — auto-discover)");
             AutoProtonCheck.Content = L("Автоматически проверять обновления Proton CLI",
                 "Автоматично перевіряти оновлення Proton CLI", "Check Proton CLI updates automatically");
-            CheckProtonButton.Content = L("Проверить версию", "Перевірити версію", "Check version");
-            InstallProtonButton.Content = L("Скачать / обновить CLI", "Завантажити / оновити CLI", "Download / update CLI");
+            CheckProtonLabel.Text = L("Проверить версию", "Перевірити версію", "Check version");
+            InstallProtonLabel.Text = L("Скачать / обновить CLI", "Завантажити / оновити CLI", "Download / update CLI");
             UsernameCaption.Text = L("Имя пользователя / Access Key", "Ім'я користувача / Access Key", "Username / Access Key");
             SecretCaption.Text = L("Пароль / Secret Key / OAuth Client Secret (если изменяется)",
                 "Пароль / Secret Key / OAuth Client Secret (якщо змінюється)",
@@ -341,13 +342,13 @@ public partial class SettingsView : UserControl
             CloudOperationStatus.Text = _storageOperationMessage ??
                 _lastOperationMessage ?? "";
             CloudOperationStatus.IsVisible = !string.IsNullOrEmpty(CloudOperationStatus.Text);
-            CloudDestinationButton.Content = L("Подтвердить новую папку облака…",
+            CloudDestinationLabel.Text = L("Подтвердить новую папку облака…",
                 "Підтвердити нову хмарну папку…", "Confirm new cloud destination…");
             CloudDestinationButton.IsVisible = !_cloudCommandRunning &&
                 SettingsLocation.Mode == ConfigurationStorage.Cloud &&
                 CloudConnectionStore.IsCurrentVerified() &&
                 engine is not null && engine.RequiresDestinationChoice(CloudConnectionStore.Load());
-            RecoverMappingButton.Content = L("Восстановить маппинг…",
+            RecoverMappingLabel.Text = L("Восстановить маппинг…",
                 "Відновити мапінг…", "Recover field mapping…");
             RecoverMappingButton.IsVisible = !_cloudCommandRunning && recoveryRoot is not null;
             if (!_cloudCommandRunning)
@@ -361,6 +362,10 @@ public partial class SettingsView : UserControl
     }
     private string LocalizeSyncError(string detail)
     {
+        if (detail.StartsWith("Both local and cloud configuration changed", StringComparison.Ordinal))
+            return L("Конфликт версий. Нажмите «Синхронизировать сейчас» и выберите копию.",
+                "Конфлікт версій. Натисніть «Синхронізувати зараз» і оберіть копію.",
+                "Configuration conflict. Choose Sync now and select a copy.");
         // Keep the internal exception stable and display one actionable error
         // in every supported language. The filename is safe to expose.
         if (detail.StartsWith("mapping.json:", StringComparison.Ordinal))
@@ -714,7 +719,15 @@ public partial class SettingsView : UserControl
                     cancelText: L("Отмена", "Скасувати", "Cancel")))
                 throw new OperationCanceledException();
             var resumingAfterReview = CloudMappingRecovery.ReviewRequired;
-            await sync.SynchronizeAsync(ct, progress);
+            try { await sync.SynchronizeAsync(ct, progress); }
+            catch (CloudSaveConflictException) when (Owner is not null)
+            {
+                var choice = await CloudConflictDialog.ChooseAsync(Owner!,
+                    (DataContext as ShellViewModel)?.Settings.Language ?? "auto");
+                if (choice == StorageSwitchAnswer.Cancel) throw new OperationCanceledException();
+                if (choice == StorageSwitchAnswer.Yes) await sync.UploadCurrentAsync(ct, progress);
+                else await sync.DownloadExistingAsync(ct, progress);
+            }
             if (resumingAfterReview && !CloudMappingRecovery.ReviewRequired)
                 sync.Start();
         }, L("Синхронизация", "Синхронізація", "Synchronization"));

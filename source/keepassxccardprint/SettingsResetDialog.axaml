@@ -1,5 +1,6 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:fi="using:FluentIcons.Avalonia"
         x:Class="KeePassXCCardPrint.SettingsResetDialog"
         WindowDecorations="Full" CanResize="False" ShowInTaskbar="False"
         WindowStartupLocation="CenterOwner" Width="520"
@@ -9,10 +10,16 @@
     <Border Classes="app-footer" DockPanel.Dock="Bottom">
       <StackPanel Orientation="Horizontal" Spacing="8" HorizontalAlignment="Right">
         <Button Click="OnContinue" Padding="12,5" MinWidth="145">
-          <TextBlock x:Name="ContinueText" Text="Продолжить…"/>
+          <StackPanel Orientation="Horizontal" Spacing="6">
+            <fi:FluentIcon Icon="ArrowRight" IconVariant="Regular" IconSize="Size20" Width="16" Height="16" FontSize="16" VerticalAlignment="Center"/>
+            <TextBlock x:Name="ContinueText" Text="Продолжить…" VerticalAlignment="Center"/>
+          </StackPanel>
         </Button>
         <Button Click="OnCancel" Padding="12,5" MinWidth="90">
-          <TextBlock x:Name="CancelText" Text="Отмена"/>
+          <StackPanel Orientation="Horizontal" Spacing="6">
+            <fi:FluentIcon Icon="DismissCircle" IconVariant="Regular" IconSize="Size20" Width="16" Height="16" FontSize="16" VerticalAlignment="Center"/>
+            <TextBlock x:Name="CancelText" Text="Отмена" VerticalAlignment="Center"/>
+          </StackPanel>
         </Button>
       </StackPanel>
     </Border>

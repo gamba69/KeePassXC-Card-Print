@@ -531,7 +531,10 @@ internal static class PrintDialogButtons
 {
     internal const double ActionHeight = 26;
 
-    internal static Button Create(string caption,string icon="") => new()
+    internal static Button Create(string caption,string icon="") =>
+        Create(caption, ActionIconVectors.Create(string.IsNullOrEmpty(icon)?"page":icon));
+
+    internal static Button Create(string caption,Control glyph) => new()
     {
         Content = new StackPanel
         {
@@ -539,7 +542,7 @@ internal static class PrintDialogButtons
             VerticalAlignment=VerticalAlignment.Center,
             Children=
             {
-                ActionIconVectors.Create(string.IsNullOrEmpty(icon)?"page":icon),
+                glyph,
                 new TextBlock{Text=UiText.Tr(caption),VerticalAlignment=VerticalAlignment.Center}
             }
         },

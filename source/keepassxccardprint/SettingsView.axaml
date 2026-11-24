@@ -40,13 +40,14 @@
           <TextBox x:Name="ClientIdBox"/>
           <TextBlock x:Name="ProtonCaption" Text="Путь к Proton CLI"/>
           <TextBox x:Name="ProtonBox" PlaceholderText="Автоматический поиск"/>
-          <Button x:Name="BrowseProtonButton" HorizontalAlignment="Left"
-                  Content="Обзор…" Click="OnBrowseProton"/>
+          <Button x:Name="BrowseProtonButton" HorizontalAlignment="Left" Click="OnBrowseProton">
+            <StackPanel Orientation="Horizontal" Spacing="6"><fi:FluentIcon Icon="FolderOpen" IconVariant="Regular" IconSize="Size20" Width="18" Height="18" FontSize="18" VerticalAlignment="Center"/><TextBlock x:Name="BrowseProtonLabel" Text="Обзор…" VerticalAlignment="Center"/></StackPanel>
+          </Button>
           <CheckBox x:Name="AutoProtonCheck" Content="Проверять обновления Proton CLI автоматически"/>
           <TextBlock x:Name="ProtonStatus" TextWrapping="Wrap" FontSize="11"/>
           <WrapPanel x:Name="ProtonActions" Orientation="Horizontal" ItemSpacing="6" LineSpacing="6">
-            <Button x:Name="CheckProtonButton" Click="OnCheckProton" Content="Проверить версию"/>
-            <Button x:Name="InstallProtonButton" Click="OnInstallProton" Content="Скачать / обновить Proton CLI"/>
+            <Button x:Name="CheckProtonButton" Click="OnCheckProton"><StackPanel Orientation="Horizontal" Spacing="6"><fi:FluentIcon Icon="ArrowSync" IconVariant="Regular" IconSize="Size20" Width="18" Height="18" FontSize="18" VerticalAlignment="Center"/><TextBlock x:Name="CheckProtonLabel" Text="Проверить версию" VerticalAlignment="Center"/></StackPanel></Button>
+            <Button x:Name="InstallProtonButton" Click="OnInstallProton"><StackPanel Orientation="Horizontal" Spacing="6"><fi:FluentIcon Icon="ArrowDownload" IconVariant="Regular" IconSize="Size20" Width="18" Height="18" FontSize="18" VerticalAlignment="Center"/><TextBlock x:Name="InstallProtonLabel" Text="Скачать / обновить Proton CLI" VerticalAlignment="Center"/></StackPanel></Button>
           </WrapPanel>
           <TextBlock x:Name="UsernameCaption" Text="Имя пользователя / Access Key"/>
           <TextBox x:Name="UsernameBox"/>
@@ -55,25 +56,25 @@
           <WrapPanel Orientation="Horizontal" ItemSpacing="6" LineSpacing="6">
             <Button x:Name="SaveCloudButton" Click="OnSaveConnection">
               <StackPanel Orientation="Horizontal" Spacing="6">
-                <fi:FluentIcon Icon="Save" IconSize="Size20" Width="16" Height="16"/>
+                <fi:FluentIcon Icon="Save" IconVariant="Regular" IconSize="Size20" Width="18" Height="18" FontSize="18" VerticalAlignment="Center"/>
                 <TextBlock x:Name="SaveCloudButtonLabel" Text="Сохранить подключение" VerticalAlignment="Center"/>
               </StackPanel>
             </Button>
             <Button x:Name="LoginCloudButton" Click="OnAuthenticate">
               <StackPanel Orientation="Horizontal" Spacing="6">
-                <fi:FluentIcon Icon="Key" IconSize="Size20" Width="16" Height="16"/>
+                <fi:FluentIcon Icon="Key" IconVariant="Regular" IconSize="Size20" Width="18" Height="18" FontSize="18" VerticalAlignment="Center"/>
                 <TextBlock x:Name="LoginCloudButtonLabel" Text="Авторизоваться" VerticalAlignment="Center"/>
               </StackPanel>
             </Button>
             <Button x:Name="TestCloudButton" Click="OnTestConnection">
               <StackPanel Orientation="Horizontal" Spacing="6">
-                <fi:FluentIcon Icon="CheckmarkCircle" IconSize="Size20" Width="16" Height="16"/>
+                <fi:FluentIcon Icon="CheckmarkCircle" IconVariant="Regular" IconSize="Size20" Width="18" Height="18" FontSize="18" VerticalAlignment="Center"/>
                 <TextBlock x:Name="TestCloudButtonLabel" Text="Проверить" VerticalAlignment="Center"/>
               </StackPanel>
             </Button>
             <Button x:Name="SyncCloudButton" Click="OnSyncNow">
               <StackPanel Orientation="Horizontal" Spacing="6">
-                <fi:FluentIcon Icon="ArrowSync" IconSize="Size20" Width="16" Height="16"/>
+                <fi:FluentIcon Icon="ArrowSync" IconVariant="Regular" IconSize="Size20" Width="18" Height="18" FontSize="18" VerticalAlignment="Center"/>
                 <TextBlock x:Name="SyncCloudButtonLabel" Text="Синхронизировать сейчас" VerticalAlignment="Center"/>
               </StackPanel>
             </Button>
@@ -88,10 +89,12 @@
               <TextBlock x:Name="CloudActivityStep" FontSize="11" TextWrapping="Wrap"/>
             </StackPanel>
           </Border>
-          <Button x:Name="CloudDestinationButton" IsVisible="False" HorizontalAlignment="Left"
-                  Click="OnConfirmDestination" Content="Подтвердить новое облачное хранилище"/>
-          <Button x:Name="RecoverMappingButton" IsVisible="False" HorizontalAlignment="Left"
-                  Click="OnRecoverMapping" Content="Восстановить маппинг…"/>
+          <Button x:Name="CloudDestinationButton" IsVisible="False" HorizontalAlignment="Left" Click="OnConfirmDestination">
+            <StackPanel Orientation="Horizontal" Spacing="6"><fi:FluentIcon Icon="CloudCheckmark" IconVariant="Regular" IconSize="Size20" Width="18" Height="18" FontSize="18" VerticalAlignment="Center"/><TextBlock x:Name="CloudDestinationLabel" Text="Подтвердить новое облачное хранилище" VerticalAlignment="Center"/></StackPanel>
+          </Button>
+          <Button x:Name="RecoverMappingButton" IsVisible="False" HorizontalAlignment="Left" Click="OnRecoverMapping">
+            <StackPanel Orientation="Horizontal" Spacing="6"><fi:FluentIcon Icon="ArrowSync" IconVariant="Regular" IconSize="Size20" Width="18" Height="18" FontSize="18" VerticalAlignment="Center"/><TextBlock x:Name="RecoverMappingLabel" Text="Восстановить маппинг…" VerticalAlignment="Center"/></StackPanel>
+          </Button>
           <TextBlock x:Name="CloudStatus" TextWrapping="Wrap" FontSize="11"/>
           <TextBlock x:Name="LastSync" FontSize="11" TextWrapping="Wrap"/>
           <TextBlock x:Name="CloudOperationStatus" FontSize="11" TextWrapping="Wrap" IsVisible="False"/>
@@ -113,7 +116,7 @@
                      Text="Сброс настроек с резервным копированием. История печати сохраняется, если явно не выбрать её удаление."/>
           <Button x:Name="ResetSettingsButton" HorizontalAlignment="Left" Click="OnResetSettings">
             <StackPanel Orientation="Horizontal" Spacing="6">
-              <fi:FluentIcon Icon="Settings" IconSize="Size20" Width="16" Height="16"/>
+              <fi:FluentIcon Icon="Settings" IconVariant="Regular" IconSize="Size20" Width="18" Height="18" FontSize="18" VerticalAlignment="Center"/>
               <TextBlock x:Name="ResetSettingsButtonLabel" Text="Сбросить настройки…" VerticalAlignment="Center"/>
             </StackPanel>
           </Button>

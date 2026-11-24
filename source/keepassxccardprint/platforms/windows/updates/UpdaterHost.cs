@@ -222,12 +222,13 @@ internal static class UpdaterHost
             if(installerStarted)owner.CloseForUpdate();
             else if(completed && Service.IsReady && !Service.IsRepairReady)
             {
+                owner.ResumeAfterUpdatePreparation();
                 _preparing=false;
                 await PromptInstallAsync(owner);
             }
         }
         catch(Exception ex){ServiceError=ex.Message;Changed?.Invoke();}
-        finally{_preparing=false;Changed?.Invoke();}
+        finally{_preparing=false;owner.ResumeAfterUpdatePreparation();Changed?.Invoke();}
     }
 
     private static async Task PrepareAndLaunchAsync(UpdateOperationWindow dialog,
@@ -262,7 +263,7 @@ internal static class UpdaterHost
             if(launched)owner.CloseForUpdate();
         }
         catch(Exception ex){ServiceError=ex.Message;Changed?.Invoke();}
-        finally{_preparing=false;Changed?.Invoke();}
+        finally{_preparing=false;owner.ResumeAfterUpdatePreparation();Changed?.Invoke();}
     }
     internal static string ServiceError {get;private set;}="";
     internal static void InstallOnExitIfReady()

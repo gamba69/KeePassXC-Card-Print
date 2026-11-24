@@ -111,8 +111,16 @@ public partial class MainWindow : Window
         _vm = new ShellViewModel(_settings);
         InitializeComponent();
         _cloudSync.BeforeRemoteApplyAsync = async () => await Dispatcher.UIThread.InvokeAsync(() =>
-            !_vm.Busy && !_vm.MappingHasPendingChanges && !_vm.CanSaveTemplateChanges &&
-            _printExportCancellation is null);
+            !_vm.Busy && !_vm.HasUnsavedTemplateChanges && _printExportCancellation is null &&
+            !_cloudExitPreparing && !_cloudExitPrepared);
+        _cloudSync.ApplyOnUiAsync = async action => await Dispatcher.UIThread.InvokeAsync(() =>
+        {
+            if (_vm.Busy || _vm.HasUnsavedTemplateChanges || _printExportCancellation is not null ||
+                _cloudExitPreparing || _cloudExitPrepared)
+                throw new InvalidOperationException("Finish editing the current template first.");
+            action();
+        });
+        InitializeCloudFooter();
         _cloudSync.RemoteApplied = () => Dispatcher.UIThread.Post(() =>
         {
             try { OnCloudRemoteApplied(); }
@@ -878,8 +886,18 @@ public partial class MainWindow : Window
     }
     internal string UpdateLanguage => _settings.Language;
     internal bool IsExportRunning => _printExportCancellation is not null;
-    internal Task<bool> ReadyForUpdateAsync() => ResolveUnsavedTemplateAsync(exiting:true);
+    internal async Task<bool> ReadyForUpdateAsync()
+    {
+        if (_exitPromptOpen || _cloudExitPreparing || _switchingStorage || _vm.Busy ||
+            this.FindControl<SettingsView>("ApplicationSettingsView")?.IsCloudCommandRunning == true)
+            return false;
+        return await ResolveUnsavedTemplateAsync(exiting:true) && await PrepareCloudExitAsync();
+    }
     internal void CloseForUpdate() { _exitApproved=true; Close(); }
+    internal void ResumeAfterUpdatePreparation()
+    {
+        if (!_exitApproved) ResumeCloudAfterCancelledExit();
+    }
     private async Task<bool> ResolveUnsavedTemplateAsync(bool exiting=false)
     {
         if(!_vm.HasUnsavedTemplateChanges)return true;
@@ -897,21 +915,32 @@ public partial class MainWindow : Window
         if(!_exitApproved)
         {
             e.Cancel=true;
-            if(_exitPromptOpen)return;
+            if(_exitPromptOpen || _cloudExitPreparing || UpdaterHost.IsInstalling)return;
+            if (_switchingStorage || _vm.Busy ||
+                this.FindControl<SettingsView>("ApplicationSettingsView")?.IsCloudCommandRunning == true)
+            {
+                await AppConfirmations.AskAsync(this, CloudL("Завершение работы", "Завершення роботи", "Exit application"),
+                    CloudL("Дождитесь завершения текущей операции.", "Дочекайтеся завершення поточної операції.", "Wait for the current operation to finish."),
+                    CloudL("Понятно", "Зрозуміло", "OK"), cancelText: CloudL("Отмена", "Скасувати", "Cancel"));
+                return;
+            }
             _exitPromptOpen=true;
             try
             {
-                // One Save / Don't save / Cancel dialog covers the entire template.
-                // Never show a second ordinary exit confirmation afterwards.
                 bool approved=_vm.HasUnsavedTemplateChanges
                     ? await ResolveUnsavedTemplateAsync(exiting:true)
                     : await AppConfirmations.ConfirmExitAsync(this,_settings.Language,
                         _printExportCancellation is not null);
-                if(approved)
+                if (approved && await PrepareCloudExitAsync())
                 {
                     _exitApproved=true;
                     Close();
                 }
+            }
+            catch (Exception ex)
+            {
+                CloudSyncDiagnostics.Record("safe-exit", ex);
+                ResumeCloudAfterCancelledExit();
             }
             finally{_exitPromptOpen=false;}
             return;
@@ -919,13 +948,16 @@ public partial class MainWindow : Window
         _passwordLayout.Leave();
         _vaultGeneration++;
         _printExportCancellation?.Cancel();
-        _vm.SaveVaultPreferences();
-        _vm.SaveCardAppearance();
+        _preferencesSaveTimer.Stop();
+        if (!_settingsResetScheduled && !_cloudExitPrepared)
+        {
+            _vm.SaveVaultPreferences();
+            _vm.SaveCardAppearance();
+            CaptureLayout();
+            Persist();
+        }
+        // No portable configuration writes after the verified cloud barrier.
         _vm.ClearVault();
-        CaptureLayout();
-        Persist();
-        if (SettingsLocation.Mode == ConfigurationStorage.Cloud && !_settingsResetScheduled)
-            _cloudSync.MarkPending();
         if (!_settingsResetScheduled) UpdaterHost.InstallOnExitIfReady();
         base.OnClosing(e);
     }

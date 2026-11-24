@@ -28,10 +28,10 @@
       <Button x:Name="OperationButton" HorizontalAlignment="Right"
               MinWidth="112" HorizontalContentAlignment="Center" Click="OnOperationButton">
         <StackPanel Orientation="Horizontal" Spacing="6">
-          <fi:FluentIcon x:Name="OperationCancelIcon" Icon="Dismiss" IconSize="Size20"
-                         Width="16" Height="16"/>
-          <fi:FluentIcon x:Name="OperationCloseIcon" Icon="Checkmark" IconSize="Size20"
-                         Width="16" Height="16" IsVisible="False"/>
+          <fi:FluentIcon x:Name="OperationCancelIcon" Icon="DismissCircle" IconVariant="Regular" IconSize="Size20"
+                         Width="18" Height="18" FontSize="18" VerticalAlignment="Center"/>
+          <fi:FluentIcon x:Name="OperationCloseIcon" Icon="Checkmark" IconVariant="Regular" IconSize="Size20"
+                         Width="18" Height="18" FontSize="18" VerticalAlignment="Center" IsVisible="False"/>
           <TextBlock x:Name="OperationButtonLabel" VerticalAlignment="Center" Text="Cancel"/>
         </StackPanel>
       </Button>

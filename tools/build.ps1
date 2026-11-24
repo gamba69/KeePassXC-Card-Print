@@ -305,38 +305,64 @@ if ($mainWindowSource -notmatch 'ConfirmSecretFileAsync\(this,_settings.Language
 }
 Write-Host '[PASS] exit and unencrypted-file confirmations and shared danger button.' -ForegroundColor Green
 
-# all Cancel actions must share the same visible vector.
+# Fluent System Icons Regular is the sole application-owned action icon standard.
 $appAxaml = Get-Content -LiteralPath (Join-Path $sourceRoot 'App.axaml') -Raw -Encoding UTF8
 $actionIconSource = Get-Content -LiteralPath (Join-Path $sourceRoot 'ActionIconVectors.cs') -Raw -Encoding UTF8
 $compactStyleSource = Get-Content -LiteralPath (Join-Path $sourceRoot 'styles\Compact.axaml') -Raw -Encoding UTF8
-foreach ($modal in @('DomainsWindow.axaml', 'StorageSwitchDialog.axaml', 'UnsavedMappingDialog.axaml')) {
+$modalXamls = @('DomainsWindow.axaml', 'StorageSwitchDialog.axaml', 'UnsavedMappingDialog.axaml', 'SettingsResetDialog.axaml')
+foreach ($modal in $modalXamls) {
     $modalXaml = Get-Content -LiteralPath (Join-Path $sourceRoot $modal) -Raw -Encoding UTF8
-    if ($modalXaml -notmatch 'PathIcon Data="\{StaticResource KpCancelIconGeometry\}"' -or
-        $modalXaml -match 'Icon="ChevronLeft"') {
-        throw "CANCEL ICON MISMATCH: $modal must use the shared vector cancel icon."
+    if ($modalXaml -notmatch 'Click="OnCancel"(?:(?!</Button>)[\s\S])*?<fi:FluentIcon\b[^>]*Icon="DismissCircle"') {
+        throw "CANCEL ICON MISMATCH: $modal must use the Fluent Regular DismissCircle glyph."
     }
 }
-if ($appAxaml -notmatch 'KpCancelIconGeometry' -or
-    $actionIconSource -notmatch 'CancelGeometry' -or
+if ($appAxaml -match 'KpCancelIconGeometry|KpFilterDismissGeometry' -or
+    $actionIconSource -notmatch '"cancel"\s*=>\s*Icon.DismissCircle' -or
+    $actionIconSource -notmatch 'IconVariant\s*=\s*IconVariant.Regular' -or
+    $actionIconSource -notmatch 'FontSize\s*=\s*size' -or
     $compactStyleSource -notmatch 'Button:disabled /template/ ContentPresenter#PART_ContentPresenter') {
-    throw 'THEME/CANCEL ICON MISMATCH: shared cancel icon or disabled-button palette not present.'
+    throw 'THEME/FLUENT ICON MISMATCH: shared icon policy or disabled-button palette not present.'
 }
-Write-Host '[PASS] modal Cancel icons and theme-matched disabled buttons.' -ForegroundColor Green
+Write-Host '[PASS] modal Fluent Cancel icons and theme-matched disabled buttons.' -ForegroundColor Green
 
-# small action icon glyphs must use the complete 20px family.
-# The two database buttons are native PathIcon vectors to prevent missing glyphs.
 $mainXaml = Get-Content -LiteralPath (Join-Path $sourceRoot 'MainWindow.axaml') -Raw -Encoding UTF8
-$modalXamls = @('DomainsWindow.axaml', 'StorageSwitchDialog.axaml', 'UnsavedMappingDialog.axaml')
-foreach ($uiFile in $modalXamls) {
-    $uiText = Get-Content -LiteralPath (Join-Path $sourceRoot $uiFile) -Raw -Encoding UTF8
-    if ($uiText.Contains('IconSize="Size12"')) { throw "SMALL ACTION ICON: $uiFile uses incomplete Size12 glyphs." }
+if ($mainXaml -notmatch 'Click="OnOpenDatabase"(?:(?!</Button>)[\s\S])*?<fi:FluentIcon\b[^>]*Icon="FolderOpen"' -or
+    $mainXaml -notmatch 'Click="OnCloseDatabase"(?:(?!</Button>)[\s\S])*?<fi:FluentIcon\b[^>]*Icon="LockClosed"') {
+    throw 'FLUENT ACTION ICON: missing database open or close glyph.'
 }
-if ($mainXaml.Contains('IconSize="Size12"') -or
-    $mainXaml -notmatch 'OnOpenDatabase[\s\S]*?<PathIcon' -or
-    $mainXaml -notmatch 'OnCloseDatabase[\s\S]*?<PathIcon') {
-    throw 'SMALL ACTION ICON: missing theme-aware path icons or obsolete Size12 glyph size.'
+foreach ($uiFile in (Get-ChildItem -LiteralPath $sourceRoot -Recurse -File -Filter '*.axaml' | Where-Object { $_.FullName -notmatch '[\\/](obj|bin)[\\/]' })) {
+    $uiText = Get-Content -LiteralPath $uiFile.FullName -Raw -Encoding UTF8
+    if ($uiText -match '<(?:\w+:)?(?:PathIcon|SymbolIcon|StreamGeometry)\b') {
+        throw "NON-FLUENT UI ICON: $($uiFile.Name) contains a legacy icon control or resource."
+    }
+    # The only standalone Path is a preview of actual Fluent vector card artwork, not an action glyph.
+    foreach ($pathTag in [regex]::Matches($uiText, '<Path\b[^>]*>')) {
+        if ($pathTag.Value -notmatch 'Data="\{Binding IconGeometry\}"') {
+            throw "NON-FLUENT UI ICON: unexpected vector Path in $($uiFile.Name)."
+        }
+    }
+    foreach ($glyph in [regex]::Matches($uiText, '<fi:FluentIcon\b[^>]*>')) {
+        $tag = $glyph.Value
+        $w = [regex]::Match($tag, '\bWidth="(\d+)"').Groups[1].Value
+        $h = [regex]::Match($tag, '\bHeight="(\d+)"').Groups[1].Value
+        $f = [regex]::Match($tag, '\bFontSize="(\d+)"').Groups[1].Value
+        if ($tag -notmatch 'IconVariant="Regular"' -or $tag -notmatch 'IconSize="Size20"' -or
+            -not $w -or $w -ne $h -or $w -ne $f) {
+            throw "FLUENT GLYPH SIZE/STYLE: $($uiFile.Name): $tag"
+        }
+    }
 }
-Write-Host '[PASS] labeled action icons and native database buttons.' -ForegroundColor Green
+foreach ($codeFile in (Get-ChildItem -LiteralPath $sourceRoot -Recurse -File -Filter '*.cs' | Where-Object { $_.FullName -notmatch '[\\/](obj|bin)[\\/]' })) {
+    $codeText = Get-Content -LiteralPath $codeFile.FullName -Raw -Encoding UTF8
+    if ($codeText -match '\b(?:PathIcon|SymbolIcon|CancelGeometry)\b') {
+        throw "NON-FLUENT UI ICON: $($codeFile.Name) contains legacy icon code."
+    }
+}
+$aboutGlyphs = [regex]::Matches($aboutView, '<fi:FluentIcon\b[^>]*>')
+if ($aboutGlyphs.Count -ne 4 -or @($aboutGlyphs | Where-Object { $_.Value -notmatch 'FontSize="18"' }).Count -ne 0) {
+    throw 'ABOUT ICON SIZE: all four action glyphs must be 18 DIP.'
+}
+Write-Host '[PASS] project-wide Fluent Regular action icons, explicit matching glyph sizes and About 18-DIP controls.' -ForegroundColor Green
 
 # All mapping and appearance numeric steppers share one comfortable repeat rate.
 # A single pointer press acts immediately (ClickMode=Press); a held press
@@ -456,7 +482,7 @@ $recordFilterStyle = Get-Content -LiteralPath (Join-Path $sourceRoot 'styles\Com
 $recordWindowCode = Get-Content -LiteralPath (Join-Path $sourceRoot 'MainWindow.axaml.cs') -Raw -Encoding UTF8
 if ([regex]::Matches($chromeXaml, 'Classes="record-quick-filter"').Count -ne 3 -or
     [regex]::Matches($chromeXaml, 'Classes="record-quick-action"').Count -ne 2 -or
-    $chromeXaml -notmatch 'KpFilterDismissGeometry' -or
+    $chromeXaml -notmatch 'Icon="FilterDismiss"' -or
     $chromeXaml -notmatch 'FilterRemainingActive, Mode=OneWay' -or
     $recordFilterVm -notmatch 'RecordQuickFilter.Remaining => record.Selected && !fullyPrinted' -or
     $recordFilterVm -notmatch 'RecordQuickFilter.Reprint => fullyPrinted' -or
@@ -531,15 +557,18 @@ if ($chromeStyle -match 'ItemsPresenter#PART_ItemsPresenter' -or
 Write-Host '[PASS] resource-level fix for 4-DIP ComboBox popup bands in both themes.' -ForegroundColor Green
 # Database footer text must be contiguous. A leading '*' column in the nested
 # footer grid would push metadata to the far right, separating it from the name.
+# Since 9.2 the outer grid has a dedicated, normally hidden cloud activity cell.
 $footerMarkup = [regex]::Match($chromeXaml, '(?s)<Border Grid.Row="2" Classes="app-footer">(?<body>.*?)</Border>').Groups['body'].Value
 if ([string]::IsNullOrWhiteSpace($footerMarkup) -or
     $footerMarkup -notmatch 'Grid.Column="0" ColumnDefinitions="Auto,\*"' -or
     $footerMarkup -notmatch 'Grid.Column="1" Classes="app-footer-text"' -or
-    $footerMarkup -notmatch 'Grid.Column="1" Classes="app-footer-meta"' -or
+    $footerMarkup -notmatch '<Grid ColumnDefinitions="\*,Auto,Auto" ColumnSpacing="12"' -or
+    $footerMarkup -notmatch '<StackPanel x:Name="CloudFooter" Grid.Column="1"[^>]*IsVisible="False"' -or
+    $footerMarkup -notmatch '<TextBlock Grid.Column="2" Classes="app-footer-meta" Text="\{Binding AppVersionPlatform\}"\s+HorizontalAlignment="Right"' -or
     $footerMarkup -match 'ColumnDefinitions="\*,Auto" ColumnSpacing="0"') {
-    throw 'UI footer layout check: database name and metadata must be contiguous (nested Auto,*), with version right-aligned.'
+    throw 'UI footer layout check: database name and metadata must be contiguous (nested Auto,*), with cloud activity in column 1 and version right-aligned in column 2.'
 }
-Write-Host '[PASS] contiguous database metadata and separate right-aligned app version.' -ForegroundColor Green
+Write-Host '[PASS] contiguous database metadata, dedicated cloud activity and right-aligned app version.' -ForegroundColor Green
 
 
 foreach ($asset in @('CardPrint_black_32.png', 'CardPrint_white_32.png',

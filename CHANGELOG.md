@@ -1,5 +1,44 @@
 # Changelog
 
+## [9.2.5] - 2026-11-24
+
+### Fixed
+- Standardize desktop action icons on Fluent System Icons Regular, including database actions, filters, print and confirmation dialogs, cloud actions, settings and updater controls.
+- Use explicit glyph font sizes matching the icon bounds; enlarge About update, repair and diagnostics buttons to 18 DIP without changing the cloud footer size.
+- Use original Microsoft Fluent Regular SVG paths on the offline OAuth result page; retain app branding, database record images and the existing Fluent vector card emblems.
+- Replace obsolete build guards that required hand-authored icons with a project-wide Fluent icon policy check.
+
+## [9.2.4] - 2026-11-24
+
+### Fixed
+- Use the existing FluentIcons.Avalonia Regular cloud glyphs for every footer synchronization state and for the upload/download conflict actions. Preserve the 15-DIP footer size and its text-matched theme foreground.
+
+## [9.2.3] - 2026-11-24
+
+### Fixed
+- Match the cloud footer glyph foreground to the adjacent status text, including after live theme changes.
+
+## [9.2.2] - 2026-11-24
+
+### Fixed
+- Keep all cloud footer status icons monochrome and theme-inherited; distinguish synchronization states by glyph and text rather than hard-coded colors.
+
+## [9.2.1] - 2026-11-24
+
+### Fixed
+- Update the build-time footer layout guard for the dedicated cloud activity column while preserving contiguous database metadata and right-aligned version text.
+
+## [9.2.0] - 2026-11-24
+
+### Added
+- Show pending cloud saves, configuration transfers, verification, conflicts and errors in the main-window footer without flashing on unchanged background checks.
+- Wait for the latest portable configuration to be confirmed before normal exit, update or repair; offer retry, cancel exit or explicitly exit with unconfirmed local changes.
+- Track the last confirmed cloud snapshot separately from pending local edits, and require an explicit choice when both copies changed.
+
+### Fixed
+- Prevent an older completed upload from clearing newer local changes and avoid re-saving portable settings after the shutdown synchronization barrier.
+- Preserve the existing SHA-256 verification and cloud destination safeguards.
+
 ## [9.1.16] - 2026-11-23
 
 ### Fixed

@@ -34,6 +34,9 @@ public sealed class CloudSyncJournal
     public string LocalSignature { get; set; } = "";
     public DateTime LastSuccessfulUtc { get; set; }
     public bool Pending { get; set; }
+    // The confirmed remote baseline survives creation of a new local snapshot.
+    public Guid ConfirmedSnapshotId { get; set; }
+    public string ConfirmedSignature { get; set; } = "";
     // Bound destination. A connectivity check must never select a new upload target.
     public string RemoteTargetHash { get; set; } = "";
 }
@@ -219,6 +222,9 @@ public sealed class CloudConfigurationSync : IDisposable
     private string _status = "Pending";
     private string _detail = "";
     private CloudTransferProgress? _lastTransferProgress;
+    private CloudActivity _activity = new("Idle", "", DateTime.MinValue);
+    internal CloudActivity Activity => Volatile.Read(ref _activity);
+    internal bool IsStarted => _started;
     public string Status => _status;
     public string Detail => _detail;
     public CloudTransferProgress? LastTransferProgress => Volatile.Read(ref _lastTransferProgress);
@@ -236,6 +242,9 @@ public sealed class CloudConfigurationSync : IDisposable
     }
     public DateTime LastSuccessfulUtc => _journal.LastSuccessfulUtc;
     public Func<Task<bool>>? BeforeRemoteApplyAsync { get; set; }
+    // The UI can run the final signature check and application without allowing
+    // another editor action between those two operations.
+    internal Func<Action, Task>? ApplyOnUiAsync { get; set; }
     public Action? RemoteApplied { get; set; }
     public event Action? Changed;
 
@@ -273,8 +282,12 @@ public sealed class CloudConfigurationSync : IDisposable
         {
             var path = Path.Combine(SettingsLocation.AppDataRoot, "cloud-sync-journal.json");
             if (File.Exists(path) && new FileInfo(path).Length <= 16_384)
-                return JsonSerializer.Deserialize(File.ReadAllBytes(path),
+            {
+                var journal = JsonSerializer.Deserialize(File.ReadAllBytes(path),
                     CloudSyncJsonContext.Default.CloudSyncJournal) ?? new();
+                CloudSavePolicy.Migrate(journal);
+                return journal;
+            }
         }
         catch (Exception e) when (e is IOException or UnauthorizedAccessException or JsonException) { }
         return new();
@@ -298,23 +311,27 @@ public sealed class CloudConfigurationSync : IDisposable
         try { Changed?.Invoke(); }
         catch (Exception ex) { CloudSyncDiagnostics.Record("status-notification", ex); }
     }
-    public void MarkPending()
+    private void SetActivity(string stage, string detail = "")
     {
-        if (_disposed) return;
-        // A close caused only by window geometry, printer settings or other
-        // machine-local values must not trigger an upload.
-        try
+        Volatile.Write(ref _activity, new CloudActivity(stage, detail, DateTime.UtcNow));
+        try { Changed?.Invoke(); }
+        catch (Exception ex) { CloudSyncDiagnostics.Record("activity-notification", ex); }
+    }
+    internal bool HasUnconfirmedChanges()
+    {
+        // The journal is atomically replaced. Signature comparison also detects
+        // saves for which FileSystemWatcher has not delivered an event yet.
+        return CloudSavePolicy.NeedsUpload(LoadJournal(), CloudConfigurationArchive.Signature(_root));
+    }
+    internal async Task FlushPendingAsync(CancellationToken ct)
+    {
+        // ExecuteAsync serializes with the existing transfer. Re-check under
+        // the gate, rather than trusting an earlier successful status string.
+        do
         {
-            var current = CloudConfigurationArchive.Signature(_root);
-            if (current == _journal.LocalSignature) return;
-            _journal.Pending = true;
-            SaveJournal();
-        }
-        catch (IOException)
-        {
-            _journal.Pending = true;
-            SaveJournal();
-        }
+            ct.ThrowIfCancellationRequested();
+            await ExecuteAsync(false, false, ct, null, flushOnly: true);
+        } while (HasUnconfirmedChanges());
     }
     private void OnFileRenamed(object sender, RenamedEventArgs e) => OnFileChanged(sender, e);
     private void OnFileChanged(object sender, FileSystemEventArgs e)
@@ -324,8 +341,9 @@ public sealed class CloudConfigurationSync : IDisposable
         {
             var name = Path.GetRelativePath(_root, e.FullPath).Replace('\\', '/');
             if (!CloudConfigurationArchive.IsPortableChange(name)) return;
-            // A crash before debounce is also detected by signature comparison.
-            SetStatus("Pending");
+            // Ignore private UI-shell changes and duplicate notifications.
+            if (!HasUnconfirmedChanges()) return;
+            if (Activity.Stage is "Idle" or "Success" or "Pending") SetActivity("Pending");
             if (_started)
                 _debounce.Change(TimeSpan.FromMilliseconds(900), Timeout.InfiniteTimeSpan);
         }
@@ -340,6 +358,7 @@ public sealed class CloudConfigurationSync : IDisposable
         {
             _started = false;
             SetStatus("Pending", "Mapping recovery requires review before manual synchronization.");
+            SetActivity("Error", "Mapping recovery requires review before manual synchronization.");
             return;
         }
         _started = true;
@@ -484,112 +503,133 @@ public sealed class CloudConfigurationSync : IDisposable
     }
 
     private async Task ExecuteAsync(bool forceUpload, bool forceDownload, CancellationToken ct,
-        IProgress<string>? progress, bool background = false)
+        IProgress<string>? progress, bool background = false, bool flushOnly = false)
     {
         using var linked = CancellationTokenSource.CreateLinkedTokenSource(ct, _lifetime.Token);
         await _gate.WaitAsync(linked.Token);
         ct = linked.Token;
         var scratch = Path.Combine(Path.GetTempPath(), "kpc-cloud-" + Guid.NewGuid().ToString("N"));
+        bool dirty = false, realTransfer = false;
         try
         {
-            if (_disposed || background && !_started) return;
+            if (_disposed) throw new OperationCanceledException(ct);
+            if (background && !_started) return;
+            _journal = LoadJournal();
+            var signature = CloudConfigurationArchive.Signature(_root);
+            dirty = CloudSavePolicy.NeedsUpload(_journal, signature);
+            if (flushOnly && !dirty) return;
+            if (dirty && Activity.Stage is "Idle" or "Success" or "Pending") SetActivity("Pending");
+            if (flushOnly && CloudMappingRecovery.ReviewRequired)
+                throw new InvalidOperationException("Mapping recovery requires review in Settings.");
             Volatile.Write(ref _lastTransferProgress, null);
             progress?.Report("sync.prepare");
             Directory.CreateDirectory(scratch);
             var profile = CloudConnectionStore.Load();
             if (!CloudConnectionStore.IsVerified(profile))
-            {
-                SetStatus("Pending", "Cloud connection needs verification in Settings.");
                 throw new InvalidOperationException("Cloud connection is not verified.");
-            }
             if (profile.Provider.Length == 0)
-            {
-                SetStatus("Error", "Cloud provider is not configured.");
                 throw new InvalidOperationException("Cloud provider is not configured.");
-            }
-            _journal = LoadJournal();
-            // A new destination must never receive the old archive automatically.
-            if (!forceUpload && !forceDownload && _journal.RemoteTargetHash.Length > 0 &&
-                _journal.RemoteTargetHash != CloudConnectionStore.TargetFingerprint(profile))
+            if (!forceUpload && !forceDownload && !DestinationMatches(_journal, profile, null))
             {
-                SetStatus("Pending", "Cloud destination requires explicit selection in Settings.");
                 progress?.Report("sync.destination");
-                return;
+                throw new InvalidOperationException("Cloud destination requires explicit selection in Settings.");
             }
-            var signature = CloudConfigurationArchive.Signature(_root);
             using var transport = CloudTransportFactory.Create(CloudTransportAdapter.Options(profile),
                 CloudTransportAdapter.Services(new TransferObserver(this)));
             progress?.Report("sync.remote");
-            SetStatus("Downloading");
+            SetStatus("Checking");
             var remoteFile = Path.Combine(scratch, "remote.zip");
             var remoteStage = Path.Combine(scratch, "stage");
             CloudArchiveManifest? remote = null;
-            var remoteExists = await RetryAsync(() => transport.DownloadAsync(
-                CloudConnectionStore.RemoteFilePath(profile), remoteFile, ct), ct);
-            // An explicit upload replaces an old remote format instead of
-            // requiring it to pass the new template schema first. Automatic
-            // sync and explicit download still validate every remote entry.
-            if (remoteExists && !forceUpload)
+            // An explicit overwrite is the only path allowed to ignore a broken remote archive.
+            if (!forceUpload)
             {
-                SetStatus("Downloading");
-                remote = CloudConfigurationArchive.ReadVerified(remoteFile, remoteStage);
+                if (forceDownload) { realTransfer = true; SetActivity("Downloading"); }
+                var remoteExists = await RetryAsync(() => transport.DownloadAsync(
+                    CloudConnectionStore.RemoteFilePath(profile), remoteFile, ct), ct);
+                if (remoteExists) remote = CloudConfigurationArchive.ReadVerified(remoteFile, remoteStage);
             }
+            if (background && !_started) return; // stopped while inspecting, before changing data
             if (forceDownload && remote is null)
                 throw new FileNotFoundException("Cloud configuration does not exist.");
-            if (!forceUpload && !forceDownload && !DestinationMatches(_journal, profile, remote))
+            // Re-read after network I/O; a new save may have arrived while checking.
+            signature = CloudConfigurationArchive.Signature(_root);
+            dirty = CloudSavePolicy.NeedsUpload(_journal, signature);
+            var decision = CloudSavePolicy.Decide(_journal, signature, remote, forceUpload, forceDownload);
+            if (decision == CloudSaveDecision.Conflict)
             {
-                SetStatus("Pending", "Cloud destination requires explicit selection in Settings.");
-                progress?.Report("sync.destination");
-                return;
+                UpdateLocalJournal(signature);
+                SetActivity("Conflict", "Both local and cloud configuration changed.");
+                throw new CloudSaveConflictException();
             }
-            // Keep the original ID until the old remote was identified. In
-            // 8.0.5 journals a local edit could otherwise erase the evidence
-            // needed to recognize a legitimate pre-upgrade destination.
-            UpdateLocalJournal(signature);
-            var same = remote is not null && remote.SnapshotId == _journal.SnapshotId &&
-                !_journal.Pending;
-            if (same && !forceUpload)
+            if (decision == CloudSaveDecision.Unchanged)
             {
+                CloudSavePolicy.Confirm(_journal, remote!, signature, signature);
                 _journal.RemoteTargetHash = CloudConnectionStore.TargetFingerprint(profile);
                 _journal.LastSuccessfulUtc = DateTime.UtcNow;
                 SaveJournal();
                 if (!background) CloudMappingRecovery.ClearReviewRequired();
+                if (dirty) SetActivity("Success"); // recovery after an unconfirmed upload
+                else if (Activity.Stage is "Pending" or "Error" or "Conflict") SetActivity("Idle");
                 SetStatus("Synced");
                 return;
             }
-            var applyRemote = RemoteWins(remote, _journal, forceUpload, forceDownload);
-            if (applyRemote)
+            if (decision == CloudSaveDecision.Download)
             {
+                // A shutdown flush never silently replaces local files.
+                if (flushOnly) throw new CloudSaveConflictException();
                 if (BeforeRemoteApplyAsync is not null && !await BeforeRemoteApplyAsync())
                 {
                     SetStatus("Pending", "Finish editing the current mapping before applying the cloud snapshot.");
+                    if (realTransfer) SetActivity(dirty ? "Pending" : "Idle");
+                    if (!background) throw new InvalidOperationException("Finish editing the current template first.");
                     return;
                 }
-                SetStatus("Downloading");
-                progress?.Report("sync.apply");
-                _applying = true;
-                try
+                if (background && !_started) return;
+                void Apply()
                 {
-                    CloudConfigurationArchive.ApplyVerified(_root, remoteStage, remote!);
-                    _journal.SnapshotId = remote!.SnapshotId;
-                    _journal.SavedAtUtc = remote.SavedAtUtc;
-                    _journal.LocalSignature = CloudConfigurationArchive.Signature(_root);
-                    _journal.Pending = false;
-                    _journal.RemoteTargetHash = CloudConnectionStore.TargetFingerprint(profile);
-                    _journal.LastSuccessfulUtc = DateTime.UtcNow;
-                    SaveJournal();
+                    ct.ThrowIfCancellationRequested();
+                    if (background && !_started) return;
+                    if (CloudConfigurationArchive.Signature(_root) != signature)
+                        throw new CloudSaveConflictException();
+                    realTransfer = true;
+                    SetActivity("Downloading");
+                    SetStatus("Downloading");
+                    progress?.Report("sync.apply");
+                    _applying = true;
+                    try
+                    {
+                        CloudConfigurationArchive.ApplyVerified(_root, remoteStage, remote!);
+                        CloudSavePolicy.Confirm(_journal, remote!, CloudSavePolicy.ManifestSignature(remote!),
+                            CloudConfigurationArchive.Signature(_root));
+                        _journal.RemoteTargetHash = CloudConnectionStore.TargetFingerprint(profile);
+                        _journal.LastSuccessfulUtc = DateTime.UtcNow;
+                        SaveJournal();
+                    }
+                    finally { _applying = false; }
+                    RemoteApplied?.Invoke();
+                    if (!background) CloudMappingRecovery.ClearReviewRequired();
+                    SetActivity(_journal.Pending ? "Pending" : "Success");
+                    SetStatus(_journal.Pending ? "Pending" : "Synced");
                 }
-                finally { _applying = false; }
-                RemoteApplied?.Invoke();
-                if (!background) CloudMappingRecovery.ClearReviewRequired();
-                SetStatus("Synced");
+                if (ApplyOnUiAsync is not null) await ApplyOnUiAsync(Apply);
+                else Apply();
                 return;
             }
+            // Persist the pending snapshot before initiating any write. Keep the
+            // exact archive signature, not the earlier pre-network signature.
+            UpdateLocalJournal(signature);
+            realTransfer = true;
+            SetActivity("Uploading");
             SetStatus("Uploading");
             progress?.Report("sync.upload");
             var outgoing = Path.Combine(scratch, "outgoing.zip");
             var published = CloudConfigurationArchive.Create(_root, outgoing,
                 _journal.SnapshotId, _journal.SavedAtUtc);
+            var publishedSignature = CloudSavePolicy.ManifestSignature(published);
+            _journal.LocalSignature = publishedSignature;
+            _journal.Pending = true;
+            SaveJournal();
             await RetryAsync(async () =>
             {
                 await transport.EnsureDirectoryAsync(CloudConnectionStore.RemoteFolder(profile), ct);
@@ -597,6 +637,7 @@ public sealed class CloudConfigurationSync : IDisposable
                     CloudWriteMode.Replace, ct);
                 return true;
             }, ct);
+            SetActivity("Verifying");
             progress?.Report("sync.confirm");
             var confirmation = Path.Combine(scratch, "confirmation.zip");
             if (!await RetryAsync(() => transport.DownloadAsync(
@@ -608,27 +649,37 @@ public sealed class CloudConfigurationSync : IDisposable
                 !CryptographicOperations.FixedTimeEquals(
                     SHA256.HashData(File.ReadAllBytes(confirmation)), SHA256.HashData(File.ReadAllBytes(outgoing))))
                 throw new InvalidDataException("Cloud upload verification failed.");
-            // Do not clear pending when a file was edited during the upload.
-            if (string.Equals(CloudConfigurationArchive.Signature(_root), signature, StringComparison.Ordinal))
-            {
-                _journal.Pending = false;
-                _journal.LocalSignature = signature;
-            }
+            CloudSavePolicy.Confirm(_journal, published, publishedSignature,
+                CloudConfigurationArchive.Signature(_root));
             _journal.RemoteTargetHash = CloudConnectionStore.TargetFingerprint(profile);
             _journal.LastSuccessfulUtc = DateTime.UtcNow;
             SaveJournal();
             if (!background && !_journal.Pending) CloudMappingRecovery.ClearReviewRequired();
+            SetActivity(_journal.Pending ? "Pending" : "Success");
             SetStatus(_journal.Pending ? "Pending" : "Synced");
+            if (_journal.Pending && _started)
+                _debounce.Change(TimeSpan.FromMilliseconds(50), Timeout.InfiniteTimeSpan);
         }
-        catch (OperationCanceledException) when (ct.IsCancellationRequested) { throw; }
-        catch (CloudTransportException ex)
+        catch (OperationCanceledException) when (ct.IsCancellationRequested)
         {
-            SetStatus(ex.Kind is CloudFailureKind.Transient or CloudFailureKind.RateLimited
+            if (dirty || realTransfer) SetActivity("Error", "Cloud operation cancelled or timed out.");
+            throw;
+        }
+        catch (CloudSaveConflictException ex)
+        {
+            SetActivity("Conflict", ex.Message);
+            SetStatus("Error", ex.Message);
+            throw;
+        }
+        catch (Exception ex)
+        {
+            // A failed ordinary poll need not claim a local save failed.
+            if (dirty || realTransfer || flushOnly || Activity.Stage == "Pending") SetActivity("Error", ex.Message);
+            SetStatus(ex is CloudTransportException transportError &&
+                transportError.Kind is CloudFailureKind.Transient or CloudFailureKind.RateLimited || ex is IOException
                 ? "Offline" : "Error", ex.Message);
             throw;
         }
-        catch (IOException ex) { SetStatus("Offline", ex.Message); throw; }
-        catch (Exception ex) { SetStatus("Error", ex.Message); throw; }
         finally
         {
             try { if (Directory.Exists(scratch)) Directory.Delete(scratch, recursive: true); }
@@ -637,10 +688,6 @@ public sealed class CloudConfigurationSync : IDisposable
             _gate.Release();
         }
     }
-    internal static bool RemoteWins(CloudArchiveManifest? remote,
-        CloudSyncJournal local, bool forceUpload = false, bool forceDownload = false) =>
-        remote is not null && !forceUpload &&
-        (forceDownload || remote.SavedAtUtc >= local.SavedAtUtc);
 
     private static async Task<T> RetryAsync<T>(Func<Task<T>> work, CancellationToken ct)
     {

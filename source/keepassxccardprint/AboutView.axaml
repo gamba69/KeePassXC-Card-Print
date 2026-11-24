@@ -187,19 +187,19 @@
                          HorizontalAlignment="Right" VerticalAlignment="Center">
                 <Button x:Name="UpdateCheckButton" Click="OnCheckUpdatesClicked">
                   <StackPanel Orientation="Horizontal" Spacing="6">
-                    <fi:FluentIcon Icon="ArrowSync" IconSize="Size20" Width="16" Height="16"/>
+                    <fi:FluentIcon Icon="ArrowSync" IconVariant="Regular" IconSize="Size20" Width="18" Height="18" FontSize="18" VerticalAlignment="Center"/>
                     <TextBlock x:Name="UpdateCheckButtonLabel" Text="Проверить обновления" VerticalAlignment="Center"/>
                   </StackPanel>
                 </Button>
                 <Button x:Name="UpdateInstallButton" Click="OnInstallUpdateClicked">
                   <StackPanel Orientation="Horizontal" Spacing="6">
-                    <fi:FluentIcon Icon="ArrowDownload" IconSize="Size20" Width="16" Height="16"/>
+                    <fi:FluentIcon Icon="ArrowDownload" IconVariant="Regular" IconSize="Size20" Width="18" Height="18" FontSize="18" VerticalAlignment="Center"/>
                     <TextBlock x:Name="UpdateInstallButtonLabel" Text="Установить сейчас" VerticalAlignment="Center"/>
                   </StackPanel>
                 </Button>
                 <Button x:Name="UpdateRepairButton" Click="OnRepairUpdateClicked">
                   <StackPanel Orientation="Horizontal" Spacing="6">
-                    <fi:FluentIcon Icon="Settings" IconSize="Size20" Width="16" Height="16"/>
+                    <fi:FluentIcon Icon="Settings" IconVariant="Regular" IconSize="Size20" Width="18" Height="18" FontSize="18" VerticalAlignment="Center"/>
                     <TextBlock x:Name="UpdateRepairButtonLabel" Text="Восстановить…" VerticalAlignment="Center"/>
                   </StackPanel>
                 </Button>
@@ -225,7 +225,7 @@
                   <Button HorizontalAlignment="Right" Click="OnCopyDiagnostics" Padding="8,4"
                           ToolTip.Tip="{Binding SafeHint}">
                     <StackPanel Orientation="Horizontal" Spacing="5">
-                      <fi:FluentIcon Icon="Copy" IconSize="Size20" Width="15" Height="15"/>
+                      <fi:FluentIcon Icon="Copy" IconVariant="Regular" IconSize="Size20" Width="18" Height="18" FontSize="18" VerticalAlignment="Center"/>
                       <TextBlock Text="{Binding CopyLabel}" FontSize="11" VerticalAlignment="Center"/>
                     </StackPanel>
                   </Button>

@@ -552,7 +552,7 @@ public sealed partial class ShellViewModel
 
     // Persist only the selected, fully saved configuration for reopening.
     // Draft changes never persist separately or overwrite the full template.
-    public void SaveCardAppearance()
+    public void SaveCardAppearance(bool throwOnFailure = false)
     {
         if (HasUnsavedTemplateChanges) return;
         try
@@ -562,7 +562,10 @@ public sealed partial class ShellViewModel
                 ? Path.GetFileName(_activePersonalTemplatePath!) : null);
         }
         catch(Exception e) when (e is IOException or UnauthorizedAccessException)
-        { DesignMessage="Не удалось сохранить текущие настройки оформления."; }
+        {
+            DesignMessage="Не удалось сохранить текущие настройки оформления.";
+            if (throwOnFailure) throw;
+        }
     }
 
     public bool LoadCardTemplate(bool discardUnsavedChanges = false)

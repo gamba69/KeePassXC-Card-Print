@@ -40,7 +40,7 @@ internal static class AppConfirmations
                 foreach(var child in contents.Children)
                 {
                     if(child is TextBlock text)text.Foreground=Brushes.White;
-                    if(child is PathIcon path)path.Foreground=Brushes.White;
+                    if(child is FluentIcons.Avalonia.FluentIcon glyph)glyph.Foreground=Brushes.White;
                 }
         }
         var cancel=PrintDialogButtons.Create(cancelText??"Отмена","cancel");
@@ -57,9 +57,7 @@ internal static class AppConfirmations
         card.Classes.Add("settings-card");
         var stack=new StackPanel{Spacing=10};
         var heading=new StackPanel{Orientation=Orientation.Horizontal,Spacing=9};
-        var icon=ActionIconVectors.Create(sensitive?"warning":actionIcon);
-        icon.Width=19; icon.Height=19;
-        if(sensitive) icon.Foreground=Brushes.Firebrick;
+        var icon=ActionIconVectors.Create(sensitive?"warning":actionIcon, 19);
         heading.Children.Add(icon);
         var caption=new TextBlock{Text=title,FontSize=14,FontWeight=FontWeight.SemiBold,
             VerticalAlignment=VerticalAlignment.Center,TextWrapping=TextWrapping.Wrap};

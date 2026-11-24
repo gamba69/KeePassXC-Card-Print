@@ -267,15 +267,39 @@ public static class CloudArchiveSelfTests
                 newDestination.SecondRoute.Contains("old-cache", StringComparison.Ordinal),
                 "new cloud destination has explicit transfer directions");
             log.AppendLine("[PASS] Storage switch choices show source, destination and safe direction");
-            var tie = new CloudSyncJournal { SavedAtUtc = manifest.SavedAtUtc };
-            Assert(CloudConfigurationSync.RemoteWins(manifest, tie), "tie must favor cloud");
-            Assert(!CloudConfigurationSync.RemoteWins(manifest, tie, forceUpload: true),
-                "explicit upload must win");
-            tie.SavedAtUtc = manifest.SavedAtUtc.AddSeconds(10);
-            Assert(!CloudConfigurationSync.RemoteWins(manifest, tie), "newer local must win");
-            Assert(CloudConfigurationSync.RemoteWins(manifest, tie, forceDownload: true),
-                "explicit download must win");
-            log.AppendLine("[PASS] Last Write Wins and equal timestamp policy");
+            var cloudSignature = CloudSavePolicy.ManifestSignature(manifest);
+            var journal = new CloudSyncJournal { SnapshotId = manifest.SnapshotId, SavedAtUtc = manifest.SavedAtUtc,
+                LocalSignature = cloudSignature, LastSuccessfulUtc = DateTime.UtcNow };
+            CloudSavePolicy.Migrate(journal);
+            Assert(journal.ConfirmedSnapshotId == manifest.SnapshotId && journal.ConfirmedSignature == cloudSignature,
+                "migrate confirmed legacy journal");
+            Assert(!CloudSavePolicy.NeedsUpload(journal, cloudSignature), "clean local cache must not upload on exit");
+            Assert(CloudSavePolicy.Decide(journal, cloudSignature, manifest) == CloudSaveDecision.Unchanged,
+                "unchanged check is a no-op");
+            Assert(CloudSavePolicy.Decide(journal, "new-edit", manifest) == CloudSaveDecision.Upload,
+                "local changes with unchanged remote can upload");
+            var other = new CloudArchiveManifest { SnapshotId = Guid.NewGuid(), SavedAtUtc = manifest.SavedAtUtc.AddSeconds(-10) };
+            Assert(CloudSavePolicy.Decide(journal, cloudSignature, other) == CloudSaveDecision.Download,
+                "changed remote is applied when local is clean, independent of clock skew");
+            Assert(CloudSavePolicy.Decide(journal, "new-edit", other) == CloudSaveDecision.Conflict,
+                "simultaneous changes never silently overwrite either copy");
+            Assert(CloudSavePolicy.Decide(journal, "new-edit", other, forceUpload: true) == CloudSaveDecision.Upload &&
+                CloudSavePolicy.Decide(journal, "new-edit", other, forceDownload: true) == CloudSaveDecision.Download,
+                "only explicit resolution can select a conflicting copy");
+            CloudSavePolicy.Confirm(journal, manifest, cloudSignature, "new-edit");
+            Assert(journal.Pending && CloudSavePolicy.NeedsUpload(journal, "new-edit"),
+                "confirmed older upload must not clear newer edits");
+            CloudSavePolicy.Confirm(journal, manifest, cloudSignature, cloudSignature);
+            Assert(!journal.Pending && !CloudSavePolicy.NeedsUpload(journal, cloudSignature), "confirmed latest save releases exit barrier");
+            journal.Pending = true;
+            Assert(CloudSavePolicy.Decide(journal, cloudSignature, manifest) == CloudSaveDecision.Unchanged,
+                "identical verified remote recovers from an interrupted confirmation without uploading again");
+            var legacyPending = new CloudSyncJournal { Pending = true, SnapshotId = Guid.NewGuid(), LocalSignature = "new-edit" };
+            CloudSavePolicy.Migrate(legacyPending);
+            Assert(legacyPending.ConfirmedSnapshotId == Guid.Empty &&
+                CloudSavePolicy.Decide(legacyPending, "new-edit", manifest) == CloudSaveDecision.Conflict,
+                "legacy pending journal with unknown baseline must not guess a winner");
+            log.AppendLine("[PASS] Cloud save barrier, baseline migration, retries and explicit conflict resolution");
             var altered = Path.Combine(scratch, "tampered.zip");
             using (var output = ZipFile.Open(altered, ZipArchiveMode.Create))
             using (var input = ZipFile.OpenRead(archive))
