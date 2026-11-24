@@ -99,16 +99,40 @@ if ($xpsCanvasText -notmatch 'resourcePrefix\.EndsWith\("/",\s*StringComparison\
     throw 'XPS RENDERING CONTRACT: the native glyph-run and Avalonia text APIs are inconsistent.'
 }
 Write-Host '[PASS] XPS glyph-run API, path overload and Avalonia PlaceholderText.' -ForegroundColor Green
-# Keep the no-selection invariant checked by the standard portable build path.
-# An unchecked entry must never be rendered as an automatic preview fallback.
+# The actual preview must clear both on scheduling and in the delayed worker.
+# Explicit template-side samples have a separate scene; keeping that mode is
+# not permission to keep the actual scene or render an unchecked entry.
 $previewSource = Get-Content -LiteralPath (Join-Path $root 'source\keepassxccardprint\viewmodels\CardPreviewViewModel.cs') -Raw -Encoding UTF8
+$emptySelectionGuard = 'if\s*\(\s*!VaultRecords\.Any\(r\s*=>\s*r\.Selected\)\s*\)\s*\{\s*CloseCardPreview\(resetTemplatePreview:\s*false\);\s*return;\s*\}'
 if ($previewSource -match 'chosen\.Length\s*==\s*0\s*&&\s*VaultRecords\.FirstOrDefault' -or
-    $previewSource -notmatch 'if\s*\(!VaultRecords\.Any\(r\s*=>\s*r\.Selected\)\)' -or
-    $previewSource -notmatch 'CloseCardPreview\(\);\s*return;' -or
-    $previewSource -notmatch '_previewError="";\s*ResetTransition\(\)') {
+    [regex]::Matches($previewSource, $emptySelectionGuard).Count -ne 2 -or
+    $previewSource -notmatch '_previewError="";\s*ResetTransition\(\)' -or
+    $previewSource -notmatch '_previewScene=null;\s*Changed\(nameof\(PreviewScene\)\)' -or
+    $previewSource -notmatch 'if\s*\(resetTemplatePreview\s*&&\s*TemplatePreviewForced\)\s*ResetTemplatePreview\(\);') {
     throw 'EMPTY SELECTION PREVIEW REGRESSION: unchecked entries must never appear in preview.'
 }
-Write-Host '[PASS] empty selection clears preview immediately without first-visible fallback.' -ForegroundColor Green
+# A forced-side preview may use a selected entry or an explicitly synthetic
+# sample, but must never fall back to an arbitrary record in the open vault.
+# A combined duplex card may also use a second explicitly selected entry.
+# Both records must be snapshotted before the renderer runs; forced output
+# must remain unavailable for printing and export.
+$templatePreviewSource = Get-Content -LiteralPath (Join-Path $root 'source\keepassxccardprint\viewmodels\TemplatePreviewViewModel.cs') -Raw -Encoding UTF8
+$selectedRecord = 'VaultRecords\.FirstOrDefault\(r\s*=>\s*r\.Selected\s*&&\s*r\.Uuid\s*==\s*anchor\?\.Record\.Uuid\)\s*\?\?\s*VaultRecords\.FirstOrDefault\(r\s*=>\s*r\.Selected\)'
+if ($templatePreviewSource -notmatch $selectedRecord -or
+    [regex]::Matches($templatePreviewSource, 'VaultRecords\.FirstOrDefault\s*\(').Count -ne 3 -or
+    $templatePreviewSource -notmatch 'var partner\s*=\s*partnerId is Guid id\s*&&\s*id\s*!=\s*chosen\?\.Uuid\s*\?\s*VaultRecords\.FirstOrDefault\(r\s*=>\s*r\.Selected\s*&&\s*r\.Uuid\s*==\s*id\)\s*:\s*null;' -or
+    $templatePreviewSource -notmatch 'BuildTemplatePreviewAsync\(cancellation,\s*mode,\s*appearance,\s*mapping,\s*record,\s*partner is null\s*\?\s*null\s*:\s*SnapshotRecord\(partner\),\s*anchor\?\.Number\s*\?\?\s*1\)' -or
+    $templatePreviewSource -notmatch 'CardLayoutEngine\.Build\(partner is null\s*\?\s*\[record\]\s*:\s*\[record,\s*partner\],\s*appearance,\s*mapping,\s*cancellationToken:token\)' -or
+    $previewSource -notmatch 'public bool PrintReady\s*=>[^;]*!TemplatePreviewForced\s*&&' -or
+    $templatePreviewSource -notmatch 'var record\s*=\s*chosen is null\s*\?\s*null\s*:\s*SnapshotRecord\(chosen\)' -or
+    $templatePreviewSource -notmatch 'private void ScheduleTemplatePreview\(\)\s*\{\s*CancelTemplatePreview\(\);' -or
+    $templatePreviewSource -notmatch '_templatePreviewScene\s*=\s*null;' -or
+    $templatePreviewSource -notmatch 'if\s*\(card is null\)\s*\{\s*var example=new VaultRecord' -or
+    $templatePreviewSource -notmatch 'if\s*\(token\.IsCancellationRequested\s*\|\|\s*!ReferenceEquals\(_templatePreviewCancellation,cancellation\)\)' -or
+    $templatePreviewSource -match 'VaultRecords\.(?:Add|Insert|Clear)\s*\(') {
+    throw 'TEMPLATE PREVIEW REGRESSION: forced preview must use selected records or isolated synthetic samples.'
+}
+Write-Host '[PASS] empty selection clears actual preview; forced preview uses selected or isolated synthetic records.' -ForegroundColor Green
 
 
 # Windows-only NuGet references are isolated in the host-specific imported file.
@@ -364,15 +388,34 @@ if ($aboutGlyphs.Count -ne 4 -or @($aboutGlyphs | Where-Object { $_.Value -notma
 }
 Write-Host '[PASS] project-wide Fluent Regular action icons, explicit matching glyph sizes and About 18-DIP controls.' -ForegroundColor Green
 
-# All mapping and appearance numeric steppers share one comfortable repeat rate.
-# A single pointer press acts immediately (ClickMode=Press); a held press
-# repeats after the delay at the configured interval.
-$repeatButtons = [regex]::Matches($mainXaml, '<RepeatButton\b[^>]*ClickMode="Press"[^>]*Delay="520" Interval="300"')
-if ($repeatButtons.Count -ne 14 -or
-    [regex]::Matches($mainXaml, '<RepeatButton\b').Count -ne 14) {
-    throw 'NUMERIC STEPPER TIMING MISMATCH: expected 14 RepeatButtons with Delay=520 and Interval=300.'
+# The unified template editor has five mapping stepper pairs and one shared
+# appearance stepper pair. Verify each role as well as all timing attributes.
+[xml]$stepperUi = $mainXaml
+$repeatButtons = @($stepperUi.SelectNodes("//*[local-name()='RepeatButton']"))
+if ($repeatButtons.Count -ne 12) {
+    throw 'NUMERIC STEPPER COUNT MISMATCH: expected five mapping pairs and one shared appearance pair (12 controls).'
 }
-Write-Host '[PASS] numeric stepper repeat timing (520ms / 300ms).' -ForegroundColor Green
+foreach ($stepper in $repeatButtons) {
+    if ($stepper.GetAttribute('ClickMode') -ne 'Press' -or
+        $stepper.GetAttribute('Delay') -ne '520' -or
+        $stepper.GetAttribute('Interval') -ne '300') {
+        throw 'NUMERIC STEPPER TIMING MISMATCH: all RepeatButtons must use Press, Delay=520 and Interval=300.'
+    }
+}
+foreach ($field in @('Order', 'SizePct', 'TrackingPt', 'GroupSize', 'GroupSpaces')) {
+    foreach ($direction in @('+1', '-1')) {
+        $tag = "${field}:$direction"
+        if (@($repeatButtons | Where-Object { $_.GetAttribute('Click') -eq 'OnMappingNumericSpin' -and $_.GetAttribute('Tag') -eq $tag }).Count -ne 1) {
+            throw "NUMERIC STEPPER MAPPING MISMATCH: expected exactly one control for $tag."
+        }
+    }
+}
+foreach ($handler in @('OnAppearanceIncrease', 'OnAppearanceDecrease')) {
+    if (@($repeatButtons | Where-Object { $_.GetAttribute('Click') -eq $handler }).Count -ne 1) {
+        throw "NUMERIC STEPPER APPEARANCE MISMATCH: expected exactly one shared control for $handler."
+    }
+}
+Write-Host '[PASS] five mapping stepper pairs and one shared appearance pair; repeat timing (520ms / 300ms).' -ForegroundColor Green
 
 
 # presentation and QR contracts. Avoid obsolete return-to-top UI.
@@ -520,10 +563,10 @@ foreach ($headingCaption in @('SourceTitle','Records','MappingFieldsHeading','Ma
 }
 [xml]$semanticXaml = $chromeXaml
 $templateHeadings = $semanticXaml.SelectNodes("//*[local-name()='Border' and @Classes='template-toolbar']//*[local-name()='TextBlock' and @Classes='section-heading' and @Text='{Binding UiTemplate}']")
-if ($null -eq $templateHeadings -or $templateHeadings.Count -ne 3) {
-    throw 'UI typography check: Mapping, Appearance and Duplex must each have one styled template heading.'
+if ($null -eq $templateHeadings -or $templateHeadings.Count -ne 1) {
+    throw 'UI typography check: Template must have one styled template heading.'
 }
-Write-Host '[PASS] consistent 14-DIP semantic section headings across all three template editors.' -ForegroundColor Green
+Write-Host '[PASS] consistent 14-DIP semantic section headings in the unified template editor.' -ForegroundColor Green
 
 if ($chromeXaml -notmatch 'Classes="app-header"' -or
     $chromeXaml -notmatch 'Classes="app-footer"' -or
@@ -661,7 +704,7 @@ if ($chromeXaml -match 'x:CompileBindings\s*=\s*"False"' -or
     $chromeXaml -match 'ReflectionBinding') {
     throw 'Native AOT check: reflection bindings are forbidden in MainWindow.axaml.'
 }
-foreach ($captionProperty in @('TabSource', 'TabMapping', 'TabDesign', 'TabDuplex')) {
+foreach ($captionProperty in @('TabSource', 'TabTemplate', 'TabSettings', 'TabAbout')) {
     $tabHeader = $ui.SelectSingleNode("//*[local-name()='TabItem.Header']//*[local-name()='TextBlock' and @Text='{Binding $captionProperty}']")
     if ($null -eq $tabHeader) {
         throw "Native AOT check: missing compiled tab header binding: $captionProperty"
@@ -755,12 +798,16 @@ if ($previewNode.Count -ne 1 -or
     $previewNode[0].GetAttribute('PreviousScene') -ne '{Binding PreviewPreviousScene}' -or
     $previewNode[0].GetAttribute('PreviousOpacity') -ne '{Binding PreviewOldOpacity}' -or
     $previewNode[0].HasAttribute('Opacity') -or
-    -not $skiaPreview.Contains('AffectsRender<SkiaPreviewControl>(SceneProperty,PreviousSceneProperty,PreviousOpacityProperty,MonochromeProperty)') -or
+    $previewNode[0].GetAttribute('HighlightSection') -ne '{Binding TemplateHighlightSection}' -or
+    $previewNode[0].GetAttribute('HighlightGroup') -ne '{Binding TemplateHighlightGroup}' -or
+    $previewNode[0].GetAttribute('HoverRegion') -ne '{Binding TemplateHoverRegion}' -or
+    $previewNode[0].GetAttribute('SelectedRegion') -ne '{Binding TemplateSelectedRegion}' -or
+    -not $skiaPreview.Contains('AffectsRender<SkiaPreviewControl>(SceneProperty,PreviousSceneProperty,PreviousOpacityProperty,MonochromeProperty,HighlightSectionProperty,HighlightGroupProperty,HoverRegionProperty,SelectedRegionProperty)') -or
     -not $skiaPreview.Contains('canvas.DrawPicture(scene.Picture,paint)') -or
     -not $skiaPreview.Contains('_previousOpacity*255')) {
     throw 'UI check: custom Skia preview must blend current/previous pictures using real paint alpha on every fade frame.'
 }
-Write-Host '[PASS] live Skia crossfade uses a single alpha-blended draw operation.' -ForegroundColor Green
+Write-Host '[PASS] live Skia crossfade and editor highlights use the single preview control.' -ForegroundColor Green
 # Fluent UI System Icons must replace custom toolbar paths while leaving the
 # original brand/titlebar icon and record-specific KeePass icon images intact.
 if ($chromeXaml -notmatch 'xmlns:fi="using:FluentIcons.Avalonia"' -or
@@ -775,61 +822,84 @@ if ($chromeXaml -notmatch 'xmlns:fi="using:FluentIcons.Avalonia"' -or
 Write-Host '[PASS] Fluent toolbar, duplex controls, 50-500ms slider and preview grayscale.' -ForegroundColor Green
 
 
-foreach ($tab in @(
-    @{ Header = '{Binding TabDesign}'; Sections = 'DesignCategories'; Selection = 'SelectedDesignCategory'; Fields = 'VisibleAppearanceFields' },
-    @{ Header = '{Binding TabDuplex}'; Sections = 'DuplexDesignCategories'; Selection = 'SelectedDuplexDesignCategory'; Fields = 'DuplexAppearanceFields' }
-)) {
-    $editorTab = $ui.SelectSingleNode("//*[local-name()='TabItem' and *[local-name()='TabItem.Header']//*[local-name()='TextBlock' and @Text='$($tab.Header)']]")
-    if ($null -eq $editorTab) { throw "UI check: missing tab $($tab.Header)" }
-    $strip = $editorTab.SelectSingleNode(".//*[local-name()='ListBox' and @ItemsSource='{Binding $($tab.Sections)}']")
-    if ($null -eq $strip -or $strip.GetAttribute('SelectedItem') -notmatch $tab.Selection) {
-        throw "UI check: missing or unbound subsection tabs in $($tab.Header)"
-    }
-    if ($strip.ParentNode.GetAttribute('Grid.Row') -ne '1' -or
-        $null -eq $strip.SelectSingleNode(".//*[local-name()='WrapPanel']")) {
-        throw "UI check: subsection tabs must wrap below template management: $($tab.Header)"
-    }
-    if ($null -ne $strip.SelectSingleNode("ancestor::*[@IsEnabled='{Binding CanEditAppearance}']")) {
-        throw "UI check: built-in templates must allow subsection browsing: $($tab.Header)"
-    }
-    # Do not identify controls by localized captions. Windows PowerShell 5.1
-    # reads UTF-8 scripts without BOM using the system ANSI code page, which
-    # corrupts Cyrillic string literals while XAML is loaded as UTF-8 above.
-    # Locate actions by stable Click handler names inside the template toolbar.
-    $toolbar = $editorTab.SelectSingleNode(".//*[local-name()='Border' and @Classes='template-toolbar']")
-    if ($null -eq $toolbar -or $toolbar.GetAttribute('Grid.Row') -ne '0') {
-        throw "UI check: missing top template toolbar in $($tab.Header)"
-    }
-    $selector = $toolbar.SelectSingleNode(".//*[local-name()='ComboBox' and @ItemsSource='{Binding TemplateNames}']")
-    $load = $toolbar.SelectSingleNode(".//*[local-name()='Button' and @Click='OnLoadCardTemplate']")
-    $manager = $toolbar.SelectSingleNode(".//*[local-name()='Button' and @Click='OnSaveCardTemplate']")
-    $save = $toolbar.SelectSingleNode(".//*[local-name()='Button' and @Click='OnSaveAppearance']")
-    $rename = $toolbar.SelectSingleNode(".//*[local-name()='Button' and @Click='OnRenameCardTemplate']")
-    $delete = $toolbar.SelectSingleNode(".//*[local-name()='Button' and @Click='OnDeleteCardTemplate']")
-    if ($null -eq $selector -or $null -ne $load -or $null -eq $manager -or $null -eq $save -or
-        $null -eq $rename -or $null -eq $delete -or
-        $selector.GetAttribute('SelectionChanged') -ne 'OnCardTemplateSelectionChanged' -or
-        $selector.GetAttribute('Grid.Column') -ne '1' -or
-        $manager.GetAttribute('Grid.Column') -ne '2' -or
-        $rename.GetAttribute('Grid.Column') -ne '3' -or
-        $delete.GetAttribute('Grid.Column') -ne '4' -or
-        $rename.GetAttribute('IsEnabled') -ne '{Binding CanManagePersonalTemplate}' -or
-        $delete.GetAttribute('IsEnabled') -ne '{Binding CanManagePersonalTemplate}' -or
-        $save.GetAttribute('Grid.Column') -ne '6' -or
-        $manager.ParentNode.GetAttribute('ColumnDefinitions') -ne 'Auto,Auto,Auto,Auto,Auto,*,Auto') {
-        throw "UI check: template selection must load immediately, with Create next to picker and no Load button in $($tab.Header)"
-    }
-    if ($save.GetAttribute('IsEnabled') -ne '{Binding CanSaveTemplateChanges}') {
-        throw "UI check: template save button must respect editable-template state in $($tab.Header)"
-    }
-    $fields = $editorTab.SelectSingleNode(".//*[local-name()='ItemsControl' and @ItemsSource='{Binding $($tab.Fields)}']")
-    if ($null -eq $fields) { throw "UI check: missing fields in $($tab.Header)" }
+$editorTab = $ui.SelectSingleNode("//*[local-name()='TabItem' and *[local-name()='TabItem.Header']//*[local-name()='TextBlock' and @Text='{Binding TabTemplate}']]")
+if ($null -eq $editorTab) { throw 'UI check: missing unified template tab.' }
+$strip = $editorTab.SelectSingleNode(".//*[local-name()='ListBox' and @ItemsSource='{Binding TemplateEditorSections}']")
+$groups = $editorTab.SelectSingleNode(".//*[local-name()='ItemsControl' and @ItemsSource='{Binding TemplateEditorGroups}']")
+if ($null -eq $strip -or $strip.GetAttribute('SelectedItem') -notmatch 'SelectedTemplateEditorSection' -or
+    $null -eq $groups -or $null -ne $strip.SelectSingleNode("ancestor::*[@IsEnabled='{Binding CanEditAppearance}']") -or
+    @($ui.SelectNodes("//*[local-name()='SkiaPreviewControl']")).Count -ne 1 -or
+    @($ui.SelectNodes("//*[local-name()='Border' and @Classes='template-toolbar']")).Count -ne 1) {
+    throw 'UI check: one preview, one template toolbar and browsable section navigation are required.'
 }
-Write-Host '[PASS] both subsection tab strips and template management.' -ForegroundColor Green
+$fieldEditor = $groups.SelectSingleNode(".//*[local-name()='Grid' and @Width='{Binding TemplateFieldWidth}']")
+$autoMode = $groups.SelectSingleNode(".//*[local-name()='CheckBox' and @IsChecked='{Binding AutomaticValue,Mode=TwoWay}']")
+$navGlyph = $strip.SelectSingleNode(".//*[local-name()='FluentIcon' and @Icon='{Binding Glyph}']")
+if ($null -eq $fieldEditor -or $null -eq $autoMode -or $null -eq $navGlyph -or
+    $null -eq $groups.SelectSingleNode(".//*[local-name()='WrapPanel']") -or
+    $navGlyph.GetAttribute('IconVariant') -ne 'Regular' -or
+    $null -eq $groups.SelectSingleNode(".//*[local-name()='TextBlock' and @Text='{Binding Help}']")) {
+    throw 'UI check: compact field groups, automatic sizes, mapping restriction help and Fluent navigation are required.'
+}
+# Natural label height, fixed compact editor height and bottom alignment in
+# WrapPanel's per-line layout slot keep controls aligned without reserving a
+# second caption line for every field. No fixed ItemHeight on the WrapPanel.
+$labelBand = $fieldEditor.SelectSingleNode("./*[local-name()='TextBlock' and @Text='{Binding EditorLabel}']")
+$valueBand = $fieldEditor.SelectSingleNode("./*[local-name()='StackPanel' and @Grid.Row='1']")
+$boolEditor = $fieldEditor.SelectSingleNode("./*[local-name()='CheckBox' and @IsChecked='{Binding Checked,Mode=TwoWay}']")
+$choiceEditor = $fieldEditor.SelectSingleNode("./*[local-name()='ComboBox' and @SelectedItem='{Binding SelectedChoice,Mode=TwoWay}']")
+$fieldWrap = $fieldEditor.SelectSingleNode("ancestor::*[local-name()='ItemsControl'][1]/*[local-name()='ItemsControl.ItemsPanel']//*[local-name()='WrapPanel']")
+if ($fieldEditor.GetAttribute('RowDefinitions') -ne 'Auto,26' -or
+    $fieldEditor.GetAttribute('VerticalAlignment') -ne 'Bottom' -or
+    $fieldEditor.GetAttribute('RowSpacing') -ne '2' -or
+    $null -eq $fieldWrap -or $fieldWrap.GetAttribute('Orientation') -ne 'Horizontal' -or $fieldWrap.HasAttribute('ItemHeight') -or
+    $null -eq $labelBand -or $labelBand.GetAttribute('Grid.Row') -ne '0' -or
+    $labelBand.GetAttribute('MaxLines') -ne '2' -or $labelBand.GetAttribute('VerticalAlignment') -ne 'Bottom' -or
+    $labelBand.HasAttribute('IsVisible') -or $labelBand.HasAttribute('Height') -or $labelBand.HasAttribute('MinHeight') -or
+    $null -eq $valueBand -or $valueBand.GetAttribute('VerticalAlignment') -ne 'Center' -or
+    $valueBand.GetAttribute('Orientation') -ne 'Horizontal' -or $valueBand.GetAttribute('Height') -ne '26' -or
+    $null -eq $valueBand.SelectSingleNode("./*[local-name()='Grid' and @IsVisible='{Binding ManualTextVisible}']") -or
+    $null -eq $valueBand.SelectSingleNode("./*[local-name()='CheckBox' and @IsChecked='{Binding AutomaticValue,Mode=TwoWay}']") -or
+    $autoMode.GetAttribute('Padding') -ne '6,0,0,0' -or
+    $null -eq $boolEditor -or $boolEditor.GetAttribute('Grid.Row') -ne '1' -or
+    $boolEditor.GetAttribute('VerticalAlignment') -ne 'Center' -or $boolEditor.GetAttribute('Height') -ne '26' -or
+    $null -eq $choiceEditor -or $choiceEditor.GetAttribute('Grid.Row') -ne '1' -or
+    $choiceEditor.GetAttribute('VerticalAlignment') -ne 'Center' -or $choiceEditor.GetAttribute('Height') -ne '26') {
+    throw 'UI check: template fields must use natural caption heights and bottom-aligned compact editor rows.'
+}
+$choiceGlyph = $choiceEditor.SelectSingleNode(".//*[local-name()='Path' and @Data='{Binding IconGeometry}']")
+if ($null -eq $choiceGlyph -or $choiceGlyph.GetAttribute('Width') -ne '16' -or
+    $choiceGlyph.GetAttribute('Height') -ne '16' -or
+    $choiceGlyph.GetAttribute('VerticalAlignment') -ne 'Center' -or
+    $choiceGlyph.GetAttribute('Stretch') -ne 'Uniform') {
+    throw 'UI check: reverse emblem picker must use centered 16-DIP glyphs inside the compact 26-DIP ComboBox.'
+}
+$colorEditor = $fieldEditor.SelectSingleNode("./*[local-name()='Button' and @Click='OnTemplateColorPick']")
+$palettePicker = $groups.SelectSingleNode(".//*[local-name()='Button' and @Click='OnTemplatePalettePick']")
+$previewPage = $ui.SelectSingleNode("//*[local-name()='Grid' and @*[local-name()='Name']='PreviewPageHost']")
+$previewCaption = $ui.SelectSingleNode("//*[local-name()='Border' and @*[local-name()='Name']='TemplateHighlightCaptionOverlay']")
+if ($null -eq $colorEditor -or $colorEditor.GetAttribute('Grid.Row') -ne '1' -or
+    $colorEditor.GetAttribute('Height') -ne '26' -or $colorEditor.GetAttribute('IsEnabled') -ne '{Binding IsEditable}' -or
+    $null -eq $colorEditor.SelectSingleNode(".//*[local-name()='TextBlock' and @Text='{Binding ColorCaption}']") -or
+    $null -eq $palettePicker -or $palettePicker.GetAttribute('IsVisible') -ne '{Binding IsPalette}' -or
+    $null -eq $previewPage -or $previewPage.GetAttribute('PointerPressed') -ne 'OnTemplatePreviewPointerPressed' -or
+    $previewPage.GetAttribute('PointerMoved') -ne 'OnTemplatePreviewPointerMoved' -or
+    $previewPage.GetAttribute('PointerReleased') -ne 'OnTemplatePreviewPointerReleased' -or
+    $previewPage.GetAttribute('PointerExited') -ne 'OnTemplatePreviewPointerExited' -or
+    $null -eq $previewCaption -or $previewCaption.GetAttribute('IsHitTestVisible') -ne 'False' -or
+    $previewCaption.GetAttribute('IsVisible') -ne '{Binding TemplateHighlightCaptionVisible}') {
+    throw 'UI check: shared palette, individual source picker or Ctrl preview interaction is missing.'
+}
+$editorCode = Get-Content -LiteralPath (Join-Path $sourceRoot 'MainWindow.TemplateEditor.cs') -Raw -Encoding UTF8
+if ($editorCode -notmatch 'KeyModifiers\.Control' -or $editorCode -notmatch 'PreviewHitRegion\.CanCommit\(' -or
+    $editorCode -notmatch 'OnTemplatePreviewKeyUp' -or $editorCode -notmatch 'SetTemplatePreviewHover\(null\)') {
+    throw 'UI check: preview selection must require Ctrl, and releasing Ctrl must clear hover.'
+}
+Write-Host '[PASS] unified editor, palette sources, single preview and Ctrl selection.' -ForegroundColor Green
 # Guard against accidental reintroduction of two-stage field mapping edits.
 # The compact mapping toolbar uses 4 columns: title, scope, status, Save.
-$mappingTab = $ui.SelectSingleNode("//*[local-name()='TabItem' and *[local-name()='TabItem.Header']//*[local-name()='TextBlock' and @Text='{Binding TabMapping}']]")
-if ($null -eq $mappingTab) { throw 'UI check: missing mapping tab.' }
+$mappingTab = $ui.SelectSingleNode("//*[local-name()='TabItem' and *[local-name()='TabItem.Header']//*[local-name()='TextBlock' and @Text='{Binding TabTemplate}']]")
+if ($null -eq $mappingTab) { throw 'UI check: missing template tab.' }
 $toolbar = $mappingTab.SelectSingleNode(".//*[local-name()='Border' and @Classes='template-toolbar' and @Grid.Row='0']")
 $mappingSave = $toolbar.SelectSingleNode(".//*[local-name()='Button' and @Click='OnSaveAppearance']")
 $mappingCreate = $toolbar.SelectSingleNode(".//*[local-name()='Button' and @Click='OnSaveCardTemplate']")
@@ -852,9 +922,17 @@ if ($null -eq $toolbar -or $null -eq $mappingSave -or $null -eq $mappingCreate -
     $mappingDelete.GetAttribute('IsEnabled') -ne '{Binding CanManagePersonalTemplate}' -or
     $mappingSave.GetAttribute('Grid.Column') -ne '6' -or
     $mappingSave.ParentNode.GetAttribute('ColumnDefinitions') -ne 'Auto,Auto,Auto,Auto,Auto,*,Auto' -or
+    $mappingSelect.GetAttribute('Grid.Column') -ne '1' -or
+    $mappingSelect.ParentNode -ne $mappingSave.ParentNode -or
+    $mappingCreate.ParentNode -ne $mappingSave.ParentNode -or
+    $mappingRename.ParentNode -ne $mappingSave.ParentNode -or
+    $mappingDelete.ParentNode -ne $mappingSave.ParentNode -or
+    $mappingSave.ParentNode.ParentNode.LocalName -ne 'ScrollViewer' -or
+    $mappingSave.ParentNode.ParentNode.GetAttribute('HorizontalScrollBarVisibility') -ne 'Auto' -or
+    $mappingSave.ParentNode.ParentNode.GetAttribute('VerticalScrollBarVisibility') -ne 'Disabled' -or
     [regex]::Matches($chromeXaml, 'Click="OnSaveMapping"').Count -ne 0 -or
-    [regex]::Matches($chromeXaml, 'Click="OnSaveAppearance"').Count -ne 3) {
-    throw 'UI check: Mapping, Design and Duplex must share the same complete-template toolbar.'
+    [regex]::Matches($chromeXaml, 'Click="OnSaveAppearance"').Count -ne 1) {
+    throw 'UI check: Template must have one complete-template toolbar.'
 }
 if ($null -eq $mappingReset -or $null -ne $mappingApply -or
     $mappingReset.GetAttribute('IsEnabled') -ne '{Binding MappingCanEdit}' -or
@@ -877,11 +955,9 @@ if ($templatesSource -notmatch 'UpdatePersonalTemplate\(string path, CardAppeara
     throw 'UI check: mapping must be saved only as part of the complete print template.'
 }
 Write-Host '[PASS] unified template persistence and no standalone mapping Save.' -ForegroundColor Green
-# Each editor now has its own vertical scroll viewport. The rounded cards remain
-# direct children of the content Grid inside that viewport, not of the TabItem.
-# Validate all four viewports before checking card ownership and actions.
-foreach ($scrollName in @('SourceTabScroll', 'MappingTabScroll', 'DesignTabScroll', 'DuplexTabScroll')) {
-    $outerScroll = $ui.SelectSingleNode("//*[local-name()='TabItem']/*[local-name()='ScrollViewer' and @*[local-name()='Name']='$scrollName']")
+# Source and mapping use vertically scrollable content grids.
+foreach ($scrollName in @('SourceTabScroll', 'MappingTabScroll')) {
+    $outerScroll = $ui.SelectSingleNode("//*[local-name()='ScrollViewer' and @*[local-name()='Name']='$scrollName']")
     if ($null -eq $outerScroll -or
         $outerScroll.GetAttribute('VerticalScrollBarVisibility') -ne 'Auto' -or
         $outerScroll.GetAttribute('SizeChanged') -ne 'OnEditorTabScrollSizeChanged' -or
@@ -915,7 +991,7 @@ foreach ($handler in @('OnSelectAll', 'OnSelectNone')) {
 if ($null -eq $sourceCards[1].SelectSingleNode(".//*[local-name()='ItemsControl' and @ItemsSource='{Binding VaultRecords}']")) {
     throw 'UI check: records list must be inside its rounded card.'
 }
-$mappingCards = @($mappingTab.SelectNodes("./*[local-name()='ScrollViewer' and @*[local-name()='Name']='MappingTabScroll']/*[local-name()='Grid']/*[local-name()='Border' and @Classes='settings-card']"))
+$mappingCards = @($mappingTab.SelectNodes(".//*[local-name()='ScrollViewer' and @*[local-name()='Name']='MappingTabScroll']/*[local-name()='Grid']/*[local-name()='Border' and @Classes='settings-card']"))
 if ($mappingCards.Count -ne 2 -or $mappingCards[0].GetAttribute('Grid.Row') -ne '1' -or
     $mappingCards[1].GetAttribute('Grid.Row') -ne '2') {
     throw 'UI check: Mapping must contain its shared template toolbar plus field list and editor cards.'

@@ -9,7 +9,7 @@ using KeePassXCCardPrint.Rendering;
 
 namespace KeePassXCCardPrint.Services;
 
-public sealed class DesignChoice(string code, string language) : INotifyPropertyChanged
+public sealed class DesignChoice(string code, string language, string? fieldKey = null) : INotifyPropertyChanged
 {
     private string _language = language;
     public event PropertyChangedEventHandler? PropertyChanged;
@@ -28,7 +28,58 @@ public sealed class DesignChoice(string code, string language) : INotifyProperty
     });
     public bool HasIconPreview => FluentCardGlyphs.PathData(Code) is not null;
     public Geometry? IconGeometry => HasIconPreview ? IconPreviews.Value[Code] : null;
-    public string Label => AppearanceTranslations.Choice(Code, _language, Code switch
+    private string L(string ru, string uk, string en) => TemplateEditorLayout.L(_language, ru, uk, en);
+
+    // Translate choices in the context of their owning field. Persisted codes
+    // and actual installed font-family names are not presentation strings.
+    public string Label => fieldKey is not null && fieldKey.EndsWith("_font", StringComparison.Ordinal) && Code != "inherit"
+        ? Code : (fieldKey, Code) switch
+    {
+        ("notes_mode", "normal") => L("Обычный размер", "Звичайний розмір", "Normal size"),
+        ("notes_mode", "small") => L("Отдельный размер шрифта", "Окремий розмір шрифту", "Custom notes font size"),
+        ("notes_mode", "optional") => L("Пропускать при нехватке места", "Пропускати за браку місця", "Omit if extra space is needed"),
+        ("cut_guide_mode", "none") => L("Без меток", "Без позначок", "No cut guides"),
+        ("cut_guide_mode", "edge") => L("Линии резки", "Лінії різання", "Cut lines"),
+        ("cut_guide_mode", "cross") => L("Крестики", "Хрестики", "Cross marks"),
+        ("cut_guide_mode", "both") => L("Линии и крестики", "Лінії та хрестики", "Lines and crosses"),
+        ("empty_back_bg_source", "common") => L("Общий фон", "Спільний фон", "Shared background"),
+        ("empty_back_bg_source", "custom") => L("Собственный фон", "Власний фон", "Custom background"),
+        ("empty_back_bg_source", "none") => L("Белый фон", "Білий фон", "White background"),
+        ("empty_back_bg_source", "front") => L("Как у лицевой стороны", "Як у лицевого боку", "Same as front"),
+        ("empty_back_bg_source", "back") => L("Как у оборота с данными", "Як у звороту з даними", "Same as data reverse"),
+        ("duplex_back_fill", "design") => L("Декоративное оформление", "Декоративне оформлення", "Decorative design"),
+        ("duplex_back_fill", "blank") => L("Полностью пустая сторона", "Повністю порожній бік", "Completely blank side"),
+        ("duplex_back_style", "minimal") => L("Без линий", "Без ліній", "Without rules"),
+        ("duplex_back_style", "rules") => L("С декоративными линиями", "З декоративними лініями", "With decorative rules"),
+        ("back_rules_style", "original") => L("Заданная ширина", "Задана ширина", "Configured width"),
+        ("back_rules_style", "simple") => L("80% заданной ширины", "80% заданої ширини", "80% of configured width"),
+        ("back_art_icon_position", "top") => L("Выше центра", "Вище центру", "Above center"),
+        ("back_art_icon_position", "bottom") => L("Ниже центра", "Нижче центру", "Below center"),
+        ("entry_icon_mode", "none") => L("Не печатать иконки", "Не друкувати іконки", "No entry icons"),
+        ("entry_icon_mode", "custom") => L("Только пользовательские", "Лише користувацькі", "Custom icons only"),
+        ("entry_icon_mode", "all") => L("Все иконки", "Усі іконки", "All entry icons"),
+        ("entry_icon_print_mode", "original") => L("Без обработки", "Без обробки", "Unmodified"),
+        ("entry_icon_print_mode", "auto") => L("Автоматическая обработка", "Автоматична обробка", "Automatic processing"),
+        ("entry_icon_print_mode", "none") => L("Скрыть иконку", "Приховати іконку", "Hide icon"),
+        ("password_group_mode", "auto") => L("Автоматическая группировка", "Автоматичне групування", "Automatic grouping"),
+        ("password_group_mode", "always") => L("Всегда группировать", "Завжди групувати", "Always group"),
+        ("password_group_mode", "never") => L("Не группировать", "Не групувати", "Never group"),
+        ("footer_uuid_separators", "none") => L("Без разделителей", "Без роздільників", "No separators"),
+        ("footer_uuid_separators", "every4") => L("Через каждые 4 символа", "Через кожні 4 символи", "Every 4 characters"),
+        ("footer_uuid_separators", "standard") => L("Стандартные разделители UUID", "Стандартні роздільники UUID", "Standard UUID separators"),
+        ("duplex_flip", "long") => L("По длинному краю", "За довгим краєм", "Long edge"),
+        ("duplex_flip", "short") => L("По короткому краю", "За коротким краєм", "Short edge"),
+        (_, "200") => L("Очень тонкий (200)", "Дуже тонкий (200)", "ExtraLight (200)"),
+        (_, "300") => L("Тонкий (300)", "Тонкий (300)", "Light (300)"),
+        (_, "400") => L("Обычный (400)", "Звичайний (400)", "Regular (400)"),
+        (_, "500") => L("Средний (500)", "Середній (500)", "Medium (500)"),
+        (_, "600") => L("Полужирный (600)", "Напівжирний (600)", "SemiBold (600)"),
+        (_, "700") => L("Жирный (700)", "Жирний (700)", "Bold (700)"),
+        (_, "800") => L("Очень жирный (800)", "Дуже жирний (800)", "ExtraBold (800)"),
+        _ => LegacyLabel
+    };
+
+    private string LegacyLabel => AppearanceTranslations.Choice(Code, _language, Code switch
     {
         "true" => "Да", "false" => "Нет", "archive" => "Архив", "technical" => "Технический", "classic" => "Классический", "table" => "Табличный",
         "minimal" => "Минимальный", "normal" => "Обычная", "compact" => "Компактная", "large" => "Крупная", "spacious" => "Крупная",
@@ -58,9 +109,76 @@ public sealed class AppearanceField : INotifyPropertyChanged
     private string _language;
     public string Key { get; }
     public string Description { get; private set; }
+    private bool _editorVisible = true;
+    public bool EditorVisible
+    {
+        get => _editorVisible;
+        internal set { if (_editorVisible == value) return; _editorVisible = value; Raise(); }
+    }
+    public string EditorLabel
+    {
+        get
+        {
+            string unit = Key.EndsWith("_mm", StringComparison.Ordinal) ? TemplateEditorLayout.L(_language,"мм","мм","mm")
+                : Key.EndsWith("_pt", StringComparison.Ordinal) ? "pt"
+                : Key.EndsWith("_pct", StringComparison.Ordinal) || Key.EndsWith("_opacity", StringComparison.Ordinal) ||
+                  Key.EndsWith("_gray", StringComparison.Ordinal) || Key.EndsWith("_contrast", StringComparison.Ordinal) ? "%" : "";
+            // The enclosing group already names the element. Keep the shared
+            // typography controls short, while the full label remains in help.
+            string caption = Key switch
+            {
+                "title_font" or "label_font" or "secret_font" or "header_group_font" or
+                "back_caption_title_font" or "back_caption_subtitle_font" => TemplateEditorLayout.L(_language,"Шрифт","Шрифт","Font"),
+                "title_size_pt" or "label_size_pt" or "value_size_pt" or "header_group_size_pt" or
+                "footer_uuid_size_pt" or "footer_date_size_pt" or "back_caption_title_size_pt" or
+                "back_caption_subtitle_size_pt" => TemplateEditorLayout.L(_language,"Размер","Розмір","Size"),
+                "title_weight" or "label_weight" or "value_weight" or "header_group_weight" or
+                "footer_uuid_weight" or "footer_date_weight" or "back_caption_title_weight" or
+                "back_caption_subtitle_weight" => TemplateEditorLayout.L(_language,"Насыщенность","Насиченість","Weight"),
+                "title_align" or "header_group_align" => TemplateEditorLayout.L(_language,"Выравнивание","Вирівнювання","Alignment"),
+                "header_group_color" or "footer_uuid_color" or "footer_date_color" => TemplateEditorLayout.L(_language,"Цвет","Колір","Color"),
+                _ => Label
+            };
+            return unit.Length == 0 || caption.Contains(unit, StringComparison.OrdinalIgnoreCase) ? caption : caption + ", " + unit;
+        }
+    }
     public double EditorWidth => IsNumeric ? 96 : IsColor ? 140 : 187;
-    public bool IsColor => Key.EndsWith("_color",StringComparison.Ordinal);
-    public IBrush? SwatchBrush => Color.TryParse(_text,out var color) ? new SolidColorBrush(color) : null;
+    public double TemplateFieldWidth => IsAutomaticSupported ? 244 : IsNumeric ? (EditorLabel.Length <= 18 ? 124 : 150) : IsColor ? (CardPalette.IsRole(Key) ? 152 : 208) : IsBool ? (EditorLabel.Length <= 18 ? 144 : 190) :
+        Key.EndsWith("_weight", StringComparison.Ordinal) ? 174 :
+        Key.EndsWith("_align", StringComparison.Ordinal) ? 146 : 244;
+    public bool IsAutomaticSupported => Key is "header_height_mm" or "back_caption_title_size_pt" or "back_caption_subtitle_size_pt";
+    public string AutomaticLabel => TemplateEditorLayout.L(_language,"Автоматически","Автоматично","Automatic");
+    private string? _lastManualValue;
+    public bool AutomaticValue
+    {
+        get => IsAutomaticSupported && double.TryParse(TextValue, NumberStyles.Float, CultureInfo.InvariantCulture, out var number) && number == 0;
+        set
+        {
+            if (!IsAutomaticSupported || IsReadOnly || value == AutomaticValue) return;
+            if (value)
+            {
+                if (double.TryParse(TextValue, NumberStyles.Float, CultureInfo.InvariantCulture, out var number) && number > 0)
+                    _lastManualValue = TextValue;
+                TextValue = "0";
+            }
+            else TextValue = _lastManualValue ?? (Key == "header_height_mm" ? "12" : Key == "back_caption_title_size_pt" ? "6" : "5");
+        }
+    }
+    public bool ManualTextVisible => IsText && !AutomaticValue && !IsColor;
+    public bool IsColor => CardPalette.IsColorKey(Key);
+    public string EffectiveColorHex => CardPalette.EditorHex(_appearance,Key,_text);
+    public string ColorCaption => CardPalette.SourceCaption(Key,_text,_language,EffectiveColorHex);
+    public IBrush? SwatchBrush => IsColor && Color.TryParse(EffectiveColorHex,out var color) ? new SolidColorBrush(color) : null;
+    public string ColorHexForSource(string source) => CardPalette.EditorHex(_appearance,Key,source);
+    public void SetColorSource(string source)
+    {
+        if (!IsReadOnly && CardPalette.TryNormalize(Key,source,out var normalized)) TextValue=normalized;
+    }
+    internal void RefreshColorPresentation()
+    {
+        if (!IsColor) return;
+        Raise(nameof(EffectiveColorHex)); Raise(nameof(SwatchBrush)); Raise(nameof(ColorCaption));
+    }
     private readonly CardAppearance _appearance;
     private readonly Func<CardAppearance,string> _read;
     private readonly Action<CardAppearance,string> _write;
@@ -182,7 +300,7 @@ public sealed class AppearanceField : INotifyPropertyChanged
         Description=AppearanceTranslations.Description(key,Label,language);
         _appearance=appearance;_read=read;_write=write;_type=type;
         IsBool=type=="bool";IsChoice=options is not null; IsInteger=type=="int"; IsNumeric=type is "int" or "double";
-        if (options is not null) foreach(var code in options.Split(','))Choices.Add(new DesignChoice(code, language));
+        if (options is not null) foreach(var code in options.Split(','))Choices.Add(new DesignChoice(code, language, key));
         Reload();
     }
     public void Relocalize(string language)
@@ -191,6 +309,10 @@ public sealed class AppearanceField : INotifyPropertyChanged
         Label = AppearanceTranslations.Field(Key, _russianLabel, language);
         Description = AppearanceTranslations.Description(Key, Label, language);
         Raise(nameof(Label));
+        Raise(nameof(EditorLabel));
+        Raise(nameof(TemplateFieldWidth));
+        Raise(nameof(AutomaticLabel));
+        RefreshColorPresentation();
         Raise(nameof(Description));
         foreach (var choice in Choices) choice.Relocalize(language);
     }
@@ -205,7 +327,8 @@ public sealed class AppearanceField : INotifyPropertyChanged
             _text=FontWeights.Normalize(_text);
             _write(_appearance,_text); // Keep the displayed weight in canonical numeric form
         }
-        Raise(nameof(TextValue));Raise(nameof(SwatchBrush));
+        Raise(nameof(TextValue));RefreshColorPresentation();
+        Raise(nameof(AutomaticValue));Raise(nameof(ManualTextVisible));
         _checked=string.Equals(_text,"true",StringComparison.OrdinalIgnoreCase);Raise(nameof(Checked));
         _selected=Choices.FirstOrDefault(x=>x.Code==_text) ?? Choices.FirstOrDefault();Raise(nameof(SelectedChoice));
     }
@@ -221,7 +344,7 @@ public static class AppearanceDescriptor
         => Create(model, "ru");
     public static IReadOnlyList<AppearanceField> Create(CardAppearance model, string language)
     {
-        var result = new List<AppearanceField>(146);
+        var result = new List<AppearanceField>(173);
         void Add(string group,string label,string key,string type,Func<CardAppearance,string> reader,Action<CardAppearance,string> writer,string? choices)
             => result.Add(new AppearanceField(group,label,key,type,model,reader,writer,choices,language));
         // Both proportional system faces and bundled monospaced faces work for
@@ -352,7 +475,7 @@ public static class AppearanceDescriptor
             Add("Две стороны", "Свой фон оборота с данными", "back_bg_override", "bool", a=>a.BackBgOverride.ToString(), (a,v)=>a.BackBgOverride=v.Equals("true",StringComparison.OrdinalIgnoreCase), null);
             Add("Две стороны", "Серость оборота, %", "back_bg_gray", "double", a=>a.BackBgGray.ToString(CultureInfo.InvariantCulture), (a,v)=>a.BackBgGray=Math.Clamp(ParseDouble(v,a.BackBgGray),0,100), null);
             Add("Две стороны", "Контраст оборота, %", "back_bg_contrast", "double", a=>a.BackBgContrast.ToString(CultureInfo.InvariantCulture), (a,v)=>a.BackBgContrast=Math.Clamp(ParseDouble(v,a.BackBgContrast),0,100), null);
-            Add("Пустой оборот", "Фон пустого оборота", "empty_back_bg_source", "string", a=>a.EmptyBackBgSource, (a,v)=>a.EmptyBackBgSource=v, "back,front,custom,none");
+            Add("Пустой оборот", "Фон пустого оборота", "empty_back_bg_source", "string", a=>a.EmptyBackBgSource, (a,v)=>a.EmptyBackBgSource=v, "back,front,common,custom,none");
             Add("Пустой оборот", "Свой фон пустого оборота", "empty_back_bg_pattern", "string", a=>a.EmptyBackBgPattern, (a,v)=>a.EmptyBackBgPattern=v, "clean,gradient,diagonal,technical,texture,watermark");
             Add("Пустой оборот", "Серость пустого оборота, %", "empty_back_bg_gray", "double", a=>a.EmptyBackBgGray.ToString(CultureInfo.InvariantCulture), (a,v)=>a.EmptyBackBgGray=Math.Clamp(ParseDouble(v,a.EmptyBackBgGray),0,100), null);
             Add("Пустой оборот", "Контраст пустого оборота, %", "empty_back_bg_contrast", "double", a=>a.EmptyBackBgContrast.ToString(CultureInfo.InvariantCulture), (a,v)=>a.EmptyBackBgContrast=Math.Clamp(ParseDouble(v,a.EmptyBackBgContrast),0,100), null);
@@ -378,7 +501,34 @@ public static class AppearanceDescriptor
             Add("Линии оборота", "Толщина линий, мм", "back_rules_thickness_mm", "double", a=>a.BackRulesThicknessMm.ToString(CultureInfo.InvariantCulture), (a,v)=>a.BackRulesThicknessMm=Math.Clamp(ParseDouble(v,a.BackRulesThicknessMm),.05,1), null);
             Add("Линии оборота", "Отступ линий, мм", "back_rules_gap_mm", "double", a=>a.BackRulesGapMm.ToString(CultureInfo.InvariantCulture), (a,v)=>a.BackRulesGapMm=Math.Clamp(ParseDouble(v,a.BackRulesGapMm),.1,8), null);
             Add("Линии оборота", "Видимость линий, %", "back_rules_opacity", "double", a=>a.BackRulesOpacity.ToString(CultureInfo.InvariantCulture), (a,v)=>a.BackRulesOpacity=Math.Clamp(ParseDouble(v,a.BackRulesOpacity),0,100), null);
-        if (result.Count != 146) throw new InvalidOperationException($"Appearance property registry out of sync: {result.Count} found, 146 expected.");
+            Add("Иконки и цвета", "Цвет рамки", "frame_color", "string", a=>a.FrameColor, (a,v)=>a.FrameColor=v, null);
+            Add("Иконки и цвета", "Цвет заголовка", "title_color", "string", a=>a.TitleColor, (a,v)=>a.TitleColor=v, null);
+            Add("Иконки и цвета", "Цвет номера", "page_badge_text_color", "string", a=>a.PageBadgeTextColor, (a,v)=>a.PageBadgeTextColor=v, null);
+            Add("Иконки и цвета", "Фон номера", "page_badge_background_color", "string", a=>a.PageBadgeBackgroundColor, (a,v)=>a.PageBadgeBackgroundColor=v, null);
+            Add("Иконки и цвета", "Цвет контура / силуэта", "entry_icon_tint_color", "string", a=>a.EntryIconTintColor, (a,v)=>a.EntryIconTintColor=v, null);
+            Add("Иконки и цвета", "Цвет подложки иконки", "entry_icon_background_color", "string", a=>a.EntryIconBackgroundColor, (a,v)=>a.EntryIconBackgroundColor=v, null);
+            Add("Иконки и цвета", "Цвет заливки шапки", "header_fill_color", "string", a=>a.HeaderFillColor, (a,v)=>a.HeaderFillColor=v, null);
+            Add("Иконки и цвета", "Цвет акцентной полосы", "header_accent_color", "string", a=>a.HeaderAccentColor, (a,v)=>a.HeaderAccentColor=v, null);
+            Add("Иконки и цвета", "Цвет линии шапки", "header_rule_color", "string", a=>a.HeaderRuleColor, (a,v)=>a.HeaderRuleColor=v, null);
+            Add("Иконки и цвета", "Цвет названий полей", "field_label_color", "string", a=>a.FieldLabelColor, (a,v)=>a.FieldLabelColor=v, null);
+            Add("Иконки и цвета", "Цвет значений", "field_value_color", "string", a=>a.FieldValueColor, (a,v)=>a.FieldValueColor=v, null);
+            Add("Иконки и цвета", "Цвет паролей", "password_color", "string", a=>a.PasswordColor, (a,v)=>a.PasswordColor=v, null);
+            Add("Иконки и цвета", "Цвет заметок", "notes_color", "string", a=>a.NotesColor, (a,v)=>a.NotesColor=v, null);
+            Add("Иконки и цвета", "Цвет заголовков разделов", "section_heading_color", "string", a=>a.SectionHeadingColor, (a,v)=>a.SectionHeadingColor=v, null);
+            Add("Иконки и цвета", "Цвет разделителей полей", "field_rule_color", "string", a=>a.FieldRuleColor, (a,v)=>a.FieldRuleColor=v, null);
+            Add("Иконки и цвета", "Цвет линии подвала", "footer_rule_color", "string", a=>a.FooterRuleColor, (a,v)=>a.FooterRuleColor=v, null);
+            Add("Иконки и цвета", "Цвет кодов", "recovery_value_color", "string", a=>a.RecoveryValueColor, (a,v)=>a.RecoveryValueColor=v, null);
+            Add("Иконки и цвета", "Цвет флажков", "recovery_checkbox_color", "string", a=>a.RecoveryCheckboxColor, (a,v)=>a.RecoveryCheckboxColor=v, null);
+            Add("Иконки и цвета", "Цвет подписи OTP", "otp_label_color", "string", a=>a.OtpLabelColor, (a,v)=>a.OtpLabelColor=v, null);
+            Add("Иконки и цвета", "Цвет секрета OTP", "otp_value_color", "string", a=>a.OtpValueColor, (a,v)=>a.OtpValueColor=v, null);
+            Add("Иконки и цвета", "Цвет параметров OTP", "otp_meta_color", "string", a=>a.OtpMetaColor, (a,v)=>a.OtpMetaColor=v, null);
+            Add("Иконки и цвета", "Цвет верхней надписи", "back_caption_title_color", "string", a=>a.BackCaptionTitleColor, (a,v)=>a.BackCaptionTitleColor=v, null);
+            Add("Иконки и цвета", "Цвет нижней надписи", "back_caption_subtitle_color", "string", a=>a.BackCaptionSubtitleColor, (a,v)=>a.BackCaptionSubtitleColor=v, null);
+            Add("Иконки и цвета", "Цвет линий оборота", "back_rules_color", "string", a=>a.BackRulesColor, (a,v)=>a.BackRulesColor=v, null);
+            Add("Иконки и цвета", "Цвет фона лица", "front_background_color", "string", a=>a.FrontBackgroundColor, (a,v)=>a.FrontBackgroundColor=v, null);
+            Add("Иконки и цвета", "Цвет фона оборота с данными", "back_background_color", "string", a=>a.BackBackgroundColor, (a,v)=>a.BackBackgroundColor=v, null);
+            Add("Иконки и цвета", "Цвет фона пустого оборота", "empty_back_background_color", "string", a=>a.EmptyBackBackgroundColor, (a,v)=>a.EmptyBackBackgroundColor=v, null);
+        if (result.Count != 173) throw new InvalidOperationException($"Appearance property registry out of sync: {result.Count} found, 173 expected.");
         return result;
     }
 }

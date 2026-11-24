@@ -543,7 +543,167 @@ internal static class CardEngineSelfTests
 
             var settings=Defaults();
             var appearanceFields=AppearanceDescriptor.Create(settings);
-            Check(appearanceFields.Count==146,"all 146 editable appearance parameters");
+            Check(appearanceFields.Count==173,"all 173 editable appearance parameters");
+            var paletteModel=Defaults();
+            var paletteFields=AppearanceDescriptor.Create(paletteModel).ToDictionary(f=>f.Key,StringComparer.Ordinal);
+            Check(CardPalette.RoleKeys.Length==7 && CardPalette.RoleKeys.Distinct().Count()==7,"seven distinct shared palette roles");
+            Check(CardPalette.RoleKeys.All(k=>TemplateEditorLayout.Groups.Single(g=>g.Keys.Contains(k)).Id=="palette"),"palette roles have one common editor");
+            var paletteTitle=paletteFields["title_color"];
+            paletteTitle.SetColorSource("palette:accent_color");
+            paletteFields["accent_color"].SetColorSource("#AABBCC");
+            Check(paletteTitle.TextValue=="palette:accent_color" && paletteTitle.EffectiveColorHex=="#AABBCC","linked title follows accent palette edits");
+            paletteTitle.SetColorSource("#123456");
+            paletteFields["accent_color"].SetColorSource("#334455");
+            Check(paletteTitle.TextValue=="#123456" && paletteTitle.EffectiveColorHex=="#123456","individual title overrides the palette");
+            paletteTitle.SetColorSource("palette:muted_color");
+            paletteFields["muted_color"].SetColorSource("#445566");
+            Check(paletteTitle.EffectiveColorHex=="#445566","element can link to any shared role");
+            paletteTitle.SetColorSource("palette:unknown");
+            paletteTitle.SetColorSource("not-a-color");
+            Check(paletteTitle.TextValue=="palette:muted_color","invalid color source does not alter the model");
+            paletteFields["ink_color"].SetColorSource("palette:accent_color");
+            Check(!paletteFields["ink_color"].TextValue.StartsWith("palette:",StringComparison.Ordinal),"shared palette rejects nested references");
+            paletteTitle.IsReadOnly=true;
+            paletteTitle.SetColorSource("#000000");
+            Check(paletteTitle.TextValue=="palette:muted_color","built-in color source is read-only");
+            var roundTripColors=JsonSerializer.Deserialize(JsonSerializer.SerializeToUtf8Bytes(paletteModel,CardAppearanceJsonContext.Default.CardAppearance),CardAppearanceJsonContext.Default.CardAppearance)!;
+            Check(roundTripColors.TitleColor=="palette:muted_color" && CardPalette.EditorHex(roundTripColors,"title_color",roundTripColors.TitleColor)=="#445566","palette reference survives JSON round-trip");
+            var legacyColors=JsonSerializer.Deserialize("{\"ink_color\":\"#112233\",\"footer_uuid_color\":\"#ABCDEF\"}",CardAppearanceJsonContext.Default.CardAppearance)!;
+            Check(legacyColors.TitleColor=="inherit" && CardPalette.EditorHex(legacyColors,"title_color",legacyColors.TitleColor)=="#112233" && legacyColors.FooterUuidColor=="#ABCDEF","old template retains inherited and explicit colors");
+            Check(legacyColors.BackRulesColor=="#777777" && legacyColors.PageBadgeBackgroundColor=="#E5EBF2","legacy fixed decoration colors remain unchanged");
+            legacyColors.FrontBgOverride=true;legacyColors.FrontBackgroundColor="palette:accent_color";
+            Check(CardBackgroundRenderer.Resolve(legacyColors,"front").BaseColor=="palette:accent_color","face-specific background color source");
+            legacyColors.EmptyBackBgSource="front";
+            Check(CardBackgroundRenderer.Resolve(legacyColors,"empty").BaseColor=="palette:accent_color","empty reverse inherits face color source");
+            legacyColors.EmptyBackBgSource="none";
+            Check(CardBackgroundRenderer.Resolve(legacyColors,"empty").WhiteOnly,"white reverse ignores palette override");
+            var previewSelectionHit=new PreviewHitRegion("header","title",new SKRect(1,2,30,40));
+            var previewOtherHit=new PreviewHitRegion("footer","uuid",new SKRect(1,41,30,50));
+            Check(PreviewHitRegion.CanCommit(previewSelectionHit,previewSelectionHit,true,false,0,0),"Ctrl-click selects the same hit");
+            Check(!PreviewHitRegion.CanCommit(previewSelectionHit,previewSelectionHit,false,false,0,0),"ordinary click does not select");
+            Check(!PreviewHitRegion.CanCommit(previewSelectionHit,previewOtherHit,true,false,0,0),"Ctrl-click cannot select another hit on release");
+            Check(!PreviewHitRegion.CanCommit(previewSelectionHit,previewSelectionHit,true,true,0,0) && !PreviewHitRegion.CanCommit(previewSelectionHit,previewSelectionHit,true,false,4,0),"Ctrl-drag does not commit selection");
+            Check(!PreviewHitRegion.CanCommit(null,null,true,false,0,0),"empty Ctrl-click does not select");
+            Check(new[]{"ru","uk","en"}.All(lang=>!string.IsNullOrWhiteSpace(TemplateEditorLayout.GroupCaption("title",lang)) && TemplateEditorLayout.GroupCaption("title",lang)!="title"),"preview caption localized in all languages");
+            // Every fixed enum choice must have a human-readable localized label.
+            // Real font family names are not translated; inheritance still is.
+            foreach (var language in new[] { "ru", "uk", "en" })
+            {
+                foreach (var field in appearanceFields)
+                {
+                    field.Relocalize(language);
+                    Check(!string.IsNullOrWhiteSpace(field.Label) && field.Label != field.Key &&
+                          field.Description.StartsWith(field.Label + "\n\n", StringComparison.Ordinal) &&
+                          field.Description.Length > field.Label.Length + 10,
+                          $"localized parameter label and help: {language}/{field.Key}");
+                    if (field.Key == "notes_mode")
+                        Check(field.Description.StartsWith(field.Label + "\n\n", StringComparison.Ordinal) &&
+                              field.Description.Length > field.Label.Length + 40,
+                            $"notes tooltip has label and detailed explanation: {language}");
+                    foreach (var choice in field.Choices)
+                    {
+                        if (field.Key.EndsWith("_font", StringComparison.Ordinal) && choice.Code != "inherit") continue;
+                        Check(!string.IsNullOrWhiteSpace(choice.Label) && choice.Label != choice.Code,
+                            $"localized appearance choice: {language}/{field.Key}/{choice.Code}");
+                    }
+                }
+            }
+            var notesMode = appearanceFields.Single(f=>f.Key=="notes_mode");
+            notesMode.Relocalize("ru");
+            Check(notesMode.Choices.Single(c=>c.Code=="normal").Label=="Обычный размер" &&
+                  notesMode.Choices.Single(c=>c.Code=="small").Label=="Отдельный размер шрифта" &&
+                  notesMode.Choices.Single(c=>c.Code=="optional").Label=="Пропускать при нехватке места",
+                  "notes choices explain all three modes in Russian");
+            foreach (var field in appearanceFields) field.Relocalize("ru");
+            TemplateEditorLayout.Validate(appearanceFields.Select(f=>f.Key));
+            var ownership=TemplateEditorLayout.Groups.SelectMany(g=>g.Keys).ToArray();
+            Check(ownership.Length==173 && ownership.Distinct().Count()==173,"unified editor owns every setting exactly once");
+            var navigationGlyphs=TemplateEditorLayout.Sections
+                .Select(s=>new TemplateEditorSection(s.Id,s.En).Glyph).ToArray();
+            Check(navigationGlyphs.Length==10 && navigationGlyphs.Distinct().Count()==10,
+                "template navigation has ten distinct Fluent glyphs");
+            Check(new TemplateEditorSection("header", "").Glyph==FluentIcons.Common.Icon.DocumentHeader &&
+                  new TemplateEditorSection("footer", "").Glyph==FluentIcons.Common.Icon.DocumentFooter &&
+                  new TemplateEditorSection("fields", "").Glyph==FluentIcons.Common.Icon.TextBulletList &&
+                  new TemplateEditorSection("recovery", "").Glyph==FluentIcons.Common.Icon.Key &&
+                  new TemplateEditorSection("qr", "").Glyph==FluentIcons.Common.Icon.QrCode,
+                  "template navigation glyphs represent their actual sections");
+            var visibility=Defaults();
+            visibility.FrontBgOverride=false;
+            Check(!TemplateEditorLayout.Visible("front_bg_pattern",visibility),"inherited front background hides overrides");
+            visibility.FrontBgOverride=true;
+            Check(TemplateEditorLayout.Visible("front_bg_pattern",visibility),"explicit front background exposes overrides");
+            visibility.DuplexEnabled=true;
+            visibility.DuplexBackFill="blank";
+            Check(!TemplateEditorLayout.Visible("back_caption_title_font",visibility),"blank reverse hides decorative caption settings");
+            visibility.DuplexBackFill="design";
+            visibility.EmptyBackShowArt=true;
+            Check(TemplateEditorLayout.Visible("back_caption_title_font",visibility),"decorated reverse exposes caption settings");
+            Check(TemplateEditorLayout.Groups.Single(g=>g.Keys.Contains("print_password")).SectionId=="mapping",
+                "global field restrictions belong to mapping");
+            visibility.Frame=false;
+            Check(!TemplateEditorLayout.Visible("frame_width_pt",visibility),"disabled frame hides stroke width");
+            visibility.HeaderFill=true;
+            Check(TemplateEditorLayout.Visible("corner_radius_mm",visibility),"header can still use radius without frame");
+            visibility.RecoveryAutosize=false;
+            Check(!TemplateEditorLayout.Visible("recovery_min_font_pt",visibility) && !TemplateEditorLayout.Visible("recovery_max_font_pt",visibility),"disabled recovery autosize hides bounds");
+            visibility.NotesMode="normal";
+            Check(!TemplateEditorLayout.Visible("notes_size_pt",visibility),"normal notes hide unused size");
+            visibility.NotesMode="optional";
+            Check(TemplateEditorLayout.Visible("notes_size_pt",visibility),"optional notes expose size");
+            visibility.CardBgPattern="clean";
+            Check(!TemplateEditorLayout.Visible("card_bg_contrast",visibility),"plain background hides pattern contrast");
+            visibility.CardBgPattern="gradient";
+            Check(TemplateEditorLayout.Visible("card_bg_contrast",visibility),"pattern exposes contrast");
+            visibility.EmptyBackShowIcon=false;
+            Check(TemplateEditorLayout.Visible("back_art_icon_position",visibility),"caption alone still uses composition position");
+            Check(!TemplateEditorLayout.Visible("back_art_text_gap_mm",visibility),"gap requires icon and caption");
+            var autoModel=Defaults();
+            var autoFields=AppearanceDescriptor.Create(autoModel);
+            foreach(var autoField in autoFields.Where(f=>f.IsAutomaticSupported))
+            {
+                autoField.AutomaticValue=false;
+                autoField.TextValue="8";
+                autoField.AutomaticValue=true;
+                Check(autoField.AutomaticValue && !autoField.ManualTextVisible,"automatic setting stores sentinel: "+autoField.Key);
+                autoField.AutomaticValue=false;
+                Check(!autoField.AutomaticValue && autoField.ManualTextVisible && autoField.TextValue=="8","manual setting restores value: "+autoField.Key);
+                autoField.IsReadOnly=true;
+                autoField.AutomaticValue=true;
+                Check(!autoField.AutomaticValue,"built-in automatic setting is read-only: "+autoField.Key);
+            }
+            Check(autoFields.Count(f=>f.IsAutomaticSupported)==3,"exactly three automatic numeric modes");
+            foreach (var compactLanguage in new[] { "ru", "uk", "en" })
+            {
+                var compactFields = AppearanceDescriptor.Create(Defaults(), compactLanguage);
+                Check(compactFields.Where(f=>f.IsNumeric && !f.IsAutomaticSupported).All(f=>
+                    f.TemplateFieldWidth==(f.EditorLabel.Length<=18 ? 124 : 150) &&
+                    f.TemplateFieldWidth>=f.EditorWidth+18), "compact numeric editor slots: "+compactLanguage);
+                Check(compactFields.Where(f=>f.IsBool).All(f=>
+                    f.TemplateFieldWidth==(f.EditorLabel.Length<=18 ? 144 : 190)),
+                    "compact checkbox editor slots: "+compactLanguage);
+            }
+            Check(autoFields.Where(f=>f.IsAutomaticSupported).All(f=>f.TemplateFieldWidth==244 && f.EditorWidth<=100),
+                "automatic toggle has room beside a compact numeric editor");
+            var hitAppearance=Defaults();
+            hitAppearance.Frame=true; hitAppearance.ShowDate=true; hitAppearance.FooterUuidShow=true;
+            var hitCards=CardLayoutEngine.Build([Record()],hitAppearance,BasicMapping);
+            using(var scene=CardSkiaRenderer.Record(hitCards[0],hitAppearance,false))
+            {
+                Check(scene.HitTest(1,scene.Height/2)?.Group=="frame","frame has its own hit target");
+                foreach(var target in scene.HitRegions.Where(h=>h.Group is "uuid" or "date"))
+                    Check(scene.HitTest((target.Bounds.Left+target.Bounds.Right)/2,(target.Bounds.Top+target.Bounds.Bottom)/2)?.Group==target.Group,"footer exact hit target: "+target.Group);
+                Check(scene.HitRegions.Any(h=>h.Group=="uuid") && scene.HitRegions.Any(h=>h.Group=="date"),"both footer elements have measured regions");
+                Check(scene.HitRegions.Any(h=>h.Group=="page-badge"),"part number has its own editor target");
+                Check(scene.HitRegions.All(h=>TemplateEditorLayout.Groups.Any(g=>g.Id==h.Group && g.SectionId==h.Section)),"preview targets resolve to actual editor groups");
+            }
+            var qrPart=new CardPart(Record(),[new CardLine(CardLineKind.Qr,"",15,14,QrUri:"https://example.invalid")],1,1);
+            using(var qrHitScene=CardSkiaRenderer.Record(new PhysicalCard(qrPart,null),hitAppearance,false))
+            {
+                var qrHit=qrHitScene.HitRegions.Single(h=>h.Group=="totp");
+                Check(Math.Abs(qrHit.Bounds.Width-14*CardSkiaRenderer.PixelsPerMillimetre)<.01f &&
+                      Math.Abs(qrHit.Bounds.Height-qrHit.Bounds.Width)<.01f,"QR hit target uses actual square geometry");
+            }
             var upperFontField=appearanceFields.Single(f=>f.Key=="back_caption_title_font");
             var lowerFontField=appearanceFields.Single(f=>f.Key=="back_caption_subtitle_font");
             Check(upperFontField.Group=="Пустой оборот" && lowerFontField.Group=="Пустой оборот" &&
@@ -640,9 +800,9 @@ internal static class CardEngineSelfTests
             var serializedKeys = serializedAppearance.RootElement.EnumerateObject()
                 .Select(p => p.Name).ToArray();
             var keyNames = serializedKeys.ToHashSet(StringComparer.Ordinal);
-            Check(serializedKeys.Length == 146,
-                $"persisted appearance JSON has 146 properties (actual {serializedKeys.Length})");
-            Check(keyNames.Count==146,
+            Check(serializedKeys.Length == 173,
+                $"persisted appearance JSON has 173 properties (actual {serializedKeys.Length})");
+            Check(keyNames.Count==173,
                 $"original and new appearance keys (actual {keyNames.Count})");
             Check(appearanceFields.Select(f=>f.Key).Distinct(StringComparer.Ordinal).Count()==appearanceFields.Count,
                 "appearance editor has unique property keys");

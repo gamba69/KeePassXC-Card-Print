@@ -110,6 +110,7 @@ public partial class MainWindow : Window
         _settings.ActiveTab = 0;
         _vm = new ShellViewModel(_settings);
         InitializeComponent();
+        InitializeTemplatePreviewInteraction();
         _cloudSync.BeforeRemoteApplyAsync = async () => await Dispatcher.UIThread.InvokeAsync(() =>
             !_vm.Busy && !_vm.HasUnsavedTemplateChanges && _printExportCancellation is null &&
             !_cloudExitPreparing && !_cloudExitPrepared);
@@ -305,8 +306,6 @@ public partial class MainWindow : Window
         {
             "SourceTabScroll" => 560,
             "MappingTabScroll" => 550,
-            "DesignTabScroll" => 430,
-            "DuplexTabScroll" => 490,
             _ => 0
         };
         double available = Math.Max(0, e.NewSize.Height - page.Margin.Top - page.Margin.Bottom);
@@ -356,7 +355,7 @@ public partial class MainWindow : Window
     private void UpdateAboutRefresh()
     {
         _aboutRefreshTimer.Stop();
-        if (_vm.ActiveTab != 4 || !IsVisible) return;
+        if (_vm.ActiveTab != 3 || !IsVisible) return;
         _vm.About.RefreshDiagnostics(RenderScaling);
         _aboutRefreshTimer.Start();
     }
@@ -396,37 +395,6 @@ public partial class MainWindow : Window
     {
         if (_vm.CanEditAppearance && (sender as Control)?.DataContext is AppearanceField field)
             field.Nudge(-1);
-    }
-
-    // Mapping layout is content-first: the editor is allowed to grow until it
-    // shows all controls without an inner scrollbar. Remaining vertical space
-    // belongs to the table, which keeps a usable minimum height. On shorter
-    // windows only the editor becomes scrollable.
-    private void OnMappingTabSizeChanged(object? sender, SizeChangedEventArgs e)
-    {
-        if (sender is not Grid grid || e.NewSize.Height <= 0) return;
-
-        Border? editor = null;
-        double reservedHeight = grid.RowSpacing * 4;
-        foreach (var child in grid.Children)
-        {
-            var row = Grid.GetRow(child);
-            if (row == 4 && child is Border panel)
-                editor = panel;
-            else if (row is 0 or 1 or 2)
-                reservedHeight += child.Bounds.Height;
-        }
-        if (editor is null) return;
-
-        // During the first measure, child Bounds can still be zero. Use a
-        // conservative allowance until the controls have been arranged.
-        if (reservedHeight < 65) reservedHeight = 105;
-        const double minTableHeight = 170;
-        const double minEditorHeight = 70;
-        var availableForEditor = Math.Max(minEditorHeight,
-            Math.Floor(e.NewSize.Height - reservedHeight - minTableHeight));
-        if (Math.Abs(editor.MaxHeight - availableForEditor) >= 1)
-            editor.MaxHeight = availableForEditor;
     }
 
     private async void OnStorageSelectionChanged(object? sender, SelectionChangedEventArgs e)
@@ -495,7 +463,7 @@ public partial class MainWindow : Window
                     message,
                     lang switch { "uk" => "До налаштувань", "en" => "Open Settings", _ => "В настройки" },
                     cancelText: lang switch { "uk" => "Скасувати", "en" => "Cancel", _ => "Отмена" }))
-                    _vm.ActiveTab = 4;
+                    _vm.ActiveTab = 2;
                 return;
             }
             if (target == ConfigurationStorage.Cloud && !CloudConnectionStore.IsCurrentVerified())
@@ -508,7 +476,7 @@ public partial class MainWindow : Window
                     _ => "Облачное подключение не настроено или не проверено. Настройте и проверьте его на вкладке «Настройки»."
                 };
                 _vm.VaultStatus = "[CLOUD] " + message;
-                _vm.ActiveTab = 4;
+                _vm.ActiveTab = 2;
                 await AppConfirmations.AskAsync(this,
                     lang switch { "uk" => "Хмарне зберігання", "en" => "Cloud storage", _ => "Облачное хранение" },
                     message, lang switch { "uk" => "Зрозуміло", "en" => "OK", _ => "Понятно" },
@@ -907,7 +875,7 @@ public partial class MainWindow : Window
         if(decision!=UnsavedMappingChoice.Save)return false;
         _vm.SaveChangesToTemplate();
         if(!_vm.HasUnsavedTemplateChanges)return true;
-        _vm.ActiveTab=1; // Expose any invalid mapping drafts for correction.
+        _vm.NavigateTemplateEditor("mapping"); // Expose invalid mapping drafts for correction.
         return false;
     }
     protected override async void OnClosing(WindowClosingEventArgs e)

@@ -49,34 +49,40 @@ public static class CardSkiaRenderer
         float height=(float)(appearance.HeightMm*PixelsPerMillimetre);
         using var recorder=new SKPictureRecorder();
         var canvas=recorder.BeginRecording(new SKRect(0,0,width,height));
-        Draw(canvas,card,appearance,back);
-        return new SkiaPreviewScene(recorder.EndRecording(),width,height);
+        var hits=new List<PreviewHitRegion>();
+        Draw(canvas,card,appearance,back,hits);
+        return new SkiaPreviewScene(recorder.EndRecording(),width,height,hits);
     }
 
     /// <summary>Draw into an existing canvas in canonical units. The caller owns clipping,
     /// page placement, the destination resolution and canvas lifetime.</summary>
-    internal static void Draw(SKCanvas c,PhysicalCard card,CardAppearance a,bool back)
-        => Draw(new SkiaCardCanvas(c),card,a,back);
+    internal static void Draw(SKCanvas c,PhysicalCard card,CardAppearance a,bool back,List<PreviewHitRegion>? hits=null)
+        => Draw(new SkiaCardCanvas(c),card,a,back,hits);
 
-    internal static void Draw(ICardCanvas c,PhysicalCard card,CardAppearance a,bool back)
+    internal static void Draw(ICardCanvas c,PhysicalCard card,CardAppearance a,bool back,List<PreviewHitRegion>? hits=null)
     {
         int w=(int)Math.Round(Px(a.WidthMm)),h=(int)Math.Round(Px(a.HeightMm));
         if (w < 100 || h < 100) throw new InvalidOperationException("Недопустимый размер карточки.");
         PortableFonts.RequireSecretFont(a.SecretFont);
+        var backgroundGroup=!back?(a.FrontBgOverride?"front-background":"common-background"):
+            card.Continuation is not null?(a.BackBgOverride?"back-background":"common-background") : "empty-background";
+        if(back && card.Continuation is null && a.DuplexBackFill=="blank")
+            hits?.Add(new("reverse","empty-reverse",new SKRect(0,0,w,h)));
+        else hits?.Add(new("background",backgroundGroup,new SKRect(0,0,w,h)));
         if(!back)
         {
             CardBackgroundRenderer.Draw(c,w,h,a,CardBackgroundRenderer.Resolve(a,"front"));
-            DrawFront(c,w,h,a,card.Front);
+            DrawFront(c,w,h,a,card.Front,hits);
         }
         else if(card.Continuation is not null)
         {
             CardBackgroundRenderer.Draw(c,w,h,a,CardBackgroundRenderer.Resolve(a,"back"));
-            DrawFront(c,w,h,a,card.Continuation);
+            DrawFront(c,w,h,a,card.Continuation,hits);
         }
         else if(a.DuplexBackFill!="blank")
         {
             CardBackgroundRenderer.Draw(c,w,h,a,CardBackgroundRenderer.Resolve(a,"empty"));
-            DrawBack(c,w,h,a,card.Front);
+            DrawBack(c,w,h,a,card.Front,hits);
         }
         else
         {
@@ -112,7 +118,7 @@ public static class CardSkiaRenderer
     {
         if(!a.Frame)return;
         float stroke=Math.Max(.55f,Pt(a.FrameWidthPt));
-        using var pen=Paint(Color(a.BorderColor,new SKColor(193,200,208)),true,stroke);
+        using var pen=Paint(CardPalette.Resolve(a,a.FrameColor,Color(a.BorderColor,new SKColor(193,200,208))),true,stroke);
         c.DrawRoundRect(new SKRect(stroke,stroke,w-stroke,h-stroke),Px(a.CornerRadiusMm),Px(a.CornerRadiusMm),pen);
     }
     private static float CenteredBaseline(string text,float centerY,float sizePx,string family,string weight)
@@ -167,7 +173,7 @@ public static class CardSkiaRenderer
         {
             string defaultFill=a.Style switch
             {"classic"=>"#EFF1F4","table"=>"#EAF0F5",_=>"#F4F7FA"};
-            using var paper=Paint(Styled(a.HeaderColor,"#F4F7FA",defaultFill));
+            using var paper=Paint(CardPalette.Resolve(a,a.HeaderFillColor,Styled(a.HeaderColor,"#F4F7FA",defaultFill)));
             c.DrawRoundRect(decor,radius,radius,paper);
         }
         if(a.HeaderAccent)
@@ -176,7 +182,7 @@ public static class CardSkiaRenderer
             float stripeWidth=Px(Math.Clamp(a.HeaderAccentWidthMm,.2,3));
             float stripeTop=Px(.9);
             float stripeBottom=decor.Bottom;
-            using var paint=Paint(accent);
+            using var paint=Paint(CardPalette.Resolve(a,a.HeaderAccentColor,accent));
             if(fill && radius>.01f)
             {
                 using var clip=new SKRoundRect(decor,radius,radius);
@@ -194,7 +200,7 @@ public static class CardSkiaRenderer
         }
         else if(a.SectionRules)
         {
-            using var pen=Paint(rule,true,.8f);
+            using var pen=Paint(CardPalette.Resolve(a,a.HeaderRuleColor,rule),true,.8f);
             c.DrawLine(Px(a.PaddingMm),decor.Bottom,w-Px(a.PaddingMm),decor.Bottom,pen);
         }
 
@@ -218,11 +224,11 @@ public static class CardSkiaRenderer
                     {
                         if(a.EntryIconPrintMode is "auto" or "backdrop")
                         {
-                            using var iconFill=Paint(Color(a.HeaderColor,SKColors.White));
+                            using var iconFill=Paint(CardPalette.Resolve(a,a.EntryIconBackgroundColor,Color(a.HeaderColor,SKColors.White)));
                             c.DrawRoundRect(new SKRect(iconLeft,iconTop,iconLeft+iconSize,iconTop+iconSize),
                                 Px(.8),Px(.8),iconFill);
                         }
-                        using var styledIcon=TransformIcon(icon,a.EntryIconPrintMode);
+                        using var styledIcon=TransformIcon(icon,a.EntryIconPrintMode,CardPalette.Resolve(a,a.EntryIconTintColor,new SKColor(32,43,56)));
                         c.DrawBitmap(styledIcon,new SKRect(iconLeft,iconTop,iconLeft+iconSize,iconTop+iconSize),
                             new SKSamplingOptions(SKCubicResampler.Mitchell));
                     }
@@ -233,9 +239,9 @@ public static class CardSkiaRenderer
             { /* Preview tolerates missing icons; XPS must not silently lose icons. */ }
         }
 
-        DrawHeaderText(c,plan.Title,a.TitleAlign,ink);
+        DrawHeaderText(c,plan.Title,a.TitleAlign,CardPalette.Resolve(a,a.TitleColor,ink));
         if(plan.Group is not null)
-            DrawHeaderText(c,plan.Group,a.HeaderGroupAlign,Color(a.HeaderGroupColor,muted));
+            DrawHeaderText(c,plan.Group,a.HeaderGroupAlign,CardPalette.Resolve(a,a.HeaderGroupColor,muted));
 
         // Two-digit part/total badge, including 01/01.
         string chip=$"{part.Number:D2}/{part.Total:D2}";
@@ -246,22 +252,23 @@ public static class CardSkiaRenderer
         float chipBaseline=CenteredBaseline(chip,chipCenter,chipPx,a.LabelFont,a.LabelWeight);
         if(a.Style=="archive" && fill)
         {
-            using var tint=Paint(new SKColor(229,235,242));
+            using var tint=Paint(CardPalette.Resolve(a,a.PageBadgeBackgroundColor,new SKColor(229,235,242)));
             c.DrawRoundRect(new SKRect(chipLeft-Px(.5),chipCenter-chipPx*.70f,
                 chipLeft+chipWidth+Px(.5),chipCenter+chipPx*.70f),Px(.45),Px(.45),tint);
         }
-        DrawText(c,chip,chipLeft,chipBaseline,chipPx,muted,a.LabelFont,a.LabelWeight);
+        DrawText(c,chip,chipLeft,chipBaseline,chipPx,CardPalette.Resolve(a,a.PageBadgeTextColor,muted),a.LabelFont,a.LabelWeight);
     }
 
-    private static void DrawFooter(ICardCanvas c,int w,int h,CardAppearance a,CardPart part)
+    private static void DrawFooter(ICardCanvas c,int w,int h,CardAppearance a,CardPart part,List<PreviewHitRegion>? hits=null)
     {
         float left=Px(a.PaddingMm),right=w-left;
         float footerTop=h-Px(a.FooterBottomInsetMm+a.FooterHeightMm);
         float footerBottom=h-Px(a.FooterBottomInsetMm);
         if(footerBottom<=footerTop)return;
+        hits?.Add(new("footer","footer-layout",new SKRect(0,footerTop,w,footerBottom)));
         if(a.SectionRules)
         {
-            using var pen=Paint(Color(a.RuleColor,new SKColor(204,213,224)),true,.8f);
+            using var pen=Paint(CardPalette.Resolve(a,a.FooterRuleColor,Color(a.RuleColor,new SKColor(204,213,224))),true,.8f);
             c.DrawLine(left,footerTop-Px(.35),right,footerTop-Px(.35),pen);
         }
 
@@ -278,8 +285,9 @@ public static class CardSkiaRenderer
             if(dateWidth>right-left)
                 throw new InvalidOperationException("Дата не помещается в подвале карточки.");
             dateLeft=right-dateWidth;
+            hits?.Add(new("footer","date",new SKRect(dateLeft,footerTop,right,footerBottom)));
             float baseline=CenteredBaseline(date,centerY,font,a.LabelFont,a.FooterDateWeight);
-            DrawText(c,date,dateLeft,baseline,font,Color(a.FooterDateColor,new SKColor(83,97,110)),
+            DrawText(c,date,dateLeft,baseline,font,CardPalette.Resolve(a,a.FooterDateColor,new SKColor(83,97,110)),
                 a.LabelFont,a.FooterDateWeight);
         }
         if(a.FooterUuidShow)
@@ -298,13 +306,14 @@ public static class CardSkiaRenderer
                 if(font<Pt(2))
                     throw new InvalidOperationException("UUID не помещается в подвале даже при минимальном размере шрифта.");
             }
+            hits?.Add(new("footer","uuid",new SKRect(left,footerTop,left+Math.Min(needed,maxWidth),footerBottom)));
             float baseline=CenteredBaseline(uuid,centerY,font,a.SecretFont,a.FooterUuidWeight);
-            DrawText(c,uuid,left,baseline,font,Color(a.FooterUuidColor,new SKColor(83,97,110)),
+            DrawText(c,uuid,left,baseline,font,CardPalette.Resolve(a,a.FooterUuidColor,new SKColor(83,97,110)),
                 a.SecretFont,a.FooterUuidWeight,markZero:a.MarkZero);
         }
     }
 
-    private static void DrawFront(ICardCanvas c,int w,int h,CardAppearance a,CardPart part)
+    private static void DrawFront(ICardCanvas c,int w,int h,CardAppearance a,CardPart part,List<PreviewHitRegion>? hits=null)
     {
         var ink=Styled(a.InkColor,"#1A2B40",a.Style switch {"technical"=>"#0C1420","minimal"=>"#202020","table"=>"#16283A",_=>"#1A2B40"});
         var muted=Styled(a.MutedColor,"#53616E",a.Style=="minimal"?"#5B6067":"#53616E");
@@ -313,64 +322,85 @@ public static class CardSkiaRenderer
         float density=CardLayoutEngine.DensityScale(a);
         float x=Px(a.PaddingMm),right=w-x,contentW=right-x;
         DrawHeader(c,w,h,a,part,ink,muted,accent,rule);
+        if(hits is not null) AddHeaderHits(hits,a,part,w);
         float y=Px(CardLayoutEngine.HeaderHeight(a,part.Record));
         float end=h-Px(a.FooterBottomInsetMm+a.FooterHeightMm+.9);
         for(int lineIndex=0;lineIndex<part.Lines.Count;lineIndex++)
         {
             var line=part.Lines[lineIndex];
             float lineHeight=Px(line.HeightMm);
+            if(hits is not null && line.Kind is not (CardLineKind.Gap or CardLineKind.Qr))
+            {
+                var (section,group)=line.Kind switch
+                {
+                    CardLineKind.Recovery => ("recovery","recovery-layout"),
+                    CardLineKind.Qr => ("qr","totp"),
+                    CardLineKind.Label => ("fields","labels"),
+                    CardLineKind.Section => ("fields","spacing"),
+                    _ => ("fields",line.Field.Equals("NOTES",StringComparison.OrdinalIgnoreCase)?"notes":"values")
+                };
+                hits.Add(new(section,group,new SKRect(x,y,right,y+lineHeight)));
+                if(line.Label is {Length:>0} && a.LabelsPosition=="left" && section=="fields")
+                    hits.Add(new("fields","labels",new SKRect(x,y,x+contentW*(float)Math.Clamp(a.LabelColumnPct,15,55)/100f,y+lineHeight)));
+            }
             if(y+lineHeight>end+.9f)
                 throw new InvalidOperationException("Текст выходит за пределы карточки.");
             string weight=line.Weight=="inherit"?a.ValueWeight:line.Weight;
             float tracking=(float)(line.TrackingPt??a.ValueTrackingPt);
             float size=Pt(line.FontPt);
+            bool otp = line.Role is "totp" or "hotp" || line.Field.StartsWith("TOTP",StringComparison.OrdinalIgnoreCase) || line.Field.StartsWith("HOTP",StringComparison.OrdinalIgnoreCase);
+            var labelInk=CardPalette.Resolve(a,otp?a.OtpLabelColor:a.FieldLabelColor,muted);
+            var valueInk=CardPalette.Resolve(a,otp?a.OtpValueColor:
+                line.Field.Equals("PASSWORD",StringComparison.OrdinalIgnoreCase)?a.PasswordColor:
+                line.Field.Equals("NOTES",StringComparison.OrdinalIgnoreCase)||line.Role=="multiline"?a.NotesColor:a.FieldValueColor,ink);
             switch(line.Kind)
             {
                 case CardLineKind.Gap:break;
                 case CardLineKind.Label:
-                    Fit(c,line.Text,x,y+Math.Min(size,lineHeight*.82f),contentW,size,95,muted,a.LabelFont,a.LabelWeight);break;
+                    Fit(c,line.Text,x,y+Math.Min(size,lineHeight*.82f),contentW,size,95,labelInk,a.LabelFont,a.LabelWeight);break;
                 case CardLineKind.Section:
                     if(a.SectionRules && a.Style!="minimal")
                     {
-                        using var pen=Paint(rule,true,1);
+                        using var pen=Paint(CardPalette.Resolve(a,a.FieldRuleColor,rule),true,1);
                         c.DrawLine(x,y,right,y,pen);
                     }
-                    Fit(c,line.Text,x,y+Math.Min(size,lineHeight*.83f),contentW,size,90,accent,a.LabelFont,a.LabelWeight);break;
+                    Fit(c,line.Text,x,y+Math.Min(size,lineHeight*.83f),contentW,size,90,CardPalette.Resolve(a,a.SectionHeadingColor,accent),a.LabelFont,a.LabelWeight);break;
                 case CardLineKind.Meta:
-                    Fit(c,line.Text,x,y+Math.Min(size,lineHeight*.84f),contentW,size,95,muted,a.LabelFont,a.LabelWeight);break;
+                    Fit(c,line.Text,x,y+Math.Min(size,lineHeight*.84f),contentW,size,95,CardPalette.Resolve(a,a.OtpMetaColor,muted),a.LabelFont,a.LabelWeight);break;
                 case CardLineKind.Recovery:
-                    Recovery(c,line,x,y,contentW,a,ink,muted,density);break;
+                    Recovery(c,line,x,y,contentW,a,CardPalette.Resolve(a,a.RecoveryValueColor,ink),CardPalette.Resolve(a,a.RecoveryCheckboxColor,muted),density);break;
                 case CardLineKind.Qr:
-                    Qr(c,line,x,y,contentW,a,ink,muted,density);break;
+                    Qr(c,line,x,y,contentW,a,CardPalette.Resolve(a,a.OtpValueColor,ink),CardPalette.Resolve(a,a.OtpLabelColor,muted),density,hits);break;
                 default:
                     float valueX=x,valueWidth=contentW;
                     if(line.Label is {Length:>0} label && a.LabelsPosition=="left")
                     {
                         float labelWidth=contentW*(float)Math.Clamp(a.LabelColumnPct,15,55)/100f;
                         Fit(c,label,x,y+Math.Min(Pt(a.LabelSizePt*density),lineHeight*.82f),labelWidth-Px(1),
-                            Pt(a.LabelSizePt*density),75,muted,a.LabelFont,a.LabelWeight);
+                            Pt(a.LabelSizePt*density),75,labelInk,a.LabelFont,a.LabelWeight);
                         valueX+=labelWidth+Px(1.2);valueWidth-=labelWidth+Px(1.2);
                     }
                     string font=a.SecretFont;
                     float valueBaseline=y+Math.Min(size,lineHeight*.82f);
                     if(line.GroupedValue is { } groups)
-                        DrawSeparatedGroups(c,groups,valueX,valueBaseline,valueWidth,size,ink,font,
+                        DrawSeparatedGroups(c,groups,valueX,valueBaseline,valueWidth,size,valueInk,font,
                             weight,tracking,line.GroupGapMm,a.MarkZero);
                     else
-                        Fit(c,line.Text,valueX,valueBaseline,valueWidth,size,95,ink,font,weight,
+                        Fit(c,line.Text,valueX,valueBaseline,valueWidth,size,95,valueInk,font,weight,
                             tracking,markZero:a.MarkZero && font==a.SecretFont);
                     // Never draw a second line directly above a section rule,
                     // nor a line underneath each wrapped fragment of one value.
                     if(a.Style=="table" && ShouldDrawTableRule(part.Lines,lineIndex))
                     {
-                        using var pen=Paint(rule,true,.55f);c.DrawLine(x,y+lineHeight-1,right,y+lineHeight-1,pen);
+                        using var pen=Paint(CardPalette.Resolve(a,a.FieldRuleColor,rule),true,.55f);c.DrawLine(x,y+lineHeight-1,right,y+lineHeight-1,pen);
                     }
                     break;
             }
             y+=lineHeight;
         }
-        DrawFooter(c,w,h,a,part);
+        DrawFooter(c,w,h,a,part,hits);
         Frame(c,w,h,a);
+        if(a.Frame && hits is not null) AddFrameHits(hits,a,w,h);
     }
 
     // An optional row rule separates different fields. A section owns its
@@ -470,7 +500,7 @@ public static class CardSkiaRenderer
     }
 
     private static void Qr(ICardCanvas c,CardLine line,float x,float y,float width,
-                           CardAppearance a,SKColor ink,SKColor muted,float density)
+                           CardAppearance a,SKColor ink,SKColor muted,float density,List<PreviewHitRegion>? hits=null)
     {
         if(string.IsNullOrWhiteSpace(line.QrUri))return;
         float side=Px(line.FontPt),left;
@@ -478,6 +508,7 @@ public static class CardSkiaRenderer
         else left=a.TotpQrPosition switch {"left"=>x,"right"=>x+width-side,_=>x+(width-side)/2};
         if(!line.QrInline)
         {
+            hits?.Add(new("qr","totp",new SKRect(left,y,left+side,y+side)));
             DrawQr(c,line.QrUri,left,y,side);
             return;
         }
@@ -497,6 +528,13 @@ public static class CardSkiaRenderer
         float blackTop=side*line.QrFirstBlackRowFraction;
         float textShift=qrLabels.Length>0?Math.Max(0,blackTop-inkTop):0;
         float qrShift=qrLabels.Length>0?Math.Max(0,inkTop-blackTop):0;
+        hits?.Add(new("qr","totp",new SKRect(left,y+qrShift,left+side,y+qrShift+side)));
+        if(hits is not null)
+        {
+            float textTop=y+textShift, textBottom=y+Px(line.HeightMm);
+            if(labelHeight>0) hits.Add(new("qr","totp",new SKRect(textX,textTop,textX+textWidth,textTop+labelHeight)));
+            if(textBottom>textTop+labelHeight) hits.Add(new("qr","totp",new SKRect(textX,textTop+labelHeight,textX+textWidth,textBottom)));
+        }
         DrawQr(c,line.QrUri,left,y+qrShift,side);
         for(int i=0;i<qrLabels.Length;i++)
             Fit(c,qrLabels[i],textX,y+textShift+labelRowHeight*i+Math.Min(labelPt,labelRowHeight*.82f),
@@ -524,7 +562,7 @@ public static class CardSkiaRenderer
             float metaRowHeight=Math.Max(Px(2.1f),labelSize*(float)Math.Clamp(a.LineSpacing,.8,2)*1.25f);
             foreach(var (row,j) in line.QrMetadata.Split('\n').Select((s,j)=>(s,j)))
                 Fit(c,row,textX,y+textShift+labelHeight+rowHeight*rows.Length+metaRowHeight*j+metaRowHeight*.84f,
-                    textWidth,labelSize,95,muted,a.LabelFont,a.LabelWeight);
+                    textWidth,labelSize,95,CardPalette.Resolve(a,a.OtpMetaColor,CardPalette.FrontMuted(a)),a.LabelFont,a.LabelWeight);
         }
     }
     internal static float QrFirstBlackRowFraction(string qrUri)
@@ -555,7 +593,7 @@ public static class CardSkiaRenderer
     // Available icon modes. Never mutate the KDBX custom-icon bytes.
     // Auto darkens mostly-white glyphs; silhouette preserves alpha; outline
     // retains just the contour. All processing is in memory.
-    private static SKBitmap TransformIcon(SKBitmap source,string mode)
+    private static SKBitmap TransformIcon(SKBitmap source,string mode,SKColor tint)
     {
         var result=new SKBitmap(source.Width,source.Height,SKColorType.Rgba8888,SKAlphaType.Premul);
         int light=0,painted=0;
@@ -578,8 +616,8 @@ public static class CardSkiaRenderer
                 source.GetPixel(x,Math.Min(source.Height-1,y+1)).Alpha<32;
             var color=mode switch
             {
-                "silhouette"=>new SKColor(32,43,56,c.Alpha),
-                "outline"=>edge?new SKColor(32,43,56,c.Alpha):SKColors.Transparent,
+                "silhouette"=>tint.WithAlpha(c.Alpha),
+                "outline"=>edge?tint.WithAlpha(c.Alpha):SKColors.Transparent,
                 "auto" when autoInvert=>new SKColor((byte)(255-c.Red),(byte)(255-c.Green),(byte)(255-c.Blue),c.Alpha),
                 _=>c
             };
@@ -606,7 +644,26 @@ public static class CardSkiaRenderer
     /// <summary>Decorative reverse side without credential data.  Each layer is
     /// optional and independently enabled, while a blank duplex_back_fill
     /// always means an entirely blank back.</summary>
-    private static void DrawBack(ICardCanvas c,int w,int h,CardAppearance a,CardPart front)
+    private static void AddHeaderHits(List<PreviewHitRegion> hits,CardAppearance a,CardPart part,int w)
+    {
+        var plan=CardHeaderLayout.Measure(a,part.Record);
+        hits.Add(new("header","header-layout",new SKRect(0,0,w,Px(plan.DecorationBottom))));
+        hits.Add(new("header","title",new SKRect(Px(plan.Title.X),Px(plan.Title.Y),Px(plan.Title.X+plan.Title.Width),Px(plan.Title.Y+plan.Title.Lines.Length*plan.Title.LineHeight))));
+        if(plan.Group is { } group)
+            hits.Add(new("header","header-group",new SKRect(Px(group.X),Px(group.Y),Px(group.X+group.Width),Px(group.Y+group.Lines.Length*group.LineHeight))));
+        hits.Add(new("header","page-badge",new SKRect(Px(plan.BadgeX),Px(plan.RowY),
+            Px(plan.BadgeX+plan.BadgeWidth),Px(plan.RowY+plan.RowHeight))));
+        if(plan.IconSize>0)
+            hits.Add(new("header","entry-icon",new SKRect(Px(plan.IconX),Px(plan.IconY),Px(plan.IconX+plan.IconSize),Px(plan.IconY+plan.IconSize))));
+    }
+    private static void AddFrameHits(List<PreviewHitRegion> hits,CardAppearance a,int w,int h)
+    {
+        float band=Math.Min(Math.Min(w,h)*.1f,Math.Max(4f,Pt(a.FrameWidthPt)*2));
+        foreach(var rect in new[]{new SKRect(0,0,w,band),new SKRect(0,h-band,w,h),
+            new SKRect(0,band,band,h-band),new SKRect(w-band,band,w,h-band)})
+            hits.Add(new("general","frame",rect));
+    }
+    private static void DrawBack(ICardCanvas c,int w,int h,CardAppearance a,CardPart front,List<PreviewHitRegion>? hits=null)
     {
         float PxMm(double mm)=>(float)(mm*PixelsPerMillimetre);
         var ink=Color(a.InkColor,new SKColor(36,43,52));
@@ -614,6 +671,7 @@ public static class CardSkiaRenderer
         var accent=Color(a.AccentColor,new SKColor(54,97,141));
         // Paired dividers use neutral #777 and 0.18mm.
         var rule=new SKColor(119,119,119);
+        var artRule=CardPalette.Resolve(a,a.BackRulesColor,rule);
         float safeTop=a.EmptyBackShowHeader
             ? PxMm(CardHeaderLayout.Measure(a,front.Record).DecorationBottom+5)
             : PxMm(9);
@@ -669,15 +727,20 @@ public static class CardSkiaRenderer
             float subBaseline=subBaseline0+offset;
             float titleWidth=Math.Min(maxWidth,Width(titles[0],titlePx,titleStyle.Font,titleStyle.Weight));
             float subWidth=Math.Min(maxWidth,Width(titles[1],subPx,subStyle.Font,subStyle.Weight));
+            hits?.Add(new("reverse","caption-title",new SKRect(centerX-titleWidth*.5f,titleBaseline+titleBox.Top,centerX+titleWidth*.5f,titleBaseline+titleBox.Bottom)));
+            hits?.Add(new("reverse","caption-subtitle",new SKRect(centerX-subWidth*.5f,subBaseline+subBox.Top,centerX+subWidth*.5f,subBaseline+subBox.Bottom)));
             DrawText(c,titles[0],centerX-titleWidth*.5f,titleBaseline,titlePx,
-                ink,titleStyle.Font,titleStyle.Weight);
+                CardPalette.Resolve(a,a.BackCaptionTitleColor,ink),titleStyle.Font,titleStyle.Weight);
             DrawText(c,titles[1],centerX-subWidth*.5f,subBaseline,subPx,
-                muted,subStyle.Font,subStyle.Weight);
+                CardPalette.Resolve(a,a.BackCaptionSubtitleColor,muted),subStyle.Font,subStyle.Weight);
             if(rules)
             {
                 float halfWidth=Math.Min(w-PxMm(12),PxMm(a.BackRulesWidthMm))*.5f;
                 if(a.BackRulesStyle=="simple")halfWidth*=.8f;
-                using var pen=Paint(rule.WithAlpha((byte)Math.Round(255*Math.Clamp(a.BackRulesOpacity,0,100)/100)),
+                float ruleTop=titleBaseline+titleBox.Top-rulePadding,ruleBottom=subBaseline+subBox.Bottom+rulePadding;
+                hits?.Add(new("reverse","back-rules",new SKRect(centerX-halfWidth,ruleTop-3,centerX+halfWidth,ruleTop+3)));
+                hits?.Add(new("reverse","back-rules",new SKRect(centerX-halfWidth,ruleBottom-3,centerX+halfWidth,ruleBottom+3)));
+                using var pen=Paint(artRule.WithAlpha((byte)Math.Round(255*Math.Clamp(a.BackRulesOpacity,0,100)/100)),
                     true,Math.Max(.55f,PxMm(a.BackRulesThicknessMm)));
                 c.DrawLine(centerX-halfWidth,titleBaseline+titleBox.Top-rulePadding,
                     centerX+halfWidth,titleBaseline+titleBox.Top-rulePadding,pen);
@@ -687,15 +750,25 @@ public static class CardSkiaRenderer
         }
         if(drawIcon && layout.IconSize>=2)
         {
-            var iconColor=Color(a.BackArtIconColor,ink);
+            var iconColor=CardPalette.Resolve(a,a.BackArtIconColor,ink);
             var iconInk=iconColor.WithAlpha((byte)Math.Round(255*Math.Clamp(a.BackArtIconOpacity,0,100)/100));
             CardVectorIcons.Draw(c,a.BackArtIcon,centerX,layout.IconCenterY,layout.IconSize,iconInk);
+            float half=layout.IconSize*.5f;
+            hits?.Add(new("reverse","back-icon",new SKRect(centerX-half,layout.IconCenterY-half,centerX+half,layout.IconCenterY+half)));
         }
         if(a.EmptyBackShowHeader)
+        {
             DrawHeader(c,w,h,a,front,ink,muted,accent,rule);
+            if(hits is not null) AddHeaderHits(hits,a,front,w);
+        }
         if(a.EmptyBackShowFooter)
-            DrawFooter(c,w,h,a,front);
+        {
+            DrawFooter(c,w,h,a,front,hits);
+        }
         if(a.EmptyBackShowFrame)
+        {
             Frame(c,w,h,a);
+            if(a.Frame && hits is not null) AddFrameHits(hits,a,w,h);
+        }
     }
 }

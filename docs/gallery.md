@@ -14,8 +14,9 @@ permalink: /gallery/
 
 # Screenshot gallery
 
-All images below are actual Windows desktop captures using **synthetic demo
-records**. The interface theme is dark; the card preview represents the
+These are archived desktop captures of the editor before the unified Template tab.
+They illustrate printed results and older controls; follow the current User guide
+for the current interface. All images use **synthetic demo records**. The interface theme is dark; the card preview represents the
 physical printed output. Some card labels are user-configured and intentionally
 remain in their original language regardless of the selected UI language.
 

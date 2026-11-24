@@ -240,53 +240,97 @@
           </ScrollViewer>
         </TabItem>
 
-        <TabItem ClipToBounds="True" ToolTip.Tip="{Binding TabMapping}">
+        <TabItem ClipToBounds="True" ToolTip.Tip="{Binding TabTemplate}">
           <!-- Strongly typed against the window ShellViewModel: no reflection-bound header template (Native AOT). -->
           <TabItem.Header>
             <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
-              <fi:FluentIcon Icon="Table" IconVariant="Regular" IconSize="Size20" Width="16" Height="16" FontSize="16"/>
-              <TextBlock Text="{Binding TabMapping}" IsVisible="{Binding ShowMainTabCaptions}" VerticalAlignment="Center"/>
+              <fi:FluentIcon Icon="DocumentCopy" IconVariant="Regular" IconSize="Size20" Width="16" Height="16" FontSize="16"/>
+              <TextBlock Text="{Binding TabTemplate}" IsVisible="{Binding ShowMainTabCaptions}" VerticalAlignment="Center"/>
             </StackPanel>
           </TabItem.Header>
-          <ScrollViewer x:Name="MappingTabScroll" VerticalScrollBarVisibility="Auto"
-                        HorizontalScrollBarVisibility="Disabled" MinHeight="0" SizeChanged="OnEditorTabScrollSizeChanged">
-          <Grid Margin="9" RowDefinitions="Auto,*,Auto" RowSpacing="8" MinHeight="0" SizeChanged="OnMappingTabSizeChanged">
+          <Grid Margin="9" RowDefinitions="Auto,*" RowSpacing="8" MinHeight="0">
             <Border Grid.Row="0" Classes="template-toolbar" Padding="9,6" Background="{DynamicResource KpSurfaceBrush}" BorderBrush="{DynamicResource KpBorderBrush}" BorderThickness="1" CornerRadius="4">
-              <Grid RowDefinitions="Auto,Auto" RowSpacing="5">
-                <Grid Grid.Row="0" ColumnDefinitions="Auto,Auto,Auto,Auto,Auto,*,Auto" ColumnSpacing="7">
-                  <TextBlock VerticalAlignment="Center" Classes="section-heading" Text="{Binding UiTemplate}"/>
-                  <ComboBox Grid.Column="1" Width="235" MinWidth="130" ItemsSource="{Binding TemplateNames}" SelectedItem="{Binding SelectedTemplate,Mode=TwoWay}" SelectionChanged="OnCardTemplateSelectionChanged" ToolTip.Tip="Выбор сразу загружает шаблон"/>
-                  <Button Grid.Column="2" Click="OnSaveCardTemplate" ToolTip.Tip="Создать полную копию шаблона с маппингом и оформлением обеих сторон">
-                    <StackPanel Orientation="Horizontal" Spacing="5">
-                      <fi:FluentIcon Icon="DocumentCopy" IconVariant="Regular" IconSize="Size20" Width="14" Height="14" FontSize="14" Foreground="{DynamicResource KpTextBrush}"/>
-                      <TextBlock Text="{Binding UiCreateTemplate}" VerticalAlignment="Center"/>
-                    </StackPanel>
-                  </Button>
-                  <Button Grid.Column="3" Click="OnRenameCardTemplate" IsEnabled="{Binding CanManagePersonalTemplate}" ToolTip.Tip="{Binding UiRenameTemplate}">
-                    <StackPanel Orientation="Horizontal" Spacing="5">
-                      <fi:FluentIcon Icon="Edit" IconVariant="Regular" IconSize="Size20" Width="16" Height="16" FontSize="16" Foreground="{DynamicResource KpTextBrush}"/>
-                      <TextBlock Text="{Binding UiRenameTemplateAction}" VerticalAlignment="Center"/>
-                    </StackPanel>
-                  </Button>
-                  <Button Grid.Column="4" Click="OnDeleteCardTemplate" IsEnabled="{Binding CanManagePersonalTemplate}" ToolTip.Tip="{Binding UiDeleteTemplate}">
-                    <StackPanel Orientation="Horizontal" Spacing="5">
-                      <fi:FluentIcon Icon="Delete" IconVariant="Regular" IconSize="Size20" Width="16" Height="16" FontSize="16" Foreground="{DynamicResource KpTextBrush}"/>
-                      <TextBlock Text="{Binding UiDeleteTemplateAction}" VerticalAlignment="Center"/>
-                    </StackPanel>
-                  </Button>
-                  <Button Grid.Column="6" Click="OnSaveAppearance" IsEnabled="{Binding CanSaveTemplateChanges}" ToolTip.Tip="Сохранить весь шаблон: маппинг и обе стороны">
-                    <StackPanel Orientation="Horizontal" Spacing="5">
-                      <fi:FluentIcon Icon="Save" IconVariant="Regular" IconSize="Size20" Width="14" Height="14" FontSize="14" Foreground="{DynamicResource KpTextBrush}"/>
-                      <TextBlock Text="{Binding UiSaveChanges}" VerticalAlignment="Center"/>
-                    </StackPanel>
-                  </Button>
-                </Grid>
+              <Grid RowDefinitions="Auto,Auto" RowSpacing="4">
+                <ScrollViewer Grid.Row="0" HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Disabled" HorizontalContentAlignment="Stretch">
+                  <Grid ColumnDefinitions="Auto,Auto,Auto,Auto,Auto,*,Auto" ColumnSpacing="7">
+                    <TextBlock VerticalAlignment="Center" Classes="section-heading" Text="{Binding UiTemplate}"/>
+                    <ComboBox Grid.Column="1" MinWidth="90" MaxWidth="200" HorizontalAlignment="Left" ItemsSource="{Binding TemplateNames}" SelectedItem="{Binding SelectedTemplate,Mode=TwoWay}" SelectionChanged="OnCardTemplateSelectionChanged" ToolTip.Tip="Выбор сразу загружает шаблон"/>
+                    <Button Grid.Column="2" Click="OnSaveCardTemplate" ToolTip.Tip="Создать полную копию шаблона с маппингом и оформлением обеих сторон">
+                      <StackPanel Orientation="Horizontal" Spacing="5">
+                        <fi:FluentIcon Icon="DocumentCopy" IconVariant="Regular" IconSize="Size20" Width="14" Height="14" FontSize="14" Foreground="{DynamicResource KpTextBrush}"/>
+                        <TextBlock Text="{Binding UiCreateTemplate}" VerticalAlignment="Center"/>
+                      </StackPanel>
+                    </Button>
+                    <Button Grid.Column="3" Click="OnRenameCardTemplate" IsEnabled="{Binding CanManagePersonalTemplate}" ToolTip.Tip="{Binding UiRenameTemplate}">
+                      <StackPanel Orientation="Horizontal" Spacing="5">
+                        <fi:FluentIcon Icon="Edit" IconVariant="Regular" IconSize="Size20" Width="16" Height="16" FontSize="16" Foreground="{DynamicResource KpTextBrush}"/>
+                        <TextBlock Text="{Binding UiRenameTemplateAction}" VerticalAlignment="Center"/>
+                      </StackPanel>
+                    </Button>
+                    <Button Grid.Column="4" Click="OnDeleteCardTemplate" IsEnabled="{Binding CanManagePersonalTemplate}" ToolTip.Tip="{Binding UiDeleteTemplate}">
+                      <StackPanel Orientation="Horizontal" Spacing="5">
+                        <fi:FluentIcon Icon="Delete" IconVariant="Regular" IconSize="Size20" Width="16" Height="16" FontSize="16" Foreground="{DynamicResource KpTextBrush}"/>
+                        <TextBlock Text="{Binding UiDeleteTemplateAction}" VerticalAlignment="Center"/>
+                      </StackPanel>
+                    </Button>
+                    <Button Grid.Column="6" Click="OnSaveAppearance" IsEnabled="{Binding CanSaveTemplateChanges}" ToolTip.Tip="Сохранить весь шаблон: маппинг и обе стороны">
+                      <StackPanel Orientation="Horizontal" Spacing="5">
+                        <fi:FluentIcon Icon="Save" IconVariant="Regular" IconSize="Size20" Width="14" Height="14" FontSize="14" Foreground="{DynamicResource KpTextBrush}"/>
+                        <TextBlock Text="{Binding UiSaveChanges}" VerticalAlignment="Center"/>
+                      </StackPanel>
+                    </Button>
+                  </Grid>
+                </ScrollViewer>
                 <Grid Grid.Row="1" ColumnDefinitions="*,Auto" ColumnSpacing="8">
                   <TextBlock Classes="hint" Text="{Binding ActiveTemplateNotice}" TextTrimming="CharacterEllipsis" TextWrapping="NoWrap" ToolTip.Tip="{Binding ActiveTemplateNotice}"/>
                   <TextBlock Grid.Column="1" Classes="hint" Text="{Binding DesignMessage}" IsVisible="{Binding HasDesignMessage}" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding DesignMessage}"/>
                 </Grid>
               </Grid>
             </Border>
+            <Grid Grid.Row="1" ColumnDefinitions="174,*" RowDefinitions="*,Auto" ColumnSpacing="8" MinHeight="0">
+              <ListBox x:Name="TemplateSectionList" Grid.RowSpan="2" ItemsSource="{Binding TemplateEditorSections}"
+                       SelectedItem="{Binding SelectedTemplateEditorSection,Mode=TwoWay}" SelectionMode="Single"
+                       Background="{DynamicResource KpSurfaceBrush}" Foreground="{DynamicResource KpTextBrush}"
+                       BorderBrush="{DynamicResource KpBorderBrush}"
+                       ScrollViewer.HorizontalScrollBarVisibility="Disabled" ScrollViewer.VerticalScrollBarVisibility="Auto">
+                <!-- Keep the navigation and Fluent item presenters in the app palette. -->
+                <ListBox.Styles>
+                  <Style Selector="ListBoxItem">
+                    <Setter Property="Background" Value="Transparent"/>
+                    <Setter Property="Foreground" Value="{DynamicResource KpTextBrush}"/>
+                  </Style>
+                  <Style Selector="ListBoxItem /template/ ContentPresenter#PART_ContentPresenter">
+                    <Setter Property="Background" Value="Transparent"/>
+                    <Setter Property="Foreground" Value="{DynamicResource KpTextBrush}"/>
+                  </Style>
+                  <Style Selector="ListBoxItem:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+                    <Setter Property="Background" Value="{DynamicResource KpRowHoverBrush}"/>
+                  </Style>
+                  <Style Selector="ListBoxItem:selected /template/ ContentPresenter#PART_ContentPresenter">
+                    <Setter Property="Background" Value="{DynamicResource KpSelectedBrush}"/>
+                    <Setter Property="Foreground" Value="{DynamicResource KpSelectedTextBrush}"/>
+                  </Style>
+                  <Style Selector="ListBoxItem:selected:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+                    <Setter Property="Background" Value="{DynamicResource KpSelectedBrush}"/>
+                    <Setter Property="Foreground" Value="{DynamicResource KpSelectedTextBrush}"/>
+                  </Style>
+                  <Style Selector="ListBoxItem:selected TextBlock">
+                    <Setter Property="Foreground" Value="{DynamicResource KpSelectedTextBrush}"/>
+                  </Style>
+                </ListBox.Styles>
+                <ListBox.ItemTemplate>
+                  <DataTemplate x:DataType="svc:TemplateEditorSection">
+                    <Grid ColumnDefinitions="16,*" ColumnSpacing="5" Margin="2,3">
+                      <fi:FluentIcon Icon="{Binding Glyph}" IconVariant="Regular" IconSize="Size20" Width="16" Height="16" FontSize="16" VerticalAlignment="Center"/>
+                      <TextBlock Grid.Column="1" Text="{Binding Label}" TextWrapping="Wrap" VerticalAlignment="Center"/>
+                    </Grid>
+                  </DataTemplate>
+                </ListBox.ItemTemplate>
+              </ListBox>
+              <ScrollViewer Grid.Column="1" x:Name="MappingTabScroll" IsVisible="{Binding TemplateMappingVisible}"
+                            VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled"
+                            MinHeight="0" SizeChanged="OnEditorTabScrollSizeChanged">
+                <Grid RowDefinitions="0,*,Auto" RowSpacing="6" MinHeight="0">
             <Border Grid.Row="1" Classes="settings-card" MinHeight="0">
               <Grid RowDefinitions="Auto,Auto,*" RowSpacing="6" MinHeight="0">
                 <Grid Grid.Row="0" ColumnDefinitions="*,Auto" ColumnSpacing="8">
@@ -620,232 +664,91 @@
               </Grid>
             </Border>
           </Grid>
-          </ScrollViewer>
-        </TabItem>
+              </ScrollViewer>
+              <ScrollViewer Grid.Column="1" Grid.Row="{Binding TemplateAppearanceRow}" Grid.RowSpan="{Binding TemplateAppearanceRowSpan}" MaxHeight="{Binding TemplateAppearanceMaxHeight}" x:Name="TemplateAppearanceScroll"
+                            VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" MinHeight="0">
+                <ItemsControl ItemsSource="{Binding TemplateEditorGroups}">
+                  <ItemsControl.ItemTemplate>
+                    <DataTemplate x:DataType="svc:TemplateEditorGroup">
+                      <Border Classes="settings-card" Padding="9" Margin="0,0,0,6" IsVisible="{Binding IsVisible}">
+                        <StackPanel Spacing="5">
+                          <Grid ColumnDefinitions="*,Auto" ColumnSpacing="6">
+                            <TextBlock Classes="section-heading" Text="{Binding Label}" TextWrapping="Wrap" VerticalAlignment="Center"/>
+                            <Button Grid.Column="1" IsVisible="{Binding IsPalette}" IsEnabled="{Binding CanEditPalette}" Click="OnTemplatePalettePick" Padding="6,2">
+                              <StackPanel Orientation="Horizontal" Spacing="5">
+                                <fi:FluentIcon Icon="Color" IconVariant="Regular" IconSize="Size20" Width="16" Height="16" FontSize="16" VerticalAlignment="Center"/>
+                                <TextBlock Text="{Binding PaletteActionLabel}" VerticalAlignment="Center"/>
+                              </StackPanel>
+                            </Button>
+                          </Grid>
+                          <TextBlock Classes="hint" Text="{Binding Help}" TextWrapping="Wrap" IsVisible="{Binding IsPrintPermissionGroup}"/>
+                          <ItemsControl ItemsSource="{Binding Fields}">
+                            <ItemsControl.ItemsPanel>
+                              <ItemsPanelTemplate><WrapPanel Orientation="Horizontal"/></ItemsPanelTemplate>
+                            </ItemsControl.ItemsPanel>
+                            <ItemsControl.ItemTemplate>
+                              <DataTemplate x:DataType="svc:AppearanceField">
+                                <Grid Width="{Binding TemplateFieldWidth}" RowDefinitions="Auto,26" RowSpacing="2" IsVisible="{Binding EditorVisible}" GotFocus="OnTemplateFieldFocused" Margin="0,0,8,5" VerticalAlignment="Bottom" ToolTip.Tip="{Binding Description}">
+                                  <TextBlock Grid.Row="0" VerticalAlignment="Bottom" Text="{Binding EditorLabel}" TextWrapping="Wrap" LineHeight="15" MaxLines="2" TextTrimming="CharacterEllipsis">
+                                    <ToolTip.Tip>
+                                      <TextBlock Text="{Binding Description}" TextWrapping="Wrap" MaxWidth="340"/>
+                                    </ToolTip.Tip>
+                                  </TextBlock>
+                                  <StackPanel Grid.Row="1" Orientation="Horizontal" Spacing="6" Height="26" VerticalAlignment="Center" HorizontalAlignment="Left">
+                                    <Grid ColumnDefinitions="Auto,Auto,Auto" ColumnSpacing="2" Height="26" HorizontalAlignment="Left" VerticalAlignment="Center" IsVisible="{Binding ManualTextVisible}" IsEnabled="{Binding IsEditable}">
+                                      <TextBox Grid.Column="0" Width="{Binding EditorWidth}" MaxWidth="112" Height="26" Text="{Binding TextValue,Mode=TwoWay,UpdateSourceTrigger=PropertyChanged}"/>
+                                      <!-- Fixed 26-DIP spinner with vector glyphs: no font baseline shifts,
+                                           no contribution to row height and no full-width numeric editor. -->
+                                      <Grid Grid.Column="1" RowDefinitions="13,13" Width="16" Height="26" IsVisible="{Binding IsNumeric}" VerticalAlignment="Center">
+                                        <RepeatButton Grid.Row="0" Classes="spinner-arrow" Width="16" Height="13" ClickMode="Press" Focusable="False" Delay="520" Interval="300" Click="OnAppearanceIncrease">
+                                          <fi:FluentIcon Icon="ChevronUp" IconVariant="Regular" IconSize="Size20" Width="11" Height="11" FontSize="11" Foreground="{DynamicResource KpTextBrush}" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                        </RepeatButton>
+                                        <RepeatButton Grid.Row="1" Classes="spinner-arrow" Width="16" Height="13" ClickMode="Press" Focusable="False" Delay="520" Interval="300" Click="OnAppearanceDecrease">
+                                          <fi:FluentIcon Icon="ChevronDown" IconVariant="Regular" IconSize="Size20" Width="11" Height="11" FontSize="11" Foreground="{DynamicResource KpTextBrush}" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                        </RepeatButton>
+                                      </Grid>
 
-        <TabItem ClipToBounds="True" ToolTip.Tip="{Binding TabDesign}">
-          <!-- Strongly typed against the window ShellViewModel: no reflection-bound header template (Native AOT). -->
-          <TabItem.Header>
-            <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
-              <fi:FluentIcon Icon="Color" IconVariant="Regular" IconSize="Size20" Width="16" Height="16" FontSize="16"/>
-              <TextBlock Text="{Binding TabDesign}" IsVisible="{Binding ShowMainTabCaptions}" VerticalAlignment="Center"/>
-            </StackPanel>
-          </TabItem.Header>
-          <ScrollViewer x:Name="DesignTabScroll" VerticalScrollBarVisibility="Auto"
-                        HorizontalScrollBarVisibility="Disabled" MinHeight="0" SizeChanged="OnEditorTabScrollSizeChanged">
-          <Grid Margin="9" RowDefinitions="Auto,Auto,*" RowSpacing="8" MinHeight="0">
-            <!-- Selecting a template loads it immediately in either editor. -->
-            <Border Grid.Row="0" Classes="template-toolbar" Padding="9,6" Background="{DynamicResource KpSurfaceBrush}" BorderBrush="{DynamicResource KpBorderBrush}" BorderThickness="1" CornerRadius="4">
-              <Grid RowDefinitions="Auto,Auto" RowSpacing="5">
-                <Grid Grid.Row="0" ColumnDefinitions="Auto,Auto,Auto,Auto,Auto,*,Auto" ColumnSpacing="7">
-                  <TextBlock VerticalAlignment="Center" Classes="section-heading" Text="{Binding UiTemplate}"/>
-                  <ComboBox Grid.Column="1" Width="235" MinWidth="130" ItemsSource="{Binding TemplateNames}" SelectedItem="{Binding SelectedTemplate,Mode=TwoWay}" SelectionChanged="OnCardTemplateSelectionChanged" ToolTip.Tip="Выбор сразу загружает шаблон"/>
-                  <Button Grid.Column="2" Click="OnSaveCardTemplate" ToolTip.Tip="Создать полную копию шаблона с маппингом и оформлением обеих сторон">
-                    <StackPanel Orientation="Horizontal" Spacing="5">
-                      <fi:FluentIcon Icon="DocumentCopy" IconVariant="Regular" IconSize="Size20" Width="14" Height="14" FontSize="14" Foreground="{DynamicResource KpTextBrush}"/>
-                      <TextBlock Text="{Binding UiCreateTemplate}" VerticalAlignment="Center"/>
-                    </StackPanel>
-                  </Button>
-                  <Button Grid.Column="3" Click="OnRenameCardTemplate" IsEnabled="{Binding CanManagePersonalTemplate}" ToolTip.Tip="{Binding UiRenameTemplate}">
-                    <StackPanel Orientation="Horizontal" Spacing="5">
-                      <fi:FluentIcon Icon="Edit" IconVariant="Regular" IconSize="Size20" Width="16" Height="16" FontSize="16" Foreground="{DynamicResource KpTextBrush}"/>
-                      <TextBlock Text="{Binding UiRenameTemplateAction}" VerticalAlignment="Center"/>
-                    </StackPanel>
-                  </Button>
-                  <Button Grid.Column="4" Click="OnDeleteCardTemplate" IsEnabled="{Binding CanManagePersonalTemplate}" ToolTip.Tip="{Binding UiDeleteTemplate}">
-                    <StackPanel Orientation="Horizontal" Spacing="5">
-                      <fi:FluentIcon Icon="Delete" IconVariant="Regular" IconSize="Size20" Width="16" Height="16" FontSize="16" Foreground="{DynamicResource KpTextBrush}"/>
-                      <TextBlock Text="{Binding UiDeleteTemplateAction}" VerticalAlignment="Center"/>
-                    </StackPanel>
-                  </Button>
-                  <Button Grid.Column="6" Click="OnSaveAppearance" IsEnabled="{Binding CanSaveTemplateChanges}" ToolTip.Tip="Сохранить текущие настройки в свой шаблон">
-                    <StackPanel Orientation="Horizontal" Spacing="5">
-                      <fi:FluentIcon Icon="Save" IconVariant="Regular" IconSize="Size20" Width="14" Height="14" FontSize="14" Foreground="{DynamicResource KpTextBrush}"/>
-                      <TextBlock Text="{Binding UiSaveChanges}" VerticalAlignment="Center"/>
-                    </StackPanel>
-                  </Button>
-                </Grid>
-                <Grid Grid.Row="1" ColumnDefinitions="*,Auto" ColumnSpacing="8">
-                  <TextBlock Classes="hint" Text="{Binding ActiveTemplateNotice}" TextTrimming="CharacterEllipsis" TextWrapping="NoWrap" ToolTip.Tip="{Binding ActiveTemplateNotice}"/>
-                  <TextBlock Grid.Column="1" Classes="hint" Text="{Binding DesignMessage}" IsVisible="{Binding HasDesignMessage}" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding DesignMessage}"/>
-                </Grid>
-              </Grid>
-            </Border>
-            <!-- A wrap-capable second-level navigation strip. It lives OUTSIDE
-                 the editable area so built-in templates remain browseable. -->
-            <Border Grid.Row="1" BorderBrush="{DynamicResource KpBorderBrush}" BorderThickness="0,0,0,1" Padding="0,5,0,1">
-              <ListBox x:Name="DesignSectionTabs" Classes="category-tabs" ItemsSource="{Binding DesignCategories}" SelectedItem="{Binding SelectedDesignCategory,Mode=TwoWay}" SelectionMode="Single" ScrollViewer.HorizontalScrollBarVisibility="Disabled" ScrollViewer.VerticalScrollBarVisibility="Disabled" ToolTip.Tip="Переключение раздела не загружает шаблон и не сбрасывает изменения">
-                <ListBox.ItemsPanel>
-                  <ItemsPanelTemplate><WrapPanel Orientation="Horizontal"/></ItemsPanelTemplate>
-                </ListBox.ItemsPanel>
-              </ListBox>
-            </Border>
-            <!-- Leave the scroll viewer enabled even for a protected built-in.
-                 Only individual value editors are disabled in that mode. -->
-            <Border Grid.Row="2" BorderThickness="1" BorderBrush="{DynamicResource KpBorderBrush}" Background="{DynamicResource KpSurfaceBrush}" Padding="9" CornerRadius="4" MinHeight="0">
-              <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
-                <ItemsControl ItemsSource="{Binding VisibleAppearanceFields}">
-                  <ItemsControl.ItemsPanel>
-                    <ItemsPanelTemplate><WrapPanel Orientation="Horizontal"/></ItemsPanelTemplate>
-                  </ItemsControl.ItemsPanel>
-                <ItemsControl.ItemTemplate>
-                  <DataTemplate x:DataType="svc:AppearanceField">
-                    <Grid Width="353" ColumnDefinitions="165,*" ColumnSpacing="6" Margin="0,0,9,4" MinHeight="27">
-                      <TextBlock VerticalAlignment="Center" Text="{Binding Label}" TextTrimming="CharacterEllipsis">
-                        <ToolTip.Tip>
-                          <TextBlock Text="{Binding Description}" TextWrapping="Wrap" MaxWidth="340"/>
-                        </ToolTip.Tip>
-                      </TextBlock>
-                      <Grid Grid.Column="1" ColumnDefinitions="Auto,Auto,Auto" ColumnSpacing="2" Height="26" VerticalAlignment="Center" IsVisible="{Binding IsText}" IsEnabled="{Binding IsEditable}">
-                        <TextBox Grid.Column="0" Width="{Binding EditorWidth}" Height="26" Text="{Binding TextValue,Mode=TwoWay,UpdateSourceTrigger=PropertyChanged}"/>
-                        <!-- Fixed 26-DIP spinner with vector glyphs: no font baseline shifts,
-                             no contribution to row height and no full-width numeric editor. -->
-                        <Grid Grid.Column="1" RowDefinitions="13,13" Width="16" Height="26" IsVisible="{Binding IsNumeric}" VerticalAlignment="Center">
-                          <RepeatButton Grid.Row="0" Classes="spinner-arrow" Width="16" Height="13" ClickMode="Press" Focusable="False" Delay="520" Interval="300" Click="OnAppearanceIncrease">
-                            <fi:FluentIcon Icon="ChevronUp" IconVariant="Regular" IconSize="Size20" Width="11" Height="11" FontSize="11" Foreground="{DynamicResource KpTextBrush}" HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                          </RepeatButton>
-                          <RepeatButton Grid.Row="1" Classes="spinner-arrow" Width="16" Height="13" ClickMode="Press" Focusable="False" Delay="520" Interval="300" Click="OnAppearanceDecrease">
-                            <fi:FluentIcon Icon="ChevronDown" IconVariant="Regular" IconSize="Size20" Width="11" Height="11" FontSize="11" Foreground="{DynamicResource KpTextBrush}" HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                          </RepeatButton>
-                        </Grid>
-                        <Border Grid.Column="2" Width="19" Height="19" CornerRadius="3" BorderBrush="{DynamicResource KpBorderBrush}" BorderThickness="1" Background="{Binding SwatchBrush}" IsVisible="{Binding IsColor}" VerticalAlignment="Center"/>
-                      </Grid>
-                      <CheckBox Grid.Column="1" VerticalAlignment="Center" IsChecked="{Binding Checked,Mode=TwoWay}" IsVisible="{Binding IsBool}" IsEnabled="{Binding IsEditable}"/>
-                      <ComboBox Grid.Column="1" ItemsSource="{Binding Choices}" SelectedItem="{Binding SelectedChoice,Mode=TwoWay}" IsVisible="{Binding IsChoice}" IsEnabled="{Binding IsEditable}">
-                        <ComboBox.ItemTemplate>
-                          <DataTemplate x:DataType="svc:DesignChoice"><TextBlock Text="{Binding Label}"/></DataTemplate>
-                        </ComboBox.ItemTemplate>
-                      </ComboBox>
-                    </Grid>
-                  </DataTemplate>
-                </ItemsControl.ItemTemplate>
+                                    </Grid>
+                                    <CheckBox Content="{Binding AutomaticLabel}" IsChecked="{Binding AutomaticValue,Mode=TwoWay}" IsVisible="{Binding IsAutomaticSupported}" IsEnabled="{Binding IsEditable}" VerticalAlignment="Center" Padding="6,0,0,0" MinWidth="0" MinHeight="0" Height="26"/>
+                                  </StackPanel>
+                                  <Button Grid.Row="1" IsVisible="{Binding IsColor}" IsEnabled="{Binding IsEditable}" Click="OnTemplateColorPick" Height="26" MinHeight="0" Padding="4,2" HorizontalAlignment="Stretch" VerticalAlignment="Center" HorizontalContentAlignment="Stretch" ToolTip.Tip="{Binding Description}">
+                                    <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="6">
+                                      <Border Width="17" Height="17" CornerRadius="2" BorderBrush="{DynamicResource KpBorderBrush}" BorderThickness="1" Background="{Binding SwatchBrush}" VerticalAlignment="Center"/>
+                                      <TextBlock Grid.Column="1" Text="{Binding ColorCaption}" TextTrimming="CharacterEllipsis" VerticalAlignment="Center"/>
+                                      <fi:FluentIcon Grid.Column="2" Icon="ChevronDown" IconVariant="Regular" IconSize="Size20" Width="12" Height="12" FontSize="12" VerticalAlignment="Center"/>
+                                    </Grid>
+                                  </Button>
+                                  <CheckBox Grid.Row="1" VerticalAlignment="Center" HorizontalAlignment="Left" Height="26" MinHeight="0" Padding="0" IsChecked="{Binding Checked,Mode=TwoWay}" IsVisible="{Binding IsBool}" IsEnabled="{Binding IsEditable}" AutomationProperties.Name="{Binding EditorLabel}">
+                                    <ToolTip.Tip><TextBlock Text="{Binding Description}" TextWrapping="Wrap" MaxWidth="340"/></ToolTip.Tip>
+                                  </CheckBox>
+                                  <ComboBox Grid.Row="1" ItemsSource="{Binding Choices}" SelectedItem="{Binding SelectedChoice,Mode=TwoWay}" IsVisible="{Binding IsChoice}" IsEnabled="{Binding IsEditable}"
+                                            HorizontalAlignment="Stretch" VerticalAlignment="Center" Height="26" MinHeight="0">
+                                    <ToolTip.Tip>
+                                      <TextBlock Text="{Binding Description}" TextWrapping="Wrap" MaxWidth="340"/>
+                                    </ToolTip.Tip>
+                                    <ComboBox.ItemTemplate>
+                                      <DataTemplate x:DataType="svc:DesignChoice">
+                                        <StackPanel Orientation="Horizontal" Spacing="7">
+                                          <Path Width="16" Height="16" Data="{Binding IconGeometry}" Stretch="Uniform"
+                                                Fill="{DynamicResource KpTextBrush}" HorizontalAlignment="Center" VerticalAlignment="Center"
+                                                IsVisible="{Binding HasIconPreview}"/>
+                                          <TextBlock Text="{Binding Label}" VerticalAlignment="Center" TextWrapping="Wrap"/>
+                                        </StackPanel>
+                                      </DataTemplate>
+                                    </ComboBox.ItemTemplate>
+                                  </ComboBox>
+                                </Grid>
+                              </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                          </ItemsControl>
+                        </StackPanel>
+                      </Border>
+                    </DataTemplate>
+                  </ItemsControl.ItemTemplate>
                 </ItemsControl>
               </ScrollViewer>
-            </Border>
+            </Grid>
           </Grid>
-          </ScrollViewer>
-        </TabItem>
-        <TabItem ClipToBounds="True" ToolTip.Tip="{Binding TabDuplex}">
-          <!-- Strongly typed against the window ShellViewModel: no reflection-bound header template (Native AOT). -->
-          <TabItem.Header>
-            <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
-              <fi:FluentIcon Icon="DocumentCopy" IconVariant="Regular" IconSize="Size20" Width="16" Height="16" FontSize="16"/>
-              <TextBlock Text="{Binding TabDuplex}" IsVisible="{Binding ShowMainTabCaptions}" VerticalAlignment="Center"/>
-            </StackPanel>
-          </TabItem.Header>
-          <ScrollViewer x:Name="DuplexTabScroll" VerticalScrollBarVisibility="Auto"
-                        HorizontalScrollBarVisibility="Disabled" MinHeight="0" SizeChanged="OnEditorTabScrollSizeChanged">
-          <Grid Margin="9" RowDefinitions="Auto,Auto,Auto,*" RowSpacing="8" MinHeight="0">
-            <!-- Selecting a template loads it immediately in either editor. -->
-            <Border Grid.Row="0" Classes="template-toolbar" Padding="9,6" Background="{DynamicResource KpSurfaceBrush}" BorderBrush="{DynamicResource KpBorderBrush}" BorderThickness="1" CornerRadius="4">
-              <Grid RowDefinitions="Auto,Auto" RowSpacing="5">
-                <Grid Grid.Row="0" ColumnDefinitions="Auto,Auto,Auto,Auto,Auto,*,Auto" ColumnSpacing="7">
-                  <TextBlock VerticalAlignment="Center" Classes="section-heading" Text="{Binding UiTemplate}"/>
-                  <ComboBox Grid.Column="1" Width="235" MinWidth="130" ItemsSource="{Binding TemplateNames}" SelectedItem="{Binding SelectedTemplate,Mode=TwoWay}" SelectionChanged="OnCardTemplateSelectionChanged" ToolTip.Tip="Выбор сразу загружает шаблон"/>
-                  <Button Grid.Column="2" Click="OnSaveCardTemplate" ToolTip.Tip="Создать полную копию шаблона с маппингом и оформлением обеих сторон">
-                    <StackPanel Orientation="Horizontal" Spacing="5">
-                      <fi:FluentIcon Icon="DocumentCopy" IconVariant="Regular" IconSize="Size20" Width="14" Height="14" FontSize="14" Foreground="{DynamicResource KpTextBrush}"/>
-                      <TextBlock Text="{Binding UiCreateTemplate}" VerticalAlignment="Center"/>
-                    </StackPanel>
-                  </Button>
-                  <Button Grid.Column="3" Click="OnRenameCardTemplate" IsEnabled="{Binding CanManagePersonalTemplate}" ToolTip.Tip="{Binding UiRenameTemplate}">
-                    <StackPanel Orientation="Horizontal" Spacing="5">
-                      <fi:FluentIcon Icon="Edit" IconVariant="Regular" IconSize="Size20" Width="16" Height="16" FontSize="16" Foreground="{DynamicResource KpTextBrush}"/>
-                      <TextBlock Text="{Binding UiRenameTemplateAction}" VerticalAlignment="Center"/>
-                    </StackPanel>
-                  </Button>
-                  <Button Grid.Column="4" Click="OnDeleteCardTemplate" IsEnabled="{Binding CanManagePersonalTemplate}" ToolTip.Tip="{Binding UiDeleteTemplate}">
-                    <StackPanel Orientation="Horizontal" Spacing="5">
-                      <fi:FluentIcon Icon="Delete" IconVariant="Regular" IconSize="Size20" Width="16" Height="16" FontSize="16" Foreground="{DynamicResource KpTextBrush}"/>
-                      <TextBlock Text="{Binding UiDeleteTemplateAction}" VerticalAlignment="Center"/>
-                    </StackPanel>
-                  </Button>
-                  <Button Grid.Column="6" Click="OnSaveAppearance" IsEnabled="{Binding CanSaveTemplateChanges}" ToolTip.Tip="Сохранить текущие настройки в свой шаблон">
-                    <StackPanel Orientation="Horizontal" Spacing="5">
-                      <fi:FluentIcon Icon="Save" IconVariant="Regular" IconSize="Size20" Width="14" Height="14" FontSize="14" Foreground="{DynamicResource KpTextBrush}"/>
-                      <TextBlock Text="{Binding UiSaveChanges}" VerticalAlignment="Center"/>
-                    </StackPanel>
-                  </Button>
-                </Grid>
-                <Grid Grid.Row="1" ColumnDefinitions="*,Auto" ColumnSpacing="8">
-                  <TextBlock Classes="hint" Text="{Binding ActiveTemplateNotice}" TextTrimming="CharacterEllipsis" TextWrapping="NoWrap" ToolTip.Tip="{Binding ActiveTemplateNotice}"/>
-                  <TextBlock Grid.Column="1" Classes="hint" Text="{Binding DesignMessage}" IsVisible="{Binding HasDesignMessage}" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding DesignMessage}"/>
-                </Grid>
-              </Grid>
-            </Border>
-            <!-- A wrap-capable second-level navigation strip. It lives OUTSIDE
-                 the editable area so built-in templates remain browseable. -->
-            <Border Grid.Row="1" BorderBrush="{DynamicResource KpBorderBrush}" BorderThickness="0,0,0,1" Padding="0,5,0,1">
-              <ListBox x:Name="DuplexSectionTabs" Classes="category-tabs" ItemsSource="{Binding DuplexDesignCategories}" SelectedItem="{Binding SelectedDuplexDesignCategory,Mode=TwoWay}" SelectionMode="Single" ScrollViewer.HorizontalScrollBarVisibility="Disabled" ScrollViewer.VerticalScrollBarVisibility="Disabled" ToolTip.Tip="Переключение раздела не загружает шаблон и не сбрасывает изменения">
-                <ListBox.ItemsPanel>
-                  <ItemsPanelTemplate><WrapPanel Orientation="Horizontal"/></ItemsPanelTemplate>
-                </ListBox.ItemsPanel>
-              </ListBox>
-            </Border>
-            <!-- High-frequency controls remain within reach on every subtab. -->
-            <Border Grid.Row="2" Padding="9,7" CornerRadius="4" BorderBrush="{DynamicResource KpBorderBrush}" BorderThickness="1" Background="{DynamicResource KpSurfaceBrush}">
-              <StackPanel Spacing="7">
-                <Grid ColumnDefinitions="Auto,*,Auto,Auto" ColumnSpacing="9">
-                  <TextBlock Grid.Column="0" Text="{Binding UiEmptyReverse}" Classes="section-heading" VerticalAlignment="Center"/>
-                  <ComboBox Grid.Column="1" MinWidth="110" MaxWidth="215" HorizontalAlignment="Left" ItemsSource="{Binding EmptyBackFillField.Choices}" SelectedItem="{Binding EmptyBackFillField.SelectedChoice,Mode=TwoWay}" IsEnabled="{Binding EmptyBackFillField.IsEditable}" ToolTip.Tip="Оформление / пустой / другие режимы, которые доступны в шаблоне">
-                    <ComboBox.ItemTemplate>
-                      <DataTemplate x:DataType="svc:DesignChoice"><TextBlock Text="{Binding Label}"/></DataTemplate>
-                    </ComboBox.ItemTemplate>
-                  </ComboBox>
-                  <CheckBox Grid.Column="2" Content="{Binding UiShowHeader}" VerticalAlignment="Center" IsChecked="{Binding EmptyBackHeaderField.Checked,Mode=TwoWay}" IsEnabled="{Binding EmptyBackHeaderField.IsEditable}" ToolTip.Tip="Показывать шапку на пустом обороте"/>
-                  <CheckBox Grid.Column="3" Content="{Binding UiShowFooter}" VerticalAlignment="Center" IsChecked="{Binding EmptyBackFooterField.Checked,Mode=TwoWay}" IsEnabled="{Binding EmptyBackFooterField.IsEditable}" ToolTip.Tip="Показывать подвал на пустом обороте"/>
-                </Grid>
-              </StackPanel>
-            </Border>
-            <Border Grid.Row="3" BorderBrush="{DynamicResource KpBorderBrush}" BorderThickness="1" Background="{DynamicResource KpSurfaceBrush}" Padding="9" CornerRadius="4" MinHeight="0">
-              <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
-                <ItemsControl ItemsSource="{Binding DuplexAppearanceFields}">
-                  <ItemsControl.ItemsPanel>
-                    <ItemsPanelTemplate><WrapPanel Orientation="Horizontal"/></ItemsPanelTemplate>
-                  </ItemsControl.ItemsPanel>
-                <ItemsControl.ItemTemplate>
-                  <DataTemplate x:DataType="svc:AppearanceField">
-                    <Grid Width="353" ColumnDefinitions="165,*" ColumnSpacing="6" Margin="0,0,9,4" MinHeight="27">
-                      <TextBlock VerticalAlignment="Center" Text="{Binding Label}" TextTrimming="CharacterEllipsis">
-                        <ToolTip.Tip>
-                          <TextBlock Text="{Binding Description}" TextWrapping="Wrap" MaxWidth="340"/>
-                        </ToolTip.Tip>
-                      </TextBlock>
-                      <Grid Grid.Column="1" ColumnDefinitions="Auto,Auto,Auto" ColumnSpacing="2" Height="26" VerticalAlignment="Center" IsVisible="{Binding IsText}" IsEnabled="{Binding IsEditable}">
-                        <TextBox Grid.Column="0" Width="{Binding EditorWidth}" Height="26" Text="{Binding TextValue,Mode=TwoWay,UpdateSourceTrigger=PropertyChanged}"/>
-                        <!-- Fixed 26-DIP spinner with vector glyphs: no font baseline shifts,
-                             no contribution to row height and no full-width numeric editor. -->
-                        <Grid Grid.Column="1" RowDefinitions="13,13" Width="16" Height="26" IsVisible="{Binding IsNumeric}" VerticalAlignment="Center">
-                          <RepeatButton Grid.Row="0" Classes="spinner-arrow" Width="16" Height="13" ClickMode="Press" Focusable="False" Delay="520" Interval="300" Click="OnAppearanceIncrease">
-                            <fi:FluentIcon Icon="ChevronUp" IconVariant="Regular" IconSize="Size20" Width="11" Height="11" FontSize="11" Foreground="{DynamicResource KpTextBrush}" HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                          </RepeatButton>
-                          <RepeatButton Grid.Row="1" Classes="spinner-arrow" Width="16" Height="13" ClickMode="Press" Focusable="False" Delay="520" Interval="300" Click="OnAppearanceDecrease">
-                            <fi:FluentIcon Icon="ChevronDown" IconVariant="Regular" IconSize="Size20" Width="11" Height="11" FontSize="11" Foreground="{DynamicResource KpTextBrush}" HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                          </RepeatButton>
-                        </Grid>
-                        <Border Grid.Column="2" Width="19" Height="19" CornerRadius="3" BorderBrush="{DynamicResource KpBorderBrush}" BorderThickness="1" Background="{Binding SwatchBrush}" IsVisible="{Binding IsColor}" VerticalAlignment="Center"/>
-                      </Grid>
-                      <CheckBox Grid.Column="1" VerticalAlignment="Center" IsChecked="{Binding Checked,Mode=TwoWay}" IsVisible="{Binding IsBool}" IsEnabled="{Binding IsEditable}"/>
-                      <ComboBox Grid.Column="1" ItemsSource="{Binding Choices}" SelectedItem="{Binding SelectedChoice,Mode=TwoWay}" IsVisible="{Binding IsChoice}" IsEnabled="{Binding IsEditable}">
-                        <ComboBox.ItemTemplate>
-                          <DataTemplate x:DataType="svc:DesignChoice">
-                            <StackPanel Orientation="Horizontal" Spacing="7">
-                              <Path Width="24" Height="24" Data="{Binding IconGeometry}" Stretch="Uniform"
-                                    Fill="{DynamicResource KpTextBrush}" HorizontalAlignment="Center" VerticalAlignment="Center"
-                                    IsVisible="{Binding HasIconPreview}"/>
-                              <TextBlock Text="{Binding Label}" VerticalAlignment="Center"/>
-                            </StackPanel>
-                          </DataTemplate>
-                        </ComboBox.ItemTemplate>
-                      </ComboBox>
-                    </Grid>
-                  </DataTemplate>
-                </ItemsControl.ItemTemplate>
-                </ItemsControl>
-              </ScrollViewer>
-            </Border>
-          </Grid>
-          </ScrollViewer>
         </TabItem>
         <TabItem ClipToBounds="True" ToolTip.Tip="{Binding TabSettings}">
           <TabItem.Header>
@@ -874,6 +777,12 @@
       <Grid Grid.Column="2" RowDefinitions="Auto,Auto,*" RowSpacing="4" Margin="9,0,0,0" MinWidth="420" MinHeight="0">
         <Grid Grid.Row="0" ColumnDefinitions="Auto,*,Auto,Auto,Auto" ColumnSpacing="7" MinHeight="24">
           <TextBlock Classes="section-heading" Text="{Binding UiPreview}" VerticalAlignment="Center"/>
+          <ComboBox Grid.Column="1" ItemsSource="{Binding TemplatePreviewModes}" SelectedItem="{Binding TemplatePreviewMode,Mode=TwoWay}"
+                    IsVisible="{Binding TemplateEditorActive}" MaxWidth="210" HorizontalAlignment="Stretch">
+            <ComboBox.ItemTemplate>
+              <DataTemplate x:DataType="svc:TemplateEditorSection"><TextBlock Text="{Binding Label}" TextWrapping="Wrap"/></DataTemplate>
+            </ComboBox.ItemTemplate>
+          </ComboBox>
           <TextBlock Grid.Column="2" Text="{Binding PreviewCardCount}" VerticalAlignment="Center"
                      ToolTip.Tip="Номер текущей карточки или листа и общее количество"/>
           <TextBlock Grid.Column="3" Text="{Binding PreviewFaceLabel}" FontSize="11" VerticalAlignment="Center"
@@ -1001,17 +910,26 @@
               <Canvas x:Name="PreviewViewport" Grid.Row="0" Grid.Column="0" Background="Transparent"
                       ClipToBounds="True" UseLayoutRounding="False" SizeChanged="OnPreviewViewportSizeChanged">
                 <Grid x:Name="PreviewPageHost" Background="Transparent" Cursor="Hand" UseLayoutRounding="False"
-                      PointerPressed="OnPreviewPanPressed" PointerMoved="OnPreviewPanMoved"
-                      PointerReleased="OnPreviewPanReleased" PointerCaptureLost="OnPreviewPanCaptureLost"
+                      PointerPressed="OnTemplatePreviewPointerPressed" PointerMoved="OnTemplatePreviewPointerMoved"
+                      PointerReleased="OnTemplatePreviewPointerReleased" PointerCaptureLost="OnTemplatePreviewPointerCaptureLost"
+                      PointerEntered="OnTemplatePreviewPointerEntered" PointerExited="OnTemplatePreviewPointerExited"
                       SizeChanged="OnPreviewPageSizeChanged"
                       Width="{Binding PreviewDisplayWidth}" Height="{Binding PreviewDisplayHeight}">
                   <!-- One Skia draw operation blends both print scenes with real SKPaint alpha.
                        Each 16-ms opacity change repaints this scene; no external Opacity. -->
                   <controls:SkiaPreviewControl Scene="{Binding PreviewScene}"
                                                PreviousScene="{Binding PreviewPreviousScene}"
+                                               HighlightSection="{Binding TemplateHighlightSection}" HighlightGroup="{Binding TemplateHighlightGroup}"
+                                               HoverRegion="{Binding TemplateHoverRegion}" SelectedRegion="{Binding TemplateSelectedRegion}"
                                                PreviousOpacity="{Binding PreviewOldOpacity}" Monochrome="{Binding PreviewMonochrome}"/>
                 </Grid>
               </Canvas>
+              <!-- Fixed viewport overlay: no additional toolbar row and no input interception. -->
+              <Border Grid.Row="0" Grid.Column="0" x:Name="TemplateHighlightCaptionOverlay" Classes="preview-state"
+                      IsVisible="{Binding TemplateHighlightCaptionVisible}" IsHitTestVisible="False" Padding="7,3" Margin="8"
+                      HorizontalAlignment="Left" VerticalAlignment="Top" MaxWidth="300">
+                <TextBlock Text="{Binding TemplateHighlightCaption}" TextWrapping="Wrap" FontSize="11"/>
+              </Border>
               <!-- Viewport-centred notices, independent of zoom/pan and page dimensions. -->
               <Border Grid.Row="0" Grid.Column="0" Classes="preview-state"
                       IsVisible="{Binding PreviewUpdating}"

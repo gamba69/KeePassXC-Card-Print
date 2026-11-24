@@ -156,6 +156,7 @@ public static class CardAppearancePresets
                 result.HeaderColor = "#EFF1F4";
                 break;
         }
+        CardPalette.LinkMatchingPresetColors(result);
         result.NormalizeHeaderFooter();
         return result;
     }

@@ -32,6 +32,18 @@ public sealed class SkiaPreviewControl : Control
     public static readonly StyledProperty<double> PreviousOpacityProperty =
         AvaloniaProperty.Register<SkiaPreviewControl,double>(nameof(PreviousOpacity),0d);
 
+    public static readonly StyledProperty<string> HighlightSectionProperty =
+        AvaloniaProperty.Register<SkiaPreviewControl,string>(nameof(HighlightSection), "");
+    public static readonly StyledProperty<string> HighlightGroupProperty =
+        AvaloniaProperty.Register<SkiaPreviewControl,string>(nameof(HighlightGroup), "");
+    public string HighlightSection { get=>GetValue(HighlightSectionProperty); set=>SetValue(HighlightSectionProperty,value); }
+    public string HighlightGroup { get=>GetValue(HighlightGroupProperty); set=>SetValue(HighlightGroupProperty,value); }
+    public static readonly StyledProperty<PreviewHitRegion?> HoverRegionProperty =
+        AvaloniaProperty.Register<SkiaPreviewControl,PreviewHitRegion?>(nameof(HoverRegion));
+    public static readonly StyledProperty<PreviewHitRegion?> SelectedRegionProperty =
+        AvaloniaProperty.Register<SkiaPreviewControl,PreviewHitRegion?>(nameof(SelectedRegion));
+    public PreviewHitRegion? HoverRegion { get=>GetValue(HoverRegionProperty); set=>SetValue(HoverRegionProperty,value); }
+    public PreviewHitRegion? SelectedRegion { get=>GetValue(SelectedRegionProperty); set=>SetValue(SelectedRegionProperty,value); }
     private SkiaPreviewScene? _retainedScene;
     private SkiaPreviewScene? _retainedPreviousScene;
 
@@ -39,7 +51,7 @@ public sealed class SkiaPreviewControl : Control
     {
         // The opacity change MUST invalidate the picture itself on every tick,
         // not merely change a parent compositing node's visual property.
-        AffectsRender<SkiaPreviewControl>(SceneProperty,PreviousSceneProperty,PreviousOpacityProperty,MonochromeProperty);
+        AffectsRender<SkiaPreviewControl>(SceneProperty,PreviousSceneProperty,PreviousOpacityProperty,MonochromeProperty,HighlightSectionProperty,HighlightGroupProperty,HoverRegionProperty,SelectedRegionProperty);
     }
 
     public SkiaPreviewScene? Scene
@@ -87,6 +99,24 @@ public sealed class SkiaPreviewControl : Control
         var previous=_retainedPreviousScene;
         if(current is null && previous is null)return;
         context.Custom(new PictureDrawOperation(new Rect(Bounds.Size),current,previous,PreviousOpacity,Monochrome));
+        // UI overlay only; never record highlights into the print picture.
+        if(current is null || (previous is not null && PreviousOpacity>.1))return;
+        var hover=HoverRegion;
+        var selected=SelectedRegion;
+        bool hasHover=hover is not null && current.HitRegions.Contains(hover);
+        IEnumerable<PreviewHitRegion> highlights=hasHover ? new[]{hover!} :
+            selected is not null && current.HitRegions.Contains(selected) ? new[]{selected} :
+            current.HitRegions.Where(h=>h.Section==HighlightSection && h.Group==HighlightGroup);
+        var pen=new Pen(new SolidColorBrush(Color.Parse(hasHover?"#668DB7":"#386CA8")),hasHover?1.5:2);
+        foreach(var hit in highlights)
+        {
+            var r=hit.Bounds;
+            var x=Math.Max(0,r.Left/current.Width*Bounds.Width);
+            var y=Math.Max(0,r.Top/current.Height*Bounds.Height);
+            var right=Math.Min(Bounds.Width,r.Right/current.Width*Bounds.Width);
+            var bottom=Math.Min(Bounds.Height,r.Bottom/current.Height*Bounds.Height);
+            if(right-x>2 && bottom-y>2)context.DrawRectangle(null,pen,new Rect(x+.75,y+.75,right-x-1.5,bottom-y-1.5));
+        }
     }
 
     private sealed class PictureDrawOperation : ICustomDrawOperation

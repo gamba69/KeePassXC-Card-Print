@@ -178,6 +178,36 @@ public sealed class CardAppearance
     [JsonPropertyName("back_rules_gap_mm")] public double BackRulesGapMm { get; set; } = 2.35;
     [JsonPropertyName("back_rules_opacity")] public double BackRulesOpacity { get; set; } = 100;
 
+    // Color references are per-element; old JSON that lacks these members keeps
+    // its original visual defaults. Palette values themselves remain literal HEX.
+    [JsonPropertyName("frame_color")] public string FrameColor { get; set; } = "inherit";
+    [JsonPropertyName("title_color")] public string TitleColor { get; set; } = "inherit";
+    [JsonPropertyName("page_badge_text_color")] public string PageBadgeTextColor { get; set; } = "inherit";
+    [JsonPropertyName("page_badge_background_color")] public string PageBadgeBackgroundColor { get; set; } = "#E5EBF2";
+    [JsonPropertyName("entry_icon_tint_color")] public string EntryIconTintColor { get; set; } = "#202B38";
+    [JsonPropertyName("entry_icon_background_color")] public string EntryIconBackgroundColor { get; set; } = "inherit";
+    [JsonPropertyName("header_fill_color")] public string HeaderFillColor { get; set; } = "inherit";
+    [JsonPropertyName("header_accent_color")] public string HeaderAccentColor { get; set; } = "inherit";
+    [JsonPropertyName("header_rule_color")] public string HeaderRuleColor { get; set; } = "inherit";
+    [JsonPropertyName("field_label_color")] public string FieldLabelColor { get; set; } = "inherit";
+    [JsonPropertyName("field_value_color")] public string FieldValueColor { get; set; } = "inherit";
+    [JsonPropertyName("password_color")] public string PasswordColor { get; set; } = "inherit";
+    [JsonPropertyName("notes_color")] public string NotesColor { get; set; } = "inherit";
+    [JsonPropertyName("section_heading_color")] public string SectionHeadingColor { get; set; } = "inherit";
+    [JsonPropertyName("field_rule_color")] public string FieldRuleColor { get; set; } = "inherit";
+    [JsonPropertyName("footer_rule_color")] public string FooterRuleColor { get; set; } = "inherit";
+    [JsonPropertyName("recovery_value_color")] public string RecoveryValueColor { get; set; } = "inherit";
+    [JsonPropertyName("recovery_checkbox_color")] public string RecoveryCheckboxColor { get; set; } = "inherit";
+    [JsonPropertyName("otp_label_color")] public string OtpLabelColor { get; set; } = "inherit";
+    [JsonPropertyName("otp_value_color")] public string OtpValueColor { get; set; } = "inherit";
+    [JsonPropertyName("otp_meta_color")] public string OtpMetaColor { get; set; } = "inherit";
+    [JsonPropertyName("back_caption_title_color")] public string BackCaptionTitleColor { get; set; } = "inherit";
+    [JsonPropertyName("back_caption_subtitle_color")] public string BackCaptionSubtitleColor { get; set; } = "inherit";
+    [JsonPropertyName("back_rules_color")] public string BackRulesColor { get; set; } = "#777777";
+    [JsonPropertyName("front_background_color")] public string FrontBackgroundColor { get; set; } = "inherit";
+    [JsonPropertyName("back_background_color")] public string BackBackgroundColor { get; set; } = "inherit";
+    [JsonPropertyName("empty_back_background_color")] public string EmptyBackBackgroundColor { get; set; } = "inherit";
+
     // Clamp the geometry and shading inputs before rendering.
     internal void NormalizeHeaderFooter()
     {

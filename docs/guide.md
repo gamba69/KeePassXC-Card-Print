@@ -37,30 +37,36 @@ disabled. Only confirm printing after checking the actual printed pages.
 
 ## 3. Review field mapping
 
-Use **Field mapping** to control which source fields are rendered and how they
-are labelled, grouped and ordered. Field captions, including those explicitly
-configured in mapping, are user-defined values; changing the UI language does
-not translate them automatically.
-
-![Field mapping editor]({{ '/images/field-mapping.png' | relative_url }})
+Open **Template** and choose **Field mapping** on the left. Set field visibility,
+labels, ordering and rendering rules. The global print restrictions below the mapping
+editor take precedence over per-field rules. Field captions are user-defined values;
+changing the UI language does not translate them automatically.
 
 ## 4. Design the front and reverse
 
-Choose a built-in template as a starting point, or save an editable personal
-template. The **Appearance** editor covers dimensions, headers and footers,
-fonts, field visibility, icons, colors, backgrounds, TOTP and recovery codes.
-The **Duplex** editor controls the reverse side, including an empty reverse
-with optional artwork and text.
+Select a template at the top. Create an editable personal copy of a built-in template;
+Save stores the complete template, including mapping and both sides. Rename and Delete
+are available for personal templates.
 
-<div class="image-pair">
-  <figure><img src="{{ '/images/appearance-fonts.png' | relative_url }}" alt="Font and typography options"><figcaption>Typography and field spacing.</figcaption></figure>
-  <figure><img src="{{ '/images/duplex-background-icon.png' | relative_url }}" alt="Reverse artwork controls"><figcaption>Reverse-side artwork options.</figcaption></figure>
-</div>
+Choose General, Header, Fields and values, Footer, Background and colors, Recovery
+codes, QR codes, Reverse side or Print and layout from the same left navigation.
+Related controls share one group and wrap when the pane is narrow. Numerical fields
+use physical units, and supported automatic sizes have a separate Automatic toggle.
+Inactive options disappear without losing saved values. Edit the seven shared colors
+or apply a color scheme in Background and colors. Individual element color controls
+are in their relevant groups: choose a shared role, the original default or an
+independent RGB/HEX value. Existing explicit colors are preserved; QR modules stay
+black and white. Configure duplex usage and decorative artwork in Reverse side.
 
 ## 5. Inspect the preview
 
-Use the preview toolbar to navigate cards and sheets, switch between front and
-reverse, zoom and pan. Confirm the content, page count and physical card slots
+Use the existing preview toolbar to navigate cards and sheets, zoom and pan. On the
+Template tab, hold Ctrl to outline the element under the pointer and see its name.
+Ctrl-click fixes the element and opens its settings; ordinary dragging pans. Choose Actual,
+Front, Data back or Empty back to inspect the corresponding side. A labelled synthetic
+sample is used when the selected records cannot provide that side; it is never printed
+or exported. Printing and export are disabled until you return to Actual. Confirm the content,
+page count and physical card slots
 before committing paper. For dense secrets and recovery codes, verify
 readability at the printed size rather than relying solely on a zoomed preview.
 

@@ -1,5 +1,104 @@
 # Changelog
 
+## [10.1.1] - 2026-11-24
+
+### Fixed
+- Resolve a C# local-variable name collision in the palette color-source dialog (CS0136). Preserve the color-source selector and RGB channel captions.
+
+## [10.1.0] - 2026-11-24
+
+### Added
+- Seven shared template palette roles, four ready-to-use color schemes, and individual element colors. Choose a palette role, the original default or an individual RGB/HEX value directly in the element editor. Palette edits preserve literal overrides; old template colors and the original QR contrast are retained.
+- Ctrl-hover outlines a single preview element, Ctrl-click fixes its selection and opens the corresponding editor group. Ordinary dragging still pans the preview. A compact, non-interactive viewport label identifies the hovered or fixed element without adding a toolbar row.
+- Regression checks for color references, legacy JSON, source validation, ownership, palette and preview gestures.
+
+## [10.0.15] - 2026-11-24
+
+### Fixed
+- Reduce decorative emblem picker previews from 24 to 16 DIP to fit the compact 26-DIP selection control without clipping. Keep the printed emblem size, vector artwork and template settings unchanged. Guard the picker glyph dimensions in the build checks.
+
+## [10.0.14] - 2026-11-24
+
+### Fixed
+- Restore the template selector and all four template actions to one horizontal row, with Save anchored on the right and the status notice below. Allow horizontal scrolling only when the editor is too narrow to fit the toolbar.
+
+## [10.0.13] - 2026-11-24
+
+### Fixed
+- Restore 6 DIP of space between the automatic-size checkbox glyph and its caption in all three automatic numeric editors, without changing row height or spacing for other fields. Guard the caption padding in the build checks.
+
+## [10.0.12] - 2026-11-24
+
+### Fixed
+- Use natural caption heights and bottom-aligned 26-DIP editor rows in the template editor. Single-line captions no longer reserve an empty second line; mixed-height captions keep their input controls aligned. Reduce unused horizontal space for short numeric and checkbox labels.
+
+## [10.0.11] - 2026-11-24
+
+### Fixed
+- Align all template editor captions and controls using uniform two-line label and editor bands. Place automatic size toggles alongside numeric editors and preserve compact field widths. Add a build-time layout regression check.
+
+## [10.0.10] - 2026-11-24
+
+### Fixed
+- Give every template navigation section a distinct Fluent Regular icon. Use dedicated header, footer, field list, key and QR-code glyphs. Add navigation glyph regression tests.
+
+## [10.0.9] - 2026-11-24
+
+### Fixed
+- Update the forced-preview build contract for combined duplex cards. Require selection of both records, snapshot isolation, and disabled print/export in forced preview modes.
+
+## [10.0.8] - 2026-11-24
+
+### Changed
+- Compact wrapping field editors, themed Fluent navigation glyphs and automatic/manual numeric modes.
+- Place global print restrictions with field mapping; preserve the original independent restriction and per-field rule semantics.
+- Hide inactive dependent settings while retaining values, record precise footer and frame hit regions, and extend editor regression tests.
+- Update the user guide and workflow documentation.
+
+## [10.0.7] - 2026-11-24
+
+### Fixed
+- Restore the standard label and paragraph separator in the detailed notes-mode tooltip in all three interface languages. Extend the layout self-test to verify the tooltip format.
+
+## [10.0.6] - 2026-11-24
+
+### Fixed
+- Localize all fixed appearance choices in Russian, Ukrainian and English, with explicit notes, cut-guide, reverse-background, icon and font-weight labels. Preserve stored codes and font family names. Add clear notes-mode help and an exhaustive choice-localization self-test.
+
+## [10.0.5] - 2026-11-24
+
+### Fixed
+- Use the application palette for the template navigation background, hover and selected items in both themes.
+
+## [10.0.4] - 2026-11-24
+
+### Fixed
+- Use the Avalonia 12 FocusChangedEventArgs type for template-field focus events.
+
+## [10.0.3] - 2026-11-24
+
+### Fixed
+- Validate the twelve numeric stepper controls in the unified editor by role, direction and repeat timing.
+- Align the single-preview crossfade build guard with the editor highlight bindings and render invalidation properties.
+
+## [10.0.2] - 2026-11-24
+
+### Fixed
+- Update the build guard for the unified preview while retaining both empty-selection checks and verifying isolation of forced-side samples.
+
+## [10.0.1] - 2026-11-24
+
+### Fixed
+- Use an approved synthetic credential prefix in the template preview sample without weakening the repository privacy guard.
+
+## [10.0.0] - 2026-11-24
+
+### Changed
+- Consolidate mapping and both card faces into one Template tab with one shared template toolbar and a vertical, element-oriented editor.
+- Assign each persisted appearance descriptor to exactly one section and group; hide inactive dependent controls without discarding values.
+- Keep legacy template JSON, mapping, cloud storage, and print layout semantics unchanged.
+- Add element navigation and UI-only highlights in the existing preview, including isolated front/data-back/empty-back samples and a color palette picker.
+
 ## [9.2.5] - 2026-11-24
 
 ### Fixed

@@ -154,9 +154,10 @@ internal static class AppearanceDescriptions
     };
 
     internal static string For(string key, string label) =>
+        CardPalette.IsColorKey(key) ? CardPalette.Help(key, label, "ru") :
         Help.TryGetValue(key, out var explanation)
             ? label + "\n\n" + explanation
             : label;
 
-    internal static bool Covers(string key) => Help.ContainsKey(key);
+    internal static bool Covers(string key) => Help.ContainsKey(key) || CardPalette.IsColorKey(key);
 }

@@ -92,11 +92,11 @@ public static class PrintDocumentPipeline
     /// <summary>Same geometry and drawing calls as on-screen preview, without rasterizing
     /// text or vector logos before they reach Skia's PDF backend.</summary>
     private static void DrawSheet(SKCanvas canvas,CardPrintSheet sheet,CardAppearance appearance,
-        CancellationToken cancellationToken)
-        => DrawSheet(new SkiaCardCanvas(canvas),sheet,appearance,cancellationToken);
+        CancellationToken cancellationToken,List<PreviewHitRegion>? hits=null)
+        => DrawSheet(new SkiaCardCanvas(canvas),sheet,appearance,cancellationToken,hits);
 
     internal static void DrawSheet(ICardCanvas canvas,CardPrintSheet sheet,CardAppearance appearance,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,List<PreviewHitRegion>? hits=null)
     {
         float designW=(float)(sheet.Paper.WidthMm*DesignPixelsPerMm);
         float designH=(float)(sheet.Paper.HeightMm*DesignPixelsPerMm);
@@ -163,6 +163,7 @@ public static class PrintDocumentPipeline
         // Each card records its own Skia display list concurrently. Final
         // compositing remains sequential: SKCanvas is never shared by workers.
         var pictures=new SKPicture?[sheet.Slots.Count];
+        var cardHits=hits is null?null:new List<PreviewHitRegion>?[sheet.Slots.Count];
         try
         {
             var parallel=new ParallelOptions
@@ -177,7 +178,9 @@ public static class PrintDocumentPipeline
                 var drawing=recorder.BeginRecording(new SKRect(0,0,
                     (float)(appearance.WidthMm*DesignPixelsPerMm),
                     (float)(appearance.HeightMm*DesignPixelsPerMm)));
-                CardSkiaRenderer.Draw(drawing,sheet.Slots[i].Card,appearance,sheet.Reverse);
+                var regions=cardHits is null?null:new List<PreviewHitRegion>();
+                CardSkiaRenderer.Draw(drawing,sheet.Slots[i].Card,appearance,sheet.Reverse,regions);
+                if(cardHits is not null)cardHits[i]=regions;
                 pictures[i]=recorder.EndRecording();
             });
             for(int i=0;i<sheet.Slots.Count;i++)
@@ -196,6 +199,8 @@ public static class PrintDocumentPipeline
                     canvas.ClipRect(rect,SKClipOperation.Intersect,false);
                     canvas.Translate(rect.Left,rect.Top);
                     canvas.DrawPicture(pictures[i] ?? throw new InvalidOperationException("Card picture missing."));
+                    if(hits is not null && cardHits?[i] is { } regions)
+                        hits.AddRange(regions.Select(region=>region.Translate(rect.Left,rect.Top)));
                 }
                 finally { canvas.Restore(); }
             }
@@ -243,9 +248,10 @@ public static class PrintDocumentPipeline
         float height=(float)(sheet.Paper.HeightMm*DesignPixelsPerMm);
         using var recorder=new SKPictureRecorder();
         var canvas=recorder.BeginRecording(new SKRect(0,0,width,height));
-        DrawSheet(canvas,sheet,appearance,cancellationToken);
+        var hits=new List<PreviewHitRegion>();
+        DrawSheet(canvas,sheet,appearance,cancellationToken,hits);
         cancellationToken.ThrowIfCancellationRequested();
-        return new SkiaPreviewScene(recorder.EndRecording(),width,height);
+        return new SkiaPreviewScene(recorder.EndRecording(),width,height,hits);
     }
 
     /// <summary>Render one bounded BGRA stripe (top-down DIB) directly from the common

@@ -16,13 +16,17 @@ public sealed class SkiaPreviewScene : IDisposable
     public float Width { get; }
     public float Height { get; }
     internal SKPicture Picture => _picture;
+    public IReadOnlyList<PreviewHitRegion> HitRegions { get; }
 
-    internal SkiaPreviewScene(SKPicture picture,float width,float height)
+    internal SkiaPreviewScene(SKPicture picture,float width,float height, IReadOnlyList<PreviewHitRegion>? hits = null)
     {
         _picture=picture;
         Width=width;
         Height=height;
+        HitRegions=hits?.ToArray() ?? [];
     }
+
+    public PreviewHitRegion? HitTest(float x,float y) => HitRegions.Reverse().FirstOrDefault(hit => hit.Contains(x,y));
 
     public SkiaPreviewScene Retain()
     {

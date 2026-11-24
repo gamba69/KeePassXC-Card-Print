@@ -390,7 +390,10 @@ internal static class AppearanceTranslations
         };
 
     public static string Field(string key, string original, string language)
-        => Fields.TryGetValue(key, out var value) ? Pick(language, value, original) : original;
+        => CardPalette.TryLabel(key, language, out var colorLabel) ? colorLabel
+            : key == "notes_size_pt"
+            ? TemplateEditorLayout.L(language, "Размер шрифта заметок, pt", "Розмір шрифту нотаток, pt", "Notes font size, pt")
+            : Fields.TryGetValue(key, out var value) ? Pick(language, value, original) : original;
 
     public static string Group(string original, string language)
         => Groups.TryGetValue(original, out var value) ? Pick(language, value, original) : original;
@@ -411,8 +414,24 @@ internal static class AppearanceTranslations
     public static string Description(string key, string label, string language)
     {
         var lang = Localizer.ResolveLanguage(language);
+        if (CardPalette.IsColorKey(key)) return CardPalette.Help(key, label, language);
+        if (key == "notes_mode")
+            return label + "\n\n" + TemplateEditorLayout.L(language,
+                "Обычный размер: 93% основного размера значений. Отдельный размер шрифта: используется заданный размер заметок. Пропускать при нехватке места: используется заданный размер заметок, но заметки исключаются, если без них требуется меньше частей карточки. Данные базы не изменяются.",
+                "Звичайний розмір: 93% основного розміру значень. Окремий розмір шрифту: використовується заданий розмір нотаток. Пропускати за браку місця: використовується заданий розмір нотаток, але нотатки вилучаються, якщо без них потрібно менше частин картки. Дані бази не змінюються.",
+                "Normal size: 93% of the base value font size. Custom notes font size: uses the configured notes size. Omit if extra space is needed: uses the configured notes size but omits notes if this reduces the number of card parts. Vault data is not modified.");
         if (lang == "ru") return AppearanceDescriptions.For(key, label);
-        if (Hints.TryGetValue(key, out var hint)) return lang == "uk" ? hint.Uk : hint.En;
+        string? captionHelp = key switch
+        {
+            "back_caption_title_font" => TemplateEditorLayout.L(language,"", "Шрифт верхнього напису. Успадкування використовує шрифт заголовка запису.", "Upper caption font. Inherit uses the entry title font."),
+            "back_caption_subtitle_font" => TemplateEditorLayout.L(language,"", "Шрифт нижнього напису. Успадкування використовує шрифт підписів полів.", "Lower caption font. Inherit uses the field label font."),
+            "back_caption_title_size_pt" or "back_caption_subtitle_size_pt" => TemplateEditorLayout.L(language,"", "Розмір напису в пунктах. Автоматичний режим використовує розмір для вибраної мови звороту.", "Caption size in points. Automatic uses the size for the selected reverse-side language."),
+            "back_caption_title_weight" => TemplateEditorLayout.L(language,"", "Насиченість верхнього напису. Успадкування використовує насиченість заголовка запису.", "Upper caption weight. Inherit uses the entry title weight."),
+            "back_caption_subtitle_weight" => TemplateEditorLayout.L(language,"", "Насиченість нижнього напису. Успадкування використовує насиченість підписів полів.", "Lower caption weight. Inherit uses the field label weight."),
+            _ => null
+        };
+        if (captionHelp is not null) return label + "\n\n" + captionHelp;
+        if (Hints.TryGetValue(key, out var hint)) return label + "\n\n" + (lang == "uk" ? hint.Uk : hint.En);
         // Never display the Russian-only source tooltip under a different language.
         return lang == "uk"
             ? $"Налаштування «{label}». Зміни застосовуються до друкованої картки та відображаються у попередньому перегляді."

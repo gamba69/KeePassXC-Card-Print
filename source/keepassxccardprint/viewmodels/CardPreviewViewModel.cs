@@ -60,7 +60,6 @@ public sealed partial class ShellViewModel
     private bool _backSide;
     private string _previewError="";
     private string _designMessage="";
-    private string _selectedDesignCategory="Геометрия";
     private string _templateName="";
     private string? _selectedTemplate;
     private readonly Dictionary<string, string> _personalTemplatePaths = new(StringComparer.Ordinal);
@@ -158,51 +157,7 @@ public sealed partial class ShellViewModel
     private string CopySuffix => Localizer.ResolveLanguage(_settings.Language) switch {"uk"=>" - копія","en"=>" - copy",_=>" - копия"};
 
     public ObservableCollection<AppearanceField> AppearanceFields { get; } = new();
-    public ObservableCollection<AppearanceField> VisibleAppearanceFields { get; } = new();
-    public ObservableCollection<AppearanceField> DuplexAppearanceFields { get; } = new();
-    public ObservableCollection<string> DesignCategories { get; } = new()
-    { "Геометрия", "Шапка и подвал", "Шрифты", "Поля и содержимое", "Иконки и цвета", "Фон и декор", "Коды восстановления", "QR-коды TOTP", "Две стороны" };
-    public ObservableCollection<string> DuplexDesignCategories { get; } = new()
-    { "Основное", "Пустой оборот", "Фоновая иконка", "Линии оборота" };
-    // Start at the controls that affect the blank reverse design.
-    private string _selectedDuplexDesignCategory="Пустой оборот";
-    public AppearanceField EmptyBackHeaderField {get;private set;} = null!;
-    public AppearanceField EmptyBackFooterField {get;private set;} = null!;
-    public AppearanceField EmptyBackFillField {get;private set;} = null!;
-    public string SelectedDuplexDesignCategory
-    {
-        get => _selectedDuplexDesignCategory;
-        set
-        {
-            if(value is null || _selectedDuplexDesignCategory==value)return;
-            _selectedDuplexDesignCategory=value;
-            Changed();
-            RefreshDuplexAppearanceFields();
-        }
-    }
-    private void RefreshDuplexAppearanceFields()
-    {
-        DuplexAppearanceFields.Clear();
-        var group=AppearanceTranslations.CanonicalGroup(_selectedDuplexDesignCategory);
-        if (group=="Основное") group="Две стороны";
-        foreach(var item in AppearanceFields.Where(x=>x.Group==group &&
-            x.Key is not ("duplex_back_fill" or "empty_back_show_header" or "empty_back_show_footer")))
-            DuplexAppearanceFields.Add(item);
-    }
     public ObservableCollection<string> TemplateNames { get; } = new();
-    public string SelectedDesignCategory
-    {
-        get => _selectedDesignCategory;
-        set
-        {
-            if(value is null || _selectedDesignCategory==value)return;
-            _selectedDesignCategory=value;Changed();
-            VisibleAppearanceFields.Clear();
-            foreach (var appearanceItem in AppearanceFields.Where(item =>
-                item.Group == AppearanceTranslations.CanonicalGroup(value)))
-                VisibleAppearanceFields.Add(appearanceItem);
-        }
-    }
     public string TemplateName {get=>_templateName;set{_templateName=value??"";Changed();}}
     public string? SelectedTemplate
     {
@@ -221,14 +176,14 @@ public sealed partial class ShellViewModel
         }
     }
     public bool HasDesignMessage => !string.IsNullOrWhiteSpace(_designMessage);
-    public SkiaPreviewScene? PreviewScene => _previewScene;
-    public SkiaPreviewScene? PreviewPreviousScene => _previewPreviousScene;
-    public double PreviewOldOpacity { get=>_previewOldOpacity;private set { _previewOldOpacity=value;Changed(); } }
-    public bool PreviewUpdating { get=>_previewUpdating;private set { if(_previewUpdating==value)return;_previewUpdating=value;Changed();Changed(nameof(PreviewEmpty)); } }
+    public SkiaPreviewScene? PreviewScene => TemplatePreviewForced ? _templatePreviewScene : _previewScene;
+    public SkiaPreviewScene? PreviewPreviousScene => TemplatePreviewForced ? null : _previewPreviousScene;
+    public double PreviewOldOpacity { get=>_previewOldOpacity;private set { _previewOldOpacity=value;Changed();Changed(nameof(TemplateHighlightCaption));Changed(nameof(TemplateHighlightCaptionVisible)); } }
+    public bool PreviewUpdating { get=>TemplatePreviewForced ? _templatePreviewBusy : _previewUpdating;private set { if(_previewUpdating==value)return;_previewUpdating=value;Changed();Changed(nameof(PreviewEmpty));Changed(nameof(TemplateHighlightCaption));Changed(nameof(TemplateHighlightCaptionVisible)); } }
     public string PreviewUpdateLabel => Localizer.Text(_settings.Language,"PreviewRebuilding");
     public string PreviewNoCardsLabel => Localizer.Text(_settings.Language,"PreviewNoCards");
-    public double PreviewDisplayWidth { get=>_previewDisplayWidth;private set { _previewDisplayWidth=value;Changed(); } }
-    public double PreviewDisplayHeight { get=>_previewDisplayHeight;private set { _previewDisplayHeight=value;Changed(); } }
+    public double PreviewDisplayWidth { get=>TemplatePreviewForced ? (_templatePreviewScene?.Width/7.5 ?? Math.Clamp(_appearance.WidthMm,35,205))*5.8 : _previewDisplayWidth;private set { _previewDisplayWidth=value;Changed(); } }
+    public double PreviewDisplayHeight { get=>TemplatePreviewForced ? (_templatePreviewScene?.Height/7.5 ?? Math.Clamp(_appearance.HeightMm,45,292))*5.8 : _previewDisplayHeight;private set { _previewDisplayHeight=value;Changed(); } }
     public string PreviewZoomCaption => $"{_previewZoomPercent:0.#}%";
     // The preference is saved in ui-shell.json, never alongside KDBX secrets.
     public ObservableCollection<string> PreviewWheelStepOptions { get; } =
@@ -266,6 +221,7 @@ public sealed partial class ShellViewModel
         get=>_previewShowSheet;
         set
         {
+            if(TemplatePreviewForced) ResetTemplatePreview();
             if(_previewShowSheet==value)return;
             _previewShowSheet=value;
             _settings.PreviewShowSheets=value;
@@ -379,14 +335,14 @@ public sealed partial class ShellViewModel
     // without an open KDBX, at least one selected record, and a current layout.
     // Do not rely solely on a stale preview scene when a vault is closing/loading.
     public bool PrintReady => _snapshot is not null && !Busy && _selectedCount>0 &&
-        _hasPrintSelection && _previewSheets.Count>0 && !_previewExporting &&
+        !TemplatePreviewForced && _hasPrintSelection && _previewSheets.Count>0 && !_previewExporting &&
         _previewCommittedRevision==_previewRevision && !_appearanceBuildQueued && !_previewTimer.IsEnabled;
-    public bool PreviewEmpty => _previewScene is null && !_previewUpdating &&
+    public bool PreviewEmpty => !TemplatePreviewForced && _previewScene is null && !_previewUpdating &&
         string.IsNullOrWhiteSpace(_previewError);
-    public string PreviewCardCount => _previewShowSheet
+    public string PreviewCardCount => TemplatePreviewForced ? "" : _previewShowSheet
         ? (_previewSheets.Count==0?"— / —":$"{_previewSheetIndex+1} / {_previewSheets.Count}")
         : (_cardParts.Count==0?"— / —":$"{_cardIndex+1} / {_cardParts.Count}");
-    public string PreviewFaceLabel => UiText.Tr(_previewShowSheet
+    public string PreviewFaceLabel => TemplatePreviewForced ? ForcedPreviewCaption : UiText.Tr(_previewShowSheet
         ? (_previewSheets.Count>0 && _previewSheets[_previewSheetIndex].Reverse?"Лист · оборот":"Лист · лицо")
         : (_backSide?"Оборотная сторона":"Лицевая сторона"),_settings.Language);
     public bool PreviewHasCard => _cardParts.Count>0;
@@ -397,7 +353,7 @@ public sealed partial class ShellViewModel
         CardPreviewSequence.CanStep(_cardParts.Count,_cardIndex,_backSide,_appearance.DuplexEnabled,-1);
     public bool PreviewCanGoNext => _previewShowSheet ? _previewSheetIndex+1<_previewSheets.Count :
         CardPreviewSequence.CanStep(_cardParts.Count,_cardIndex,_backSide,_appearance.DuplexEnabled,+1);
-    public string PreviewError => UiText.Tr(_previewError,_settings.Language);
+    public string PreviewError => TemplatePreviewForced ? _templatePreviewError : UiText.Tr(_previewError,_settings.Language);
 
     public void SetPreviewNotice(string message) { _previewError=message;Changed(nameof(PreviewError)); }
     private void UpdatePreviewDisplayWidth()
@@ -437,51 +393,25 @@ public sealed partial class ShellViewModel
     }
     private void RelocalizeAppearance()
     {
-        var group = AppearanceTranslations.CanonicalGroup(_selectedDesignCategory);
-        var duplexGroup = AppearanceTranslations.CanonicalGroup(_selectedDuplexDesignCategory);
         if (_activeTemplateOrigin == TemplateOrigin.BuiltIn)
             _activeTemplateName = BuiltinName(_appearance.Style);
         ReloadTemplates();
         foreach (var field in AppearanceFields) field.Relocalize(_settings.Language);
-        var categories = DesignCategories.Select(AppearanceTranslations.CanonicalGroup).ToArray();
-        var duplexCategories = DuplexDesignCategories.Select(AppearanceTranslations.CanonicalGroup).ToArray();
-        DesignCategories.Clear();
-        foreach (var category in categories)
-            DesignCategories.Add(AppearanceTranslations.Group(category, _settings.Language));
-        DuplexDesignCategories.Clear();
-        foreach (var category in duplexCategories)
-            DuplexDesignCategories.Add(AppearanceTranslations.Group(category, _settings.Language));
-        _selectedDesignCategory = AppearanceTranslations.Group(group, _settings.Language);
-        _selectedDuplexDesignCategory = AppearanceTranslations.Group(duplexGroup, _settings.Language);
-        Changed(nameof(SelectedDesignCategory));
-        Changed(nameof(SelectedDuplexDesignCategory));
-        VisibleAppearanceFields.Clear();
-        foreach (var field in AppearanceFields.Where(x => x.Group == group))
-            VisibleAppearanceFields.Add(field);
-        RefreshDuplexAppearanceFields();
+        RelocalizeTemplateEditor();
         NotifyTemplateState();
     }
 
     private void RebuildAppearanceFields()
     {
         AppearanceFields.Clear();
-        DuplexAppearanceFields.Clear();
         foreach(var f in AppearanceDescriptor.Create(_appearance,_settings.Language))
         {
             f.IsReadOnly = !CanEditAppearance;
-            f.ValueChanged+=(_,_)=>AppearanceEdited();
+            f.ValueChanged+=(_,_)=> { RefreshTemplateEditorVisibility(); AppearanceEdited(); };
             AppearanceFields.Add(f);
         }
-        EmptyBackHeaderField=AppearanceFields.First(x=>x.Key=="empty_back_show_header");
-        EmptyBackFooterField=AppearanceFields.First(x=>x.Key=="empty_back_show_footer");
-        EmptyBackFillField=AppearanceFields.First(x=>x.Key=="duplex_back_fill");
-        Changed(nameof(EmptyBackHeaderField));
-        Changed(nameof(EmptyBackFooterField));
-        Changed(nameof(EmptyBackFillField));
-        RefreshDuplexAppearanceFields();
-        var selected=_selectedDesignCategory;
-        _selectedDesignCategory="";
-        SelectedDesignCategory=selected;
+        TemplateEditorLayout.Validate(AppearanceFields.Select(f => f.Key));
+        RelocalizeTemplateEditor();
     }
     private void RestorePersonalTemplateSelection()
     {
@@ -718,6 +648,7 @@ public sealed partial class ShellViewModel
 
     private void PreviewStep(int direction)
     {
+        if(TemplatePreviewForced) ResetTemplatePreview();
         if(_previewShowSheet)
         {
             int next=_previewSheetIndex+direction;
@@ -741,6 +672,7 @@ public sealed partial class ShellViewModel
     public void PreviewNext()=>PreviewStep(+1);
     public void PreviewFront()
     {
+        if(TemplatePreviewForced) ResetTemplatePreview();
         if(_previewShowSheet)
         {
             if(_previewSheets.Count==0 || !_previewSheets[_previewSheetIndex].Reverse)
@@ -753,6 +685,7 @@ public sealed partial class ShellViewModel
     }
     public void PreviewBack()
     {
+        if(TemplatePreviewForced) ResetTemplatePreview();
         if(_previewShowSheet)
         {
             if(_previewSheetIndex+1>=_previewSheets.Count || _previewSheets[_previewSheetIndex].Reverse ||
@@ -781,13 +714,14 @@ public sealed partial class ShellViewModel
     public void ScheduleCardPreview()
     {
         UpdateUrlPreviewStatus();
+        ScheduleTemplatePreview();
         // A filter changes visibility, NOT print selection. Never preview an
         // arbitrary visible vault entry when no checkbox is selected.
         // Clear synchronously to avoid briefly exposing the previous card while
         // a debounce timer or background layout build is pending.
         if (!VaultRecords.Any(r => r.Selected))
         {
-            CloseCardPreview();
+            CloseCardPreview(resetTemplatePreview:false);
             return;
         }
         _prefetchCancellation?.Cancel();
@@ -859,8 +793,9 @@ public sealed partial class ShellViewModel
         }
         PreviewOldOpacity=0;
     }
-    public void CloseCardPreview()
+    public void CloseCardPreview(bool resetTemplatePreview=true)
     {
+        if(resetTemplatePreview && TemplatePreviewForced) ResetTemplatePreview();
         _previewTimer.Stop();
         _previewStaleTimer.Stop();
         _previewCancellation?.Cancel();
@@ -886,6 +821,8 @@ public sealed partial class ShellViewModel
     }
     private void NotifyCardPreview()
     {
+        _templateHoverRegion=null;
+        NotifyTemplateHighlight();
         foreach(var name in new[]{nameof(PreviewCardCount),nameof(PreviewFaceLabel),nameof(PreviewEmpty),
                           nameof(PreviewHasCard),nameof(PreviewDuplexAvailable),nameof(PreviewIsFront),nameof(PreviewIsBack),
                           nameof(PreviewCanGoBack),nameof(PreviewCanGoNext),
@@ -1008,7 +945,7 @@ public sealed partial class ShellViewModel
         long startTimestamp=Stopwatch.GetTimestamp();
         // Defensive fast-path: even a delayed timer callback must not build
         // a fallback card from an unchecked entry.
-        if (!VaultRecords.Any(r => r.Selected)) { CloseCardPreview(); return; }
+        if (!VaultRecords.Any(r => r.Selected)) { CloseCardPreview(resetTemplatePreview:false); return; }
         if (_appearanceBuildRunning) { _appearanceBuildQueued=true; Changed(nameof(PrintReady)); return; }
         _appearanceBuildRunning=true;
         var source=StartPreviewTask(out long revision);

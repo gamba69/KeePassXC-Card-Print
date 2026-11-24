@@ -8,15 +8,15 @@ namespace KeePassXCCardPrint.Rendering;
 internal static class CardBackgroundRenderer
 {
     internal const float PixelsPerMm = 7.5f;
-    internal readonly record struct Background(string Pattern, double Gray, double Contrast, bool WhiteOnly = false);
+    internal readonly record struct Background(string Pattern, double Gray, double Contrast, bool WhiteOnly = false, string? BaseColor = null);
 
     internal static Background Resolve(CardAppearance a, string side)
     {
         var basic = new Background(a.CardBgPattern, a.CardBgGray, a.CardBgContrast);
         var front = a.FrontBgOverride
-            ? new Background(a.FrontBgPattern, a.FrontBgGray, a.FrontBgContrast) : basic;
+            ? new Background(a.FrontBgPattern, a.FrontBgGray, a.FrontBgContrast, BaseColor: a.FrontBackgroundColor) : basic;
         var back = a.BackBgOverride
-            ? new Background(a.DuplexBackBackground, a.BackBgGray, a.BackBgContrast) : basic;
+            ? new Background(a.DuplexBackBackground, a.BackBgGray, a.BackBgContrast, BaseColor: a.BackBackgroundColor) : basic;
         return side switch
         {
             "front" => front,
@@ -24,7 +24,8 @@ internal static class CardBackgroundRenderer
             "empty" => a.EmptyBackBgSource switch
             {
                 "front" => front,
-                "custom" => new Background(a.EmptyBackBgPattern, a.EmptyBackBgGray, a.EmptyBackBgContrast),
+                "common" => basic,
+                "custom" => new Background(a.EmptyBackBgPattern, a.EmptyBackBgGray, a.EmptyBackBgContrast, BaseColor: a.EmptyBackBackgroundColor),
                 "none" => new Background("clean",0,0,true),
                 _ => back
             },
@@ -35,8 +36,7 @@ internal static class CardBackgroundRenderer
     private static SKColor GrayColor(CardAppearance a,Background spec)
     {
         if(spec.WhiteOnly) return SKColors.White;
-        var baseColor=!string.IsNullOrWhiteSpace(a.BackgroundColor)
-            && SKColor.TryParse(a.BackgroundColor,out var parsed) ? parsed : SKColors.White;
+        var baseColor=CardPalette.Resolve(a,spec.BaseColor,CardPalette.RoleColor(a,"background_color"));
         int darken=(int)Math.Round(Math.Clamp(spec.Gray,0,100)*.48);
         return new SKColor(
             (byte)Math.Max(0,baseColor.Red-darken),
