@@ -1518,6 +1518,9 @@ public partial class MainWindow : Window
             top.Child = toolbar;
         }
         toolbar.Orientation = dockedSide ? Avalonia.Layout.Orientation.Vertical : Avalonia.Layout.Orientation.Horizontal;
+        // The same command groups follow the toolbar in either docking position.
+        foreach (var child in toolbar.Children)
+            if (child is StackPanel group) group.Orientation = toolbar.Orientation;
         toolbar.VerticalAlignment = Avalonia.Layout.VerticalAlignment.Top;
         toolbar.HorizontalAlignment = Avalonia.Layout.HorizontalAlignment.Left;
         side.VerticalAlignment = Avalonia.Layout.VerticalAlignment.Stretch;

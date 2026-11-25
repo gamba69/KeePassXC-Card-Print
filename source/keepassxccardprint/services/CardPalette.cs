@@ -19,6 +19,8 @@ internal static class CardPalette
         ["title_color"] = new("Цвет заголовка","Колір заголовка","Title color","ink_color"),
         ["page_badge_text_color"] = new("Цвет номера","Колір номера","Number color","muted_color"),
         ["page_badge_background_color"] = new("Фон номера","Тло номера","Number background","header_color"),
+        ["auth_badge_text_color"] = new("Цвет обозначений","Колір позначень","Indicator color","muted_color"),
+        ["auth_badge_background_color"] = new("Фон обозначений","Тло позначень","Indicator background","header_color"),
         ["entry_icon_tint_color"] = new("Цвет иконки","Колір іконки","Icon color","ink_color"),
         ["entry_icon_background_color"] = new("Цвет подложки иконки","Колір підкладки іконки","Icon backdrop color","header_color"),
         ["header_fill_color"] = new("Цвет заливки шапки","Колір заливки шапки","Header fill color","header_color"),
@@ -133,11 +135,11 @@ internal static class CardPalette
     internal static SKColor EditorDefault(CardAppearance a,string key) => key switch
     {
         "title_color" or "field_value_color" or "password_color" or "notes_color" or "recovery_value_color" or "otp_value_color" => FrontInk(a),
-        "page_badge_text_color" or "header_group_color" or "field_label_color" or "recovery_checkbox_color" or "otp_label_color" or "otp_meta_color" => FrontMuted(a),
+        "page_badge_text_color" or "auth_badge_text_color" or "header_group_color" or "field_label_color" or "recovery_checkbox_color" or "otp_label_color" or "otp_meta_color" => FrontMuted(a),
         "header_accent_color" or "section_heading_color" => FrontAccent(a),
         "header_rule_color" or "field_rule_color" => FrontRule(a),
         "header_fill_color" => HeaderFill(a),
-        "page_badge_background_color" => Parse("#E5EBF2",SKColors.White),
+        "page_badge_background_color" or "auth_badge_background_color" => Parse("#E5EBF2",SKColors.White),
         "entry_icon_tint_color" => Parse("#202B38",SKColors.Black),
         "entry_icon_background_color" => RoleColor(a,"header_color"),
         "back_rules_color" => Parse("#777777",SKColors.Black),

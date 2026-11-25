@@ -243,20 +243,35 @@ public static class CardSkiaRenderer
         if(plan.Group is not null)
             DrawHeaderText(c,plan.Group,a.HeaderGroupAlign,CardPalette.Resolve(a,a.HeaderGroupColor,muted));
 
-        // Two-digit part/total badge, including 01/01.
-        string chip=$"{part.Number:D2}/{part.Total:D2}";
-        float chipPx=Pt(Math.Clamp(a.FooterSizePt,2,15));
-        float chipWidth=Width(chip,chipPx,a.LabelFont,a.LabelWeight);
-        float chipLeft=Px(plan.BadgeX)+Math.Max(0,(Px(plan.BadgeWidth)-chipWidth)*.5f);
-        float chipCenter=Px(plan.RowY+plan.RowHeight*.5f);
-        float chipBaseline=CenteredBaseline(chip,chipCenter,chipPx,a.LabelFont,a.LabelWeight);
-        if(a.Style=="archive" && fill)
+        void DrawInfo(CardHeaderLayout.InfoRow row,string text,string foreground,string background,bool backgroundEnabled)
         {
-            using var tint=Paint(CardPalette.Resolve(a,a.PageBadgeBackgroundColor,new SKColor(229,235,242)));
-            c.DrawRoundRect(new SKRect(chipLeft-Px(.5),chipCenter-chipPx*.70f,
-                chipLeft+chipWidth+Px(.5),chipCenter+chipPx*.70f),Px(.45),Px(.45),tint);
+            float size=Pt(row.SizePt);
+            float available=Math.Max(.1f,Px(plan.BadgeWidth-2));
+            float textWidth=Width(text,size,row.Font,row.Weight);
+            // Only an unusually long page counter can exceed the measured column.
+            // It must not invade the title or wrap onto another line.
+            if(textWidth>available)
+            {
+                size*=available/textWidth;
+                textWidth=Width(text,size,row.Font,row.Weight);
+            }
+            float left=Px(plan.BadgeX+1)+Math.Max(0,available-textWidth)*(a.HeaderInfoAlign switch
+                { "left"=>0f,"right"=>1f,_=>.5f });
+            float center=Px(row.Y+row.Height*.5f);
+            float baseline=CenteredBaseline(text,center,size,row.Font,row.Weight);
+            if(backgroundEnabled)
+            {
+                using var tint=Paint(CardPalette.Resolve(a,background,new SKColor(229,235,242)));
+                float half=Math.Min(Px(row.Height*.5f),size*.70f);
+                c.DrawRoundRect(new SKRect(left-Px(.5),center-half,left+textWidth+Px(.5),center+half),Px(.45),Px(.45),tint);
+            }
+            DrawText(c,text,left,baseline,size,CardPalette.Resolve(a,foreground,muted),row.Font,row.Weight);
         }
-        DrawText(c,chip,chipLeft,chipBaseline,chipPx,CardPalette.Resolve(a,a.PageBadgeTextColor,muted),a.LabelFont,a.LabelWeight);
+        if(plan.Page is { } page)
+            DrawInfo(page,$"{part.Number:D2}/{part.Total:D2}",a.PageBadgeTextColor,a.PageBadgeBackgroundColor,
+                a.PageBadgeFillMode=="on" || (a.PageBadgeFillMode=="auto" && a.Style=="archive" && fill));
+        if(plan.Auth is { } auth)
+            DrawInfo(auth,auth.Text,a.AuthBadgeTextColor,a.AuthBadgeBackgroundColor,a.AuthBadgeFill);
     }
 
     private static void DrawFooter(ICardCanvas c,int w,int h,CardAppearance a,CardPart part,List<PreviewHitRegion>? hits=null)
@@ -672,8 +687,12 @@ public static class CardSkiaRenderer
         hits.Add(new("header","title",new SKRect(Px(plan.Title.X),Px(plan.Title.Y),Px(plan.Title.X+plan.Title.Width),Px(plan.Title.Y+plan.Title.Lines.Length*plan.Title.LineHeight))));
         if(plan.Group is { } group)
             hits.Add(new("header","header-group",new SKRect(Px(group.X),Px(group.Y),Px(group.X+group.Width),Px(group.Y+group.Lines.Length*group.LineHeight))));
-        hits.Add(new("header","page-badge",new SKRect(Px(plan.BadgeX),Px(plan.RowY),
-            Px(plan.BadgeX+plan.BadgeWidth),Px(plan.RowY+plan.RowHeight))));
+        if(plan.Page is { } page)
+            hits.Add(new("header","page-badge",new SKRect(Px(plan.BadgeX),Px(page.Y),
+                Px(plan.BadgeX+plan.BadgeWidth),Px(page.Y+page.Height))));
+        if(plan.Auth is { } auth)
+            hits.Add(new("header","auth-badge",new SKRect(Px(plan.BadgeX),Px(auth.Y),
+                Px(plan.BadgeX+plan.BadgeWidth),Px(auth.Y+auth.Height))));
         if(plan.IconSize>0)
             hits.Add(new("header","entry-icon",new SKRect(Px(plan.IconX),Px(plan.IconY),Px(plan.IconX+plan.IconSize),Px(plan.IconY+plan.IconSize))));
     }

@@ -57,6 +57,11 @@ public sealed class DesignChoice(string code, string language, string? fieldKey 
         ("duplex_back_style", "rules") => L("С декоративными линиями", "З декоративними лініями", "With decorative rules"),
         ("back_rules_style", "original") => L("Заданная ширина", "Задана ширина", "Configured width"),
         ("back_rules_style", "simple") => L("80% заданной ширины", "80% заданої ширини", "80% of configured width"),
+        ("header_info_vertical", "top") => L("Сверху", "Зверху", "Top"),
+        ("header_info_vertical", "bottom") => L("Снизу", "Знизу", "Bottom"),
+        ("page_badge_fill_mode", "auto") => L("Как в стиле", "Як у стилі", "Style default"),
+        ("page_badge_fill_mode", "on") => L("Включён", "Увімкнено", "Enabled"),
+        ("page_badge_fill_mode", "off") => L("Выключен", "Вимкнено", "Disabled"),
         ("back_art_icon_position", "top") => L("Выше центра", "Вище центру", "Above center"),
         ("back_art_icon_position", "bottom") => L("Ниже центра", "Нижче центру", "Below center"),
         ("entry_icon_mode", "none") => L("Не печатать иконки", "Не друкувати іконки", "No entry icons"),
@@ -134,11 +139,14 @@ public sealed class AppearanceField : INotifyPropertyChanged
             string caption = Key switch
             {
                 "title_font" or "label_font" or "secret_font" or "header_group_font" or
+                "page_badge_font" or "auth_badge_font" or
                 "back_caption_title_font" or "back_caption_subtitle_font" => TemplateEditorLayout.L(_language,"Шрифт","Шрифт","Font"),
                 "title_size_pt" or "label_size_pt" or "value_size_pt" or "header_group_size_pt" or
+                "footer_size_pt" or "auth_badge_size_pt" or
                 "footer_uuid_size_pt" or "footer_date_size_pt" or "back_caption_title_size_pt" or
                 "back_caption_subtitle_size_pt" => TemplateEditorLayout.L(_language,"Размер","Розмір","Size"),
                 "title_weight" or "label_weight" or "value_weight" or "header_group_weight" or
+                "page_badge_weight" or "auth_badge_weight" or
                 "footer_uuid_weight" or "footer_date_weight" or "back_caption_title_weight" or
                 "back_caption_subtitle_weight" => TemplateEditorLayout.L(_language,"Насыщенность","Насиченість","Weight"),
                 "title_align" or "header_group_align" => TemplateEditorLayout.L(_language,"Выравнивание","Вирівнювання","Alignment"),
@@ -240,7 +248,7 @@ public sealed class AppearanceField : INotifyPropertyChanged
     // Tiny header/footer adjustments must not visibly jump the layout.
     private double NudgeStep() => Key switch
     {
-        "header_group_gap_mm" or "header_accent_width_mm" or "back_rules_thickness_mm" => .05,
+        "header_group_gap_mm" or "header_info_gap_mm" or "header_info_title_gap_mm" or "header_accent_width_mm" or "back_rules_thickness_mm" => .05,
         "card_bg_gray" or "card_bg_contrast" or "front_bg_gray" or "front_bg_contrast" or
         "back_bg_gray" or "back_bg_contrast" or "empty_back_bg_gray" or "empty_back_bg_contrast" or
         "back_art_icon_opacity" or "back_rules_opacity" => 5,
@@ -273,7 +281,8 @@ public sealed class AppearanceField : INotifyPropertyChanged
         "footer_height_mm" => (2, 20),
         "footer_bottom_shift_mm" => (0, _appearance.FooterMaximumBottomShiftMm),
         "header_group_size_pt" => (2, 24),
-        "header_group_gap_mm" => (0, 10),
+        "footer_size_pt" or "auth_badge_size_pt" => (2, 15),
+        "header_group_gap_mm" or "header_info_gap_mm" or "header_info_title_gap_mm" => (0, 10),
         "header_group_column_pct" => (15, 55),
         "header_accent_width_mm" => (.2, 3),
         "footer_uuid_length" => (4, 32),
@@ -352,7 +361,7 @@ public static class AppearanceDescriptor
         => Create(model, "ru");
     public static IReadOnlyList<AppearanceField> Create(CardAppearance model, string language)
     {
-        var result = new List<AppearanceField>(178);
+        var result = new List<AppearanceField>(193);
         void Add(string group,string label,string key,string type,Func<CardAppearance,string> reader,Action<CardAppearance,string> writer,string? choices)
             => result.Add(new AppearanceField(group,label,key,type,model,reader,writer,choices,language));
         // Both proportional system faces and bundled monospaced faces work for
@@ -389,6 +398,21 @@ public static class AppearanceDescriptor
             Add("Шапка и подвал", "Высота подвала, мм", "footer_height_mm", "double", a => a.FooterHeightMm.ToString(CultureInfo.InvariantCulture), (a,v) => a.FooterHeightMm = Math.Clamp(ParseDouble(v,a.FooterHeightMm),2,20), null);
             Add("Шапка и подвал", "Сдвиг подвала вниз, мм", "footer_bottom_shift_mm", "double", a => a.FooterBottomShiftMm.ToString(CultureInfo.InvariantCulture), (a,v) => a.FooterBottomShiftMm = Math.Clamp(ParseDouble(v,a.FooterBottomShiftMm),0,a.FooterMaximumBottomShiftMm), null);
             Add("Шапка и подвал", "Размер плашки страниц, pt", "footer_size_pt", "double", a => a.FooterSizePt.ToString(CultureInfo.InvariantCulture), (a,v) => a.FooterSizePt = Math.Clamp(ParseDouble(v,a.FooterSizePt),2,15), null);
+            Add("Шапка и подвал", "Показывать номер", "page_badge_show", "bool", a => a.PageBadgeShow.ToString(), (a,v) => a.PageBadgeShow=v.Equals("true",StringComparison.OrdinalIgnoreCase), null);
+            Add("Шапка и подвал", "Шрифт номера", "page_badge_font", "string", a => a.PageBadgeFont, (a,v) => a.PageBadgeFont=v, captionFonts);
+            Add("Шапка и подвал", "Насыщенность номера", "page_badge_weight", "string", a => a.PageBadgeWeight, (a,v) => a.PageBadgeWeight=v, "inherit,200,300,400,500,600,700,800");
+            Add("Шапка и подвал", "Заливка номера", "page_badge_fill_mode", "string", a => a.PageBadgeFillMode, (a,v) => a.PageBadgeFillMode=v, "auto,on,off");
+            Add("Шапка и подвал", "Показывать способы авторизации", "auth_badge_show", "bool", a => a.AuthBadgeShow.ToString(), (a,v) => a.AuthBadgeShow=v.Equals("true",StringComparison.OrdinalIgnoreCase), null);
+            Add("Шапка и подвал", "Шрифт обозначений", "auth_badge_font", "string", a => a.AuthBadgeFont, (a,v) => a.AuthBadgeFont=v, captionFonts);
+            Add("Шапка и подвал", "Размер обозначений, pt", "auth_badge_size_pt", "double", a => a.AuthBadgeSizePt.ToString(CultureInfo.InvariantCulture), (a,v) => a.AuthBadgeSizePt=Math.Clamp(ParseDouble(v,a.AuthBadgeSizePt),2,15), null);
+            Add("Шапка и подвал", "Насыщенность обозначений", "auth_badge_weight", "string", a => a.AuthBadgeWeight, (a,v) => a.AuthBadgeWeight=v, "inherit,200,300,400,500,600,700,800");
+            Add("Шапка и подвал", "Цвет обозначений", "auth_badge_text_color", "string", a => a.AuthBadgeTextColor, (a,v) => a.AuthBadgeTextColor=v, null);
+            Add("Шапка и подвал", "Заливка обозначений", "auth_badge_fill", "bool", a => a.AuthBadgeFill.ToString(), (a,v) => a.AuthBadgeFill=v.Equals("true",StringComparison.OrdinalIgnoreCase), null);
+            Add("Шапка и подвал", "Фон обозначений", "auth_badge_background_color", "string", a => a.AuthBadgeBackgroundColor, (a,v) => a.AuthBadgeBackgroundColor=v, null);
+            Add("Шапка и подвал", "По вертикали", "header_info_vertical", "string", a => a.HeaderInfoVertical, (a,v) => a.HeaderInfoVertical=v, "top,center,bottom");
+            Add("Шапка и подвал", "По горизонтали", "header_info_align", "string", a => a.HeaderInfoAlign, (a,v) => a.HeaderInfoAlign=v, "left,center,right");
+            Add("Шапка и подвал", "Между строками, мм", "header_info_gap_mm", "double", a => a.HeaderInfoGapMm.ToString(CultureInfo.InvariantCulture), (a,v) => a.HeaderInfoGapMm=Math.Clamp(ParseDouble(v,a.HeaderInfoGapMm),0,10), null);
+            Add("Шапка и подвал", "От названия, мм", "header_info_title_gap_mm", "double", a => a.HeaderInfoTitleGapMm.ToString(CultureInfo.InvariantCulture), (a,v) => a.HeaderInfoTitleGapMm=Math.Clamp(ParseDouble(v,a.HeaderInfoTitleGapMm),0,10), null);
             Add("Шапка и подвал", "Группа в шапке", "header_group_show", "bool", a => a.HeaderGroupShow.ToString(), (a,v) => a.HeaderGroupShow = v.Equals("true", StringComparison.OrdinalIgnoreCase), null);
             Add("Шапка и подвал", "Положение группы", "header_group_position", "string", a => a.HeaderGroupPosition, (a,v) => a.HeaderGroupPosition=v, "left,top");
             Add("Шапка и подвал", "Шрифт группы", "header_group_font", "string", a => a.HeaderGroupFont, (a,v) => a.HeaderGroupFont=v, PlatformServices.Current.SystemFontOptions);
@@ -541,7 +565,7 @@ public static class AppearanceDescriptor
             Add("Иконки и цвета", "Цвет фона пустого оборота", "empty_back_background_color", "string", a=>a.EmptyBackBackgroundColor, (a,v)=>a.EmptyBackBackgroundColor=v, null);
             Add("Иконки и цвета", "Окраска иконок", "palette_icon_color_mode", "string", a=>CardIconColoring.NormalizeShared(a.PaletteIconColorMode), (a,v)=>a.PaletteIconColorMode=CardIconColoring.NormalizeShared(v), CardIconColoring.SharedOptions);
             Add("Иконки и цвета", "Окраска", "entry_icon_color_mode", "string", a=>CardIconColoring.NormalizeEntry(a.EntryIconColorMode), (a,v)=>CardIconColoring.SetEntryMode(a,v), CardIconColoring.EntryOptions);
-        if (result.Count != 178) throw new InvalidOperationException($"Appearance property registry out of sync: {result.Count} found, 178 expected.");
+        if (result.Count != 193) throw new InvalidOperationException($"Appearance property registry out of sync: {result.Count} found, 193 expected.");
         return result;
     }
 }

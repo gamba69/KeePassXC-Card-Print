@@ -1,5 +1,33 @@
 # Changelog
 
+## [10.4.6] - 2026-11-25
+
+### Fixed
+- Group preview commands with compact 2-DIP spacing and 8-DIP spacing between groups in both toolbar docking positions. Hide the entire face selection group when duplex is unavailable.
+
+## [10.4.5] - 2026-11-25
+
+### Fixed
+- Fit legacy OTP QR preferences against the complete measured composition on an empty card side, retaining the safe module pitch and configured minimum. Explicit mapped QR sizes remain strict.
+- Preserve full OTP captions, grouped secret text and metadata when the preferred inline layout cannot fit. Add regression coverage for the large-QR fallback and constrained geometry; report safe worker failure categories in layout self-tests.
+
+## [10.4.4] - 2026-11-25
+
+### Fixed
+- Add contextual help for every new header information setting in Russian, Ukrainian and English; keep the existing localization contract checks intact.
+
+## [10.4.3] - 2026-11-25
+
+### Fixed
+- Synchronize the appearance registry and Native AOT contract tests with all 193 appearance properties after adding the header authentication settings.
+
+## [10.4.2] - 2026-11-25
+
+### Added
+- Independent header page-number and authentication indicators (TOTP/HOTP/PASSKEY), with single-line deduplicated authentication labels.
+- Shared information-column geometry, vertical and horizontal alignment, spacing, separate typography and optional backgrounds; preview hit regions follow actual visible rows.
+- Header geometry regression checks for hidden indicators, repeated credential types, alignment and narrow layouts.
+
 ## [10.4.1] - 2026-11-25
 
 ### Fixed

@@ -12,9 +12,39 @@ internal static class CardHeaderLayout
     internal sealed record TextBlock(string[] Lines, float X, float Y, float Width,
         float LineHeight, float SizePt, string Font, string Weight);
 
+    internal sealed record InfoRow(string Text, float Y, float Height, float SizePt, string Font, string Weight);
     internal sealed record Plan(float RowY, float RowHeight, float DecorationBottom, float ContentY,
         float IconX, float IconY, float IconSize, float BadgeX, float BadgeWidth,
-        TextBlock Title, TextBlock? Group);
+        TextBlock Title, TextBlock? Group, InfoRow? Page, InfoRow? Auth);
+
+    // Inspect only credential presence, never render a secret or count individual credentials.
+    internal static string AuthenticationText(VaultRecord record)
+    {
+        bool totp=false, hotp=false, passkey=false;
+        foreach(var (key,value) in record.AdditionalFields)
+        {
+            if(string.IsNullOrWhiteSpace(value))continue;
+            if(System.Text.RegularExpressions.Regex.IsMatch(key,
+                @"^TOTP[ _-]+Secret(?: \(.+\))?$",System.Text.RegularExpressions.RegexOptions.IgnoreCase))totp=true;
+            if(System.Text.RegularExpressions.Regex.IsMatch(key,
+                @"^HOTP[ _-]+Secret(?: \(.+\))?$",System.Text.RegularExpressions.RegexOptions.IgnoreCase))hotp=true;
+            if(key.Equals("OTP",StringComparison.OrdinalIgnoreCase) ||
+               key.Equals("TOTP",StringComparison.OrdinalIgnoreCase) || key.Equals("HOTP",StringComparison.OrdinalIgnoreCase))
+            {
+                if(value.StartsWith("otpauth://totp/",StringComparison.OrdinalIgnoreCase))totp=true;
+                if(value.StartsWith("otpauth://hotp/",StringComparison.OrdinalIgnoreCase))hotp=true;
+            }
+            if(PasskeyExport.IsPasskeyAttribute(key) &&
+               (key.Contains("CREDENTIAL_ID",StringComparison.OrdinalIgnoreCase) ||
+                key.Contains("PRIVATE_KEY",StringComparison.OrdinalIgnoreCase)))passkey=true;
+        }
+        return string.Join("/",new[]{totp?"TOTP":"",hotp?"HOTP":"",passkey?"PASSKEY":""}.Where(x=>x.Length>0));
+    }
+
+    private static string Inherit(string? value,string fallback) =>
+        string.IsNullOrWhiteSpace(value) || value=="inherit" ? fallback : value;
+    private static float Safe(double value,double fallback,double min,double max) =>
+        (float)(double.IsFinite(value)?Math.Clamp(value,min,max):fallback);
 
     internal static Plan Measure(CardAppearance a, VaultRecord record)
     {
@@ -33,11 +63,21 @@ internal static class CardHeaderLayout
         float titleStep = Math.Max(1.2f, titleSize * PtToMm * 1.45f);
         float groupSize = (float)Math.Clamp(a.HeaderGroupSizePt * density, 2, 24);
         float groupStep = Math.Max(.9f, groupSize * PtToMm * 1.35f);
-        float chipSize = (float)Math.Clamp(a.FooterSizePt, 2, 15);
-        float chipWidth = CardTextMetrics.MeasureMm("88/88", chipSize, a.LabelFont, a.LabelWeight) + 2.0f;
-        float badgeGap = 1.2f;
+        string authText = a.AuthBadgeShow ? AuthenticationText(record) : "";
+        float chipSize = Safe(a.FooterSizePt,5.6,2,15);
+        float authSize = Safe(a.AuthBadgeSizePt,5.5,2,15);
+        string pageFont=Inherit(a.PageBadgeFont,a.LabelFont), pageWeight=Inherit(a.PageBadgeWeight,a.LabelWeight);
+        string authFont=Inherit(a.AuthBadgeFont,a.LabelFont), authWeight=Inherit(a.AuthBadgeWeight,a.LabelWeight);
+        float chipWidth = a.PageBadgeShow ? CardTextMetrics.MeasureMm("88/88",chipSize,pageFont,pageWeight)+2f : 0;
+        float authWidth = authText.Length>0 ? CardTextMetrics.MeasureMm(authText,authSize,authFont,authWeight)+2f : 0;
+        float infoWidth = Math.Max(chipWidth,authWidth);
+        float chipHeight = a.PageBadgeShow ? chipSize*PtToMm*1.5f : 0;
+        float authHeight = authText.Length>0 ? authSize*PtToMm*1.5f : 0;
+        float infoGap = chipHeight>0 && authHeight>0 ? Safe(a.HeaderInfoGapMm,.5,0,10) : 0;
+        float infoHeight = chipHeight+infoGap+authHeight;
+        float badgeGap = infoWidth>0 ? Safe(a.HeaderInfoTitleGapMm,1.2,0,10) : 0;
         float left = pad + iconReserve;
-        float right = pad + width - chipWidth - badgeGap;
+        float right = pad + width - infoWidth - badgeGap;
         float available = right - left;
         if (available < 7f)
             throw new InvalidOperationException("Для заголовка карточки недостаточно ширины.");
@@ -72,8 +112,7 @@ internal static class CardHeaderLayout
         float titleHeight = titleLines.Length * titleStep;
         float groupHeight = groupLines.Length * groupStep;
         float combinedHeight = hasGroup && !leftGroup ? groupHeight + groupGap + titleHeight : titleHeight;
-        float chipHeight = chipSize * PtToMm * 1.5f;
-        float rowHeight = Math.Max(Math.Max(icon, chipHeight), Math.Max(combinedHeight, leftGroup ? groupHeight : 0));
+        float rowHeight = Math.Max(Math.Max(icon, infoHeight), Math.Max(combinedHeight, leftGroup ? groupHeight : 0));
         // Keep the automatic height as the lower bound; a manually requested height
         // adds symmetric free space, without clipping the title/icon/badge or group.
         float autoHeight = rowHeight + 2 * (top - decorationInset);
@@ -94,7 +133,16 @@ internal static class CardHeaderLayout
         // The following gap is outside the background/stripe. Do not let it
         // change the header fill height or the title/icon/badge center line.
         float contentY = decorationBottom + (float)Math.Clamp(a.HeaderGapMm, 0, 40);
+        // Align against the complete inner header, including any manual extra height.
+        float infoY = a.HeaderInfoVertical switch
+        {
+            "top" => top,
+            "bottom" => decorationBottom-(top-decorationInset)-infoHeight,
+            _ => expandedRowTop+(rowHeight-infoHeight)*.5f
+        };
+        InfoRow? page = chipHeight>0 ? new("",infoY,chipHeight,chipSize,pageFont,pageWeight) : null;
+        InfoRow? auth = authHeight>0 ? new(authText,infoY+chipHeight+infoGap,authHeight,authSize,authFont,authWeight) : null;
         return new Plan(expandedRowTop, rowHeight, decorationBottom, contentY, pad, iconTop, icon,
-            pad + width - chipWidth, chipWidth, titleBlock, groupBlock);
+            pad + width - infoWidth, infoWidth, titleBlock, groupBlock,page,auth);
     }
 }

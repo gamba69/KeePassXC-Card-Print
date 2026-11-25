@@ -281,15 +281,27 @@ public static class CardLayoutEngine
             bool otpQrEnabled=otpType=="secret" &&
                 (mappedOtp ? f.Rule.QrMode=="both" : a.TotpQrEnabled);
             string otpQrPosition=mappedOtp ? f.Rule.QrPosition : a.TotpQrPosition;
-            bool inlineQr=otpQrEnabled && otpQrPosition is "left" or "right" &&
-                TryQrUri(entry,f.Name,out _);
-            float qrSize=mappedOtp && otpQrEnabled && TryQrUri(entry,f.Name,out var mappedOtpPayload)
-                ? RequiredQrSide(mappedOtpPayload,f.Rule,width,ContentHeight(a,entry)-1,f.Name)
-                : (float)Math.Clamp(a.TotpQrHeightMm,a.TotpQrMinHeightMm,
-                    Math.Min(a.WidthMm-2*a.PaddingMm,a.HeightMm-18));
-            if(!mappedOtp && otpQrEnabled && TryQrUri(entry,f.Name,out var legacyPayload))
-                qrSize=RequiredQrSide(legacyPayload,new FieldRule
-                    { QrEcc="M",QrMinModuleMm=.35,QrSizeMm=qrSize },width,ContentHeight(a,entry)-1,f.Name);
+            float qrSize=0, legacyMinimum=0;
+            bool hasOtpQr=otpQrEnabled && TryQrUri(entry,f.Name,out _);
+            float otpCapacity=hasOtpQr?ContentHeight(a,entry):0;
+            bool inlineQr=hasOtpQr && otpQrPosition is "left" or "right";
+            if(hasOtpQr && TryQrUri(entry,f.Name,out var otpPayload))
+            {
+                if(mappedOtp)
+                    qrSize=RequiredQrSide(otpPayload,f.Rule,width,otpCapacity-1,f.Name);
+                else
+                {
+                    // Appearance stores a preferred size, not a strict mapped size.
+                    // First reserve the actual scanner-safe minimum (including quiet zone).
+                    legacyMinimum=RequiredQrSide(otpPayload,new FieldRule
+                    {
+                        QrEcc="M", QrMinModuleMm=.35,
+                        QrSizeMm=double.IsFinite(a.TotpQrMinHeightMm)?Math.Max(0,a.TotpQrMinHeightMm):14
+                    },width,otpCapacity-1,f.Name);
+                    float preferred=double.IsFinite(a.TotpQrHeightMm)?(float)a.TotpQrHeightMm:28;
+                    qrSize=Math.Max(legacyMinimum,Math.Min(preferred,Math.Min(width,otpCapacity-1)));
+                }
+            }
             float qrTextWidth=width-qrSize-2;
             string[][]? groupedQrRows=null;
             float qrGapMm=0;
@@ -317,6 +329,7 @@ public static class CardLayoutEngine
             if(inlineQr && f.Rule.ShowLabel &&
                CardTextMetrics.MeasureMm(label,labelPt,a.LabelFont,a.LabelWeight)>qrTextWidth*1.03f)
                 inlineQr=false;
+            bool inlinePlaced=false;
             if(inlineQr && TryQrUri(entry,f.Name,out var qr))
             {
                 textRows??=groupedQrRows!.Select(row=>string.Join(" ",row)).ToList();
@@ -324,7 +337,7 @@ public static class CardLayoutEngine
                 // zone. Align the first BLACK QR row with the caption's visible
                 // ink top: aligning the white outer box is visually incorrect.
                 // Keep that white zone intact for reliable scanning.
-                result.RemoveRange(beforeFieldLabel,result.Count-beforeFieldLabel);
+                // Preserve the original caption until the inline placement is accepted.
                 var labelRows=f.Rule.ShowLabel ? new List<string>{label} : new List<string>();
                 float captionHeight=labelRows.Count*labelH;
                 float blackRowFraction=CardSkiaRenderer.QrFirstBlackRowFraction(qr,
@@ -339,15 +352,21 @@ public static class CardLayoutEngine
                 float metaHeight=metaRows.Length*Height(labelPt,a,1.25f);
                 float blockHeight=Math.Max(qrShift+qrSize,
                     textShift+captionHeight+textHeight+metaHeight)+1;
-                result.Add(new CardLine(CardLineKind.Qr,string.Join("\n",textRows),blockHeight,
-                    qrSize,"totp",f.Name,qr,labelRows.Count>0?string.Join("\n",labelRows):null,
-                    f.Rule.Section,weight,tracking,null,true,
-                    string.Join("\n",metaRows),pt,groupedQrRows,qrGapMm,
-                    QrFirstBlackRowFraction:blackRowFraction,
-                    QrStrict:mappedOtp,QrPosition:otpQrPosition,
-                    QrEcc:mappedOtp ? f.Rule.QrEcc : "M"));
+                float sectionHeight=result.Skip(blockStart).Take(beforeFieldLabel-blockStart).Sum(l=>l.HeightMm);
+                if(sectionHeight+blockHeight<=otpCapacity+.001f)
+                {
+                    result.RemoveRange(beforeFieldLabel,result.Count-beforeFieldLabel);
+                    result.Add(new CardLine(CardLineKind.Qr,string.Join("\n",textRows),blockHeight,
+                        qrSize,"totp",f.Name,qr,labelRows.Count>0?string.Join("\n",labelRows):null,
+                        f.Rule.Section,weight,tracking,null,true,
+                        string.Join("\n",metaRows),pt,groupedQrRows,qrGapMm,
+                        QrFirstBlackRowFraction:blackRowFraction,
+                        QrStrict:mappedOtp,QrPosition:otpQrPosition,
+                        QrEcc:mappedOtp ? f.Rule.QrEcc : "M"));
+                    inlinePlaced=true;
+                }
             }
-            else
+            if(!inlinePlaced)
             {
                 // TOTP is always grouped at complete boundaries. This also covers a
                 // centered/below-value QR or an automatic fallback from an inline QR.
@@ -420,7 +439,17 @@ public static class CardLayoutEngine
                         result.Add(new CardLine(CardLineKind.Meta,line,Height(labelPt,a),labelPt,Field:f.Name,Section:f.Rule.Section));
                 if(otpQrEnabled && TryQrUri(entry,f.Name,out var qrUri))
                 {
-                    // Reuse the QR dimension calculated above for both layout paths.
+                    // Measure every existing row of the OTP block, including any
+                    // section heading, label and metadata. Fit only against an
+                    // EMPTY side: never shrink to fill a preceding field's remainder.
+                    if(!mappedOtp)
+                    {
+                        float textHeight=result.Skip(blockStart).Sum(l=>l.HeightMm);
+                        float available=otpCapacity-textHeight-1;
+                        if(available+.001f<legacyMinimum)
+                            throw new InvalidOperationException($"QR не помещается: для блока OTP требуется {textHeight+legacyMinimum+1:0.0} мм, доступно {otpCapacity:0.0} мм. Поле: «{f.Name}».");
+                        qrSize=Math.Max(legacyMinimum,Math.Min(qrSize,available));
+                    }
                     result.Add(new CardLine(CardLineKind.Qr,"",qrSize+1,qrSize,"totp",f.Name,qrUri,
                         Section:f.Rule.Section,QrStrict:mappedOtp,QrPosition:otpQrPosition,
                         QrEcc:mappedOtp ? f.Rule.QrEcc : "M"));

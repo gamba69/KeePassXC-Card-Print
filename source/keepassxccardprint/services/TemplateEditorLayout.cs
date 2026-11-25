@@ -66,7 +66,9 @@ internal static class TemplateEditorLayout
         G("general", "geometry", "Размер и геометрия", "Розмір і геометрія", "Size and geometry", "width_mm height_mm padding_mm density style"),
         G("general", "frame", "Рамка", "Рамка", "Frame", "frame frame_width_pt corner_radius_mm frame_color"),
         G("header", "title", "Заголовок записи", "Заголовок запису", "Entry title", "title_font title_size_pt title_weight title_align title_color"),
-        G("header", "page-badge", "Номер части карточки", "Номер частини картки", "Card part number", "footer_size_pt page_badge_text_color page_badge_background_color"),
+        G("header", "header-info", "Информационный блок", "Інформаційний блок", "Information block", "header_info_vertical header_info_align header_info_gap_mm header_info_title_gap_mm"),
+        G("header", "page-badge", "Номер части карточки", "Номер частини картки", "Card part number", "page_badge_show page_badge_font footer_size_pt page_badge_weight page_badge_text_color page_badge_fill_mode page_badge_background_color"),
+        G("header", "auth-badge", "Способы авторизации", "Способи авторизації", "Authentication methods", "auth_badge_show auth_badge_font auth_badge_size_pt auth_badge_weight auth_badge_text_color auth_badge_fill auth_badge_background_color"),
         G("header", "header-group", "Название группы", "Назва групи", "Group name", "header_group_show header_group_position header_group_font header_group_size_pt header_group_weight header_group_color header_group_gap_mm header_group_column_pct header_group_align"),
         G("header", "entry-icon", "Иконка записи", "Іконка запису", "Entry icon", "entry_icon_mode entry_icon_size_mm entry_icon_print_mode entry_icon_color_mode entry_icon_tint_color entry_icon_background_color"),
         G("header", "header-layout", "Оформление шапки", "Оформлення шапки", "Header layout", "header_height_mm header_top_mm header_gap_mm header_fill header_accent header_accent_width_mm header_fill_color header_accent_color header_rule_color"),
@@ -134,6 +136,13 @@ internal static class TemplateEditorLayout
             return caption && a.DuplexBackStyle == "rules";
         if (key.StartsWith("header_group_", StringComparison.Ordinal) && key != "header_group_show")
             return a.HeaderGroupShow && (key != "header_group_column_pct" || a.HeaderGroupPosition == "left");
+        if (key.StartsWith("header_info_", StringComparison.Ordinal))
+            return (a.PageBadgeShow || a.AuthBadgeShow) && (key != "header_info_gap_mm" || (a.PageBadgeShow && a.AuthBadgeShow));
+        if (key == "footer_size_pt" || (key.StartsWith("page_badge_", StringComparison.Ordinal) && key != "page_badge_show"))
+            return a.PageBadgeShow && (key != "page_badge_background_color" ||
+                a.PageBadgeFillMode == "on" || (a.PageBadgeFillMode == "auto" && a.Style == "archive" && a.HeaderFill));
+        if (key.StartsWith("auth_badge_", StringComparison.Ordinal) && key != "auth_badge_show")
+            return a.AuthBadgeShow && (key != "auth_badge_background_color" || a.AuthBadgeFill);
         if (key.StartsWith("footer_uuid_", StringComparison.Ordinal) && key != "footer_uuid_show") return a.FooterUuidShow;
         if (key.StartsWith("footer_date_", StringComparison.Ordinal)) return a.ShowDate;
         return key switch
@@ -144,7 +153,6 @@ internal static class TemplateEditorLayout
             "header_fill_color" => a.HeaderFill && a.Style != "minimal",
             "header_accent_color" => a.HeaderAccent,
             "header_rule_color" => !a.HeaderAccent && a.SectionRules,
-            "page_badge_background_color" => a.Style == "archive" && a.HeaderFill,
             "entry_icon_color_mode" => a.EntryIconMode != "none" && a.EntryIconPrintMode != "none",
             "entry_icon_tint_color" => CardIconColoring.ShowTint(a),
             "entry_icon_background_color" => a.EntryIconMode != "none" && a.EntryIconPrintMode is "auto" or "backdrop",

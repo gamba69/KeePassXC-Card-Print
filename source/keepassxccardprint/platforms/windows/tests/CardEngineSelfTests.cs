@@ -610,7 +610,7 @@ internal static class CardEngineSelfTests
 
             var settings=Defaults();
             var appearanceFields=AppearanceDescriptor.Create(settings);
-            Check(appearanceFields.Count==178,"all 178 editable appearance parameters");
+            Check(appearanceFields.Count==193,"all 193 editable appearance parameters");
             var iconColorModel=Defaults();
             var iconColorFields=AppearanceDescriptor.Create(iconColorModel).ToDictionary(f=>f.Key,StringComparer.Ordinal);
             var iconSharedField=iconColorFields["palette_icon_color_mode"];
@@ -748,7 +748,7 @@ internal static class CardEngineSelfTests
             foreach (var field in appearanceFields) field.Relocalize("ru");
             TemplateEditorLayout.Validate(appearanceFields.Select(f=>f.Key));
             var ownership=TemplateEditorLayout.Groups.SelectMany(g=>g.Keys).ToArray();
-            Check(ownership.Length==178 && ownership.Distinct().Count()==178,"unified editor owns every setting exactly once");
+            Check(ownership.Length==193 && ownership.Distinct().Count()==193,"unified editor owns every setting exactly once");
             var navigationGlyphs=TemplateEditorLayout.Sections
                 .Select(s=>new TemplateEditorSection(s.Id,s.En).Glyph).ToArray();
             Check(navigationGlyphs.Length==10 && navigationGlyphs.Distinct().Count()==10,
@@ -931,9 +931,9 @@ internal static class CardEngineSelfTests
             var serializedKeys = serializedAppearance.RootElement.EnumerateObject()
                 .Select(p => p.Name).ToArray();
             var keyNames = serializedKeys.ToHashSet(StringComparer.Ordinal);
-            Check(serializedKeys.Length == 178,
-                $"persisted appearance JSON has 178 properties (actual {serializedKeys.Length})");
-            Check(keyNames.Count==178,
+            Check(serializedKeys.Length == 193,
+                $"persisted appearance JSON has 193 properties (actual {serializedKeys.Length})");
+            Check(keyNames.Count==193,
                 $"original and new appearance keys (actual {keyNames.Count})");
             Check(appearanceFields.Select(f=>f.Key).Distinct(StringComparer.Ordinal).Count()==appearanceFields.Count,
                 "appearance editor has unique property keys");
@@ -1018,6 +1018,7 @@ internal static class CardEngineSelfTests
             var headerRecord=Record("Long example title for layout measurement");
             var noGroup=CardHeaderLayout.Measure(settings,headerRecord);
             Check(noGroup.Group is null,"hidden group keeps original one-row header");
+            HeaderAuthenticationSelfTests.Run(Check);
             Check(noGroup.Title.X + noGroup.Title.Width <= noGroup.BadgeX+.001f,
                 "title never overlaps page-count badge");
             settings.HeaderGapMm=0;
@@ -1649,6 +1650,36 @@ internal static class CardEngineSelfTests
                 "QR-below fallback preserves the fractional 0.2 space gap");
             LayoutFits(fallbackQrCards,settings);
             foreach(var card in fallbackQrCards){var png=Picture(card,settings);Array.Clear(png);}
+            // The legacy QR preference may be reduced only to fit a complete
+            // composition on an empty side, not to fill the remaining space.
+            var fallbackQr=All(fallbackQrCards).Single(l=>l.Kind==CardLineKind.Qr);
+            var otpParts=fallbackQrCards.SelectMany(c=>new[]{c.Front,c.Continuation})
+                .Where(part=>part is not null && part.Lines.Any(l=>l.Field=="TOTP Secret" && l.Kind!=CardLineKind.Gap)).ToArray();
+            Check(otpParts.Length==1,"large legacy OTP stays together on one side");
+            float nonQrHeight=otpParts[0]!.Lines.Where(l=>l.Field=="TOTP Secret" &&
+                l.Kind is not (CardLineKind.Qr or CardLineKind.Gap)).Sum(l=>l.HeightMm);
+            float safeSide=QrPrintPolicy.RequiredSide(fallbackQr.QrUri!,new FieldRule
+                {QrEcc="M",QrMinModuleMm=.35,QrSizeMm=settings.TotpQrMinHeightMm},100,100);
+            Check(fallbackQr.FontPt>=safeSide-.001f && fallbackQr.FontPt<=48.001f,
+                "large legacy OTP preserves physical QR minimum and preferred upper bound");
+            float constrainedSide=safeSide+3;
+            Check(constrainedSide<48,"synthetic QR allows a meaningful reduced-size test");
+            double originalHeight=settings.HeightMm;
+            string originalPosition=settings.TotpQrPosition;
+            settings.TotpQrPosition="center";
+            settings.HeightMm+=nonQrHeight+constrainedSide+1-CardLayoutEngine.ContentHeight(settings,groupedOtp);
+            var constrainedCards=CardLayoutEngine.Build([groupedOtp],settings,groupedRules);
+            var constrainedQr=All(constrainedCards).Single(l=>l.Kind==CardLineKind.Qr);
+            Check(!constrainedQr.QrInline && Math.Abs(constrainedQr.FontPt-constrainedSide)<.01f &&
+                settings.TotpQrHeightMm==48,"legacy QR fits the complete block without changing its stored preference");
+            Check(constrainedCards.SelectMany(c=>new[]{c.Front,c.Continuation})
+                .Count(part=>part is not null && part.Lines.Any(l=>l.Field=="TOTP Secret" && l.Kind!=CardLineKind.Gap))==1,
+                "reduced legacy QR still keeps all OTP rows on the same side");
+            Check(string.Concat(All(constrainedCards).Where(l=>l.Field=="TOTP Secret" && l.Kind==CardLineKind.Value)
+                .SelectMany(l=>l.GroupedValue!))==inventedOtp,"constrained OTP keeps the full original secret");
+            LayoutFits(constrainedCards,settings);
+            settings.HeightMm=originalHeight;
+            settings.TotpQrPosition=originalPosition;
             // With seven groups, balance rows rather than producing a lone trailing group.
             float wrapGap;
             float wideGroup=CardTextMetrics.MeasureMm("JBSW",(float)settings.ValueSizePt,settings.SecretFont,
@@ -1949,12 +1980,20 @@ internal static class CardEngineSelfTests
         }
         catch(Exception e)
         {
-            // Only canned assertion names and exception type, no real input or KDBX data.
-            // All test records are artificial, and no vault is opened in this mode.
-            // Preserve the exception message and previous assertion instead of
-            // hiding the useful failure behind only InvalidOperationException.
+            // Only canned assertion names and safe error categories, no input or KDBX data.
             if (!e.Message.StartsWith("LAYOUT_TEST_FAILED:", StringComparison.Ordinal))
+            {
                 _testLog.AppendLine("[FAIL] layout/runtime: " + e.GetType().Name + " [after: " + _lastSuccessfulCheck + "]");
+                IEnumerable<Exception> failures=e is AggregateException aggregate
+                    ? aggregate.Flatten().InnerExceptions : new[]{e};
+                foreach(var failure in failures)
+                {
+                    string category=failure.Message.StartsWith("QR не помещается:",StringComparison.Ordinal) ? "QR geometry" :
+                        failure.Message.Contains("неделимый блок или заголовок продолжения не помещается",StringComparison.Ordinal) ? "atomic pagination geometry" :
+                        failure.Message.Contains("Для заголовка карточки недостаточно ширины",StringComparison.Ordinal) ? "header width" : "unclassified";
+                    _testLog.AppendLine("[FAIL] layout/worker: "+failure.GetType().Name+" ["+category+"]");
+                }
+            }
             Report = _testLog.ToString();
             return 7;
         }

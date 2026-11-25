@@ -187,6 +187,21 @@ public sealed class CardAppearance
     [JsonPropertyName("title_color")] public string TitleColor { get; set; } = "inherit";
     [JsonPropertyName("page_badge_text_color")] public string PageBadgeTextColor { get; set; } = "inherit";
     [JsonPropertyName("page_badge_background_color")] public string PageBadgeBackgroundColor { get; set; } = "#E5EBF2";
+    [JsonPropertyName("page_badge_show")] public bool PageBadgeShow { get; set; } = true;
+    [JsonPropertyName("page_badge_font")] public string PageBadgeFont { get; set; } = "inherit";
+    [JsonPropertyName("page_badge_weight")] public string PageBadgeWeight { get; set; } = "inherit";
+    [JsonPropertyName("page_badge_fill_mode")] public string PageBadgeFillMode { get; set; } = "auto";
+    [JsonPropertyName("auth_badge_show")] public bool AuthBadgeShow { get; set; } = true;
+    [JsonPropertyName("auth_badge_font")] public string AuthBadgeFont { get; set; } = "inherit";
+    [JsonPropertyName("auth_badge_size_pt")] public double AuthBadgeSizePt { get; set; } = 5.5;
+    [JsonPropertyName("auth_badge_weight")] public string AuthBadgeWeight { get; set; } = "600";
+    [JsonPropertyName("auth_badge_text_color")] public string AuthBadgeTextColor { get; set; } = "inherit";
+    [JsonPropertyName("auth_badge_fill")] public bool AuthBadgeFill { get; set; }
+    [JsonPropertyName("auth_badge_background_color")] public string AuthBadgeBackgroundColor { get; set; } = "#E5EBF2";
+    [JsonPropertyName("header_info_align")] public string HeaderInfoAlign { get; set; } = "center";
+    [JsonPropertyName("header_info_vertical")] public string HeaderInfoVertical { get; set; } = "center";
+    [JsonPropertyName("header_info_gap_mm")] public double HeaderInfoGapMm { get; set; } = .5;
+    [JsonPropertyName("header_info_title_gap_mm")] public double HeaderInfoTitleGapMm { get; set; } = 1.2;
     [JsonPropertyName("entry_icon_tint_color")] public string EntryIconTintColor { get; set; } = "#202B38";
     [JsonPropertyName("palette_icon_color_mode")] public string PaletteIconColorMode { get; set; } = "original";
     [JsonPropertyName("entry_icon_color_mode")] public string EntryIconColorMode { get; set; } = "inherit";
@@ -221,6 +236,16 @@ public sealed class CardAppearance
         HeaderHeightMm=Safe(HeaderHeightMm,0,0,50);
         HeaderTopMm=Safe(HeaderTopMm,2.5,.9,20);
         HeaderGapMm=Safe(HeaderGapMm,4.1,0,40);
+        AuthBadgeSizePt=Safe(AuthBadgeSizePt,5.5,2,15);
+        HeaderInfoGapMm=Safe(HeaderInfoGapMm,.5,0,10);
+        HeaderInfoTitleGapMm=Safe(HeaderInfoTitleGapMm,1.2,0,10);
+        if(HeaderInfoAlign is not ("left" or "center" or "right"))HeaderInfoAlign="center";
+        if(HeaderInfoVertical is not ("top" or "center" or "bottom"))HeaderInfoVertical="center";
+        if(PageBadgeFillMode is not ("auto" or "on" or "off"))PageBadgeFillMode="auto";
+        if(string.IsNullOrWhiteSpace(PageBadgeFont))PageBadgeFont="inherit";
+        if(string.IsNullOrWhiteSpace(AuthBadgeFont))AuthBadgeFont="inherit";
+        if(PageBadgeWeight!="inherit")PageBadgeWeight=FontWeights.Normalize(PageBadgeWeight);
+        if(AuthBadgeWeight!="inherit")AuthBadgeWeight=FontWeights.Normalize(AuthBadgeWeight);
         FooterHeightMm=Safe(FooterHeightMm,5,2,20);
         FooterBottomShiftMm=Safe(FooterBottomShiftMm,0,0,FooterMaximumBottomShiftMm);
         HeaderGroupSizePt=Safe(HeaderGroupSizePt,6.2,2,24);
