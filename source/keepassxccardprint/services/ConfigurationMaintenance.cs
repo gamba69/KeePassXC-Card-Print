@@ -10,7 +10,7 @@ internal static class ConfigurationMaintenance
     private static readonly string[] SettingsFiles =
     [
         "ui-shell.json", "vault-state.json", "appearance.json",
-        "domains.json", "appearance-template-source.json"
+        "domains.json", "appearance-template-source.json", HyphenationPackages.ConfigName
     ];
     private static readonly string[] SystemFiles =
     [
@@ -65,7 +65,7 @@ internal static class ConfigurationMaintenance
             {
                 if (SettingsFiles.Contains(name, StringComparer.Ordinal) ||
                     (system && SystemFiles.Contains(name, StringComparer.Ordinal))) continue;
-                if (name is "templates" or "print-tracking") continue;
+                if (name is "templates" or "print-tracking" or HyphenationPackages.CacheName) continue;
                 // All permanent snapshots live in the separate unified backup root.
                 // Legacy per-storage backups are partial and must not survive.
                 if (name == "backups") { Remove(entry); continue; }

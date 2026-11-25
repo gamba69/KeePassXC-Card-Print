@@ -111,6 +111,27 @@
       </Border>
       <Border Classes="settings-card" Padding="11">
         <StackPanel Spacing="8">
+          <TextBlock x:Name="HyphenationCaption" Classes="section-heading" Text="Правила переноса слов"/>
+          <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Disabled">
+            <Grid x:Name="HyphenationTable" MinWidth="960"/>
+          </ScrollViewer>
+          <TextBlock x:Name="HyphenationCatalogCount" FontSize="11"/>
+          <Grid ColumnDefinitions="*,*,Auto" ColumnSpacing="6">
+            <TextBox x:Name="HyphenationSearch"/>
+            <ComboBox x:Name="HyphenationPicker" Grid.Column="1" HorizontalAlignment="Stretch"/>
+            <Button x:Name="HyphenationInstall" Grid.Column="2" Click="OnHyphenationInstall"><StackPanel Orientation="Horizontal" Spacing="6"><fi:FluentIcon Icon="ArrowDownload" IconVariant="Regular" IconSize="Size20" Width="18" Height="18" FontSize="18" VerticalAlignment="Center"/><TextBlock x:Name="HyphenationInstallLabel" VerticalAlignment="Center"/></StackPanel></Button>
+          </Grid>
+          <WrapPanel Orientation="Horizontal" ItemSpacing="6" LineSpacing="6">
+            <Button x:Name="HyphenationCatalogRefresh" Click="OnHyphenationCatalogRefresh"><StackPanel Orientation="Horizontal" Spacing="6"><fi:FluentIcon Icon="ArrowSync" IconVariant="Regular" IconSize="Size20" Width="18" Height="18" FontSize="18" VerticalAlignment="Center"/><TextBlock x:Name="HyphenationCatalogLabel" VerticalAlignment="Center"/></StackPanel></Button>
+            <Button x:Name="HyphenationUpdateAll" Click="OnHyphenationUpdateAll"><StackPanel Orientation="Horizontal" Spacing="6"><fi:FluentIcon Icon="ArrowDownload" IconVariant="Regular" IconSize="Size20" Width="18" Height="18" FontSize="18" VerticalAlignment="Center"/><TextBlock x:Name="HyphenationUpdateAllLabel" VerticalAlignment="Center"/></StackPanel></Button>
+            <Button x:Name="HyphenationRestore" Click="OnHyphenationRestore"><StackPanel Orientation="Horizontal" Spacing="6"><fi:FluentIcon Icon="ArrowSync" IconVariant="Regular" IconSize="Size20" Width="18" Height="18" FontSize="18" VerticalAlignment="Center"/><TextBlock x:Name="HyphenationRestoreLabel" VerticalAlignment="Center"/></StackPanel></Button>
+          </WrapPanel>
+          <CheckBox x:Name="HyphenationAutoCheck"/>
+          <TextBlock x:Name="HyphenationOperationStatus" TextWrapping="Wrap" FontSize="11"/>
+        </StackPanel>
+      </Border>
+      <Border Classes="settings-card" Padding="11">
+        <StackPanel Spacing="8">
           <TextBlock x:Name="MaintenanceCaption" Classes="section-heading" Text="Обслуживание"/>
           <TextBlock x:Name="ResetHelp" TextWrapping="Wrap" FontSize="11"
                      Text="Сброс настроек с резервным копированием. История печати сохраняется, если явно не выбрать её удаление."/>

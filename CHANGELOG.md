@@ -1,5 +1,51 @@
 # Changelog
 
+## [10.2.7] - 2026-11-25
+
+### Added
+- Independent per-field word hyphenation and language overrides for notes and multiline prose. Inherit, enable or disable hyphenation; inherit, automatically detect or explicitly select an installed language. Preserve overrides in drafts, template JSON, snapshots and cloud sync; refresh language choices after package changes without discarding edits. Technical fields retain their original rendering.
+- Regression checks for override precedence, old and new template JSON, mapping drafts, future language codes and localized choices.
+
+## [10.2.6] - 2026-11-25
+
+### Fixed
+- Start both mapping views and the installed hyphenation package table with the normal row background; apply zebra striping to the second and every subsequent even data row, independently of the header. Preserve hover and selection styling.
+
+## [10.2.5] - 2026-11-25
+
+### Changed
+- Match the installed hyphenation package table to the mapping table: one continuous header, compact rows, and alternating theme-aware row colors matching Cloud Sync. Apply the same striping to both mapping views.
+- Show only relevant per-package actions: restore or update, and remove or reset to bundled when applicable. Hide unavailable bulk actions and retain sorting and tooltips. Display author-provided rule versions verbatim and identify upstream revision separately.
+
+## [10.2.4] - 2026-11-25
+
+### Fixed
+- Use Avalonia 12 TextBox.PlaceholderText for the hyphenation language search, eliminating compiler warning CS0618.
+
+## [10.2.3] - 2026-11-25
+
+### Added
+- Sortable installed hyphenation package table with source, version, update state, size, metadata and per-language actions; searchable installation picker and optional daily update checks. Compare actual upstream blobs, not unrelated repository revisions.
+- Per-field alignment override for notes and multiline text, with inherited defaults, draft persistence, localized editor and regression checks.
+
+## [10.2.2] - 2026-11-25
+
+### Fixed
+- Assign explicit unique manifest resource names to all eight bundled hyphenation files, preventing CS1508 and excluding unexpected files from the build. Verify the complete resource-name contract in the published executable self-tests.
+
+## [10.2.1] - 2026-11-25
+
+### Fixed
+- Discover language packages from the upstream TeX file tree instead of restricting installation to a fixed list. Cache the catalog for offline use and refresh it on demand. Accept valid future and retired language codes in portable configuration; use per-language typesetting minima from the verified source.
+
+## [10.2.0] - 2026-11-25
+
+### Added
+- Left, centered, right and justified alignment for notes and multiline prose, with paragraph-aware word hyphenation and shared preview/print geometry. Technical values keep their existing rendering.
+- Meziantou Unicode hyphenation engine; Russian, Ukrainian and American English rules embedded from an immutable TeX Hyphenation revision. All discovered upstream language packages are available on demand; the offline catalog snapshot is refreshed dynamically.
+- Local package install, update, restore and reset; portable configuration pins exact revisions and SHA-256 file hashes. Cloud configuration restores missing packages from the fixed upstream repository.
+- Offline layout and bundled-package regression checks.
+
 ## [10.1.3] - 2026-11-24
 
 ### Added

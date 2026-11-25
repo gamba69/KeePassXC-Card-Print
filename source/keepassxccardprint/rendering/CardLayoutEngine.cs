@@ -15,7 +15,7 @@ public sealed record CardLine(CardLineKind Kind, string Text, float HeightMm, fl
     string[][]? QrGroupedRows = null, float QrGroupGapMm = 0,
     string[]? GroupedValue = null, float GroupGapMm = 0,
     bool RecoveryGrouped = false, float RecoveryGroupGapMm = 0,
-    float QrFirstBlackRowFraction = 0);
+    float QrFirstBlackRowFraction = 0, string? ProseAlignment = null, bool ParagraphFinal = true);
 public sealed record CardPart(VaultRecord Record, IReadOnlyList<CardLine> Lines, int Number, int Total, int UuidLength = 12);
 public sealed record PhysicalCard(CardPart Front, CardPart? Continuation);
 
@@ -418,6 +418,15 @@ public static class CardLayoutEngine
                             Weight:weight,TrackingPt:tracking,GroupedValue:groups,GroupGapMm:normalGapMm));
                         first=false;
                     }
+                }
+                else if(isNotes && FieldMappingDefaults.SupportsProseAlignment(f.Name, f.Rule.Role) && otpType is null &&
+                    (FieldMappingDefaults.ResolveHyphenation(f.Rule,a) || FieldMappingDefaults.ResolveAlignment(f.Rule,a) is "center" or "right" or "justify"))
+                {
+                    foreach(var line in ProseLayout.Wrap(value,dataWidth,pt,face,weight,tracking,
+                        FieldMappingDefaults.ResolveHyphenation(f.Rule,a),FieldMappingDefaults.ResolveHyphenLanguage(f.Rule,a)))
+                        result.Add(new CardLine(CardLineKind.Value,line.Text,Height(pt,a),pt,f.Rule.Role,f.Name,
+                            Section:f.Rule.Section,Weight:weight,TrackingPt:tracking,
+                            ProseAlignment:FieldMappingDefaults.ResolveAlignment(f.Rule,a),ParagraphFinal:line.ParagraphFinal));
                 }
                 else
                 {

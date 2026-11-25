@@ -38,6 +38,7 @@ public partial class SettingsView : UserControl
     public SettingsView()
     {
         InitializeComponent();
+        InitializeHyphenationSettings();
         ProviderPicker.ItemsSource = ProviderNames;
         AutoCheck.IsCheckedChanged += (_, _) => SaveUpdaterPreferences();
         AutoDownload.IsCheckedChanged += (_, _) => SaveUpdaterPreferences();
@@ -243,6 +244,7 @@ public partial class SettingsView : UserControl
             TestCloudButtonLabel.Text = L("Проверить подключение", "Перевірити підключення", "Test connection");
             SyncCloudButtonLabel.Text = L("Синхронизировать сейчас", "Синхронізувати зараз", "Sync now");
             UpdatesCaption.Text = L("Обновления программы", "Оновлення програми", "Application updates");
+            RefreshHyphenationSettings();
             MaintenanceCaption.Text = L("Обслуживание", "Обслуговування", "Maintenance");
             ResetSettingsButtonLabel.Text = L("Сбросить настройки…", "Скинути налаштування…", "Reset settings…");
             ResetHelp.Text = L(

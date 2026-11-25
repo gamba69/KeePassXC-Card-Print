@@ -36,6 +36,9 @@ public sealed class DesignChoice(string code, string language, string? fieldKey 
         : fieldKey is not null && fieldKey.EndsWith("_font", StringComparison.Ordinal) && Code != "inherit"
         ? Code : (fieldKey, Code) switch
     {
+        ("notes_alignment", "justify") => L("По ширине", "За шириною", "Justify"),
+        ("notes_hyphen_language", "auto") => L("Автоматически", "Автоматично", "Automatic"),
+        ("notes_hyphen_language", _) => HyphenationPackages.Find(Code)?.Name ?? Code,
         ("notes_mode", "normal") => L("Обычный размер", "Звичайний розмір", "Normal size"),
         ("notes_mode", "small") => L("Отдельный размер шрифта", "Окремий розмір шрифту", "Custom notes font size"),
         ("notes_mode", "optional") => L("Пропускать при нехватке места", "Пропускати за браку місця", "Omit if extra space is needed"),
@@ -347,7 +350,7 @@ public static class AppearanceDescriptor
         => Create(model, "ru");
     public static IReadOnlyList<AppearanceField> Create(CardAppearance model, string language)
     {
-        var result = new List<AppearanceField>(175);
+        var result = new List<AppearanceField>(178);
         void Add(string group,string label,string key,string type,Func<CardAppearance,string> reader,Action<CardAppearance,string> writer,string? choices)
             => result.Add(new AppearanceField(group,label,key,type,model,reader,writer,choices,language));
         // Both proportional system faces and bundled monospaced faces work for
@@ -446,6 +449,9 @@ public static class AppearanceDescriptor
             Add("Шрифты", "Увеличение после разделения, %", "split_boost_pct", "int", a => a.SplitBoostPct.ToString(CultureInfo.InvariantCulture), (a,v) => a.SplitBoostPct = ParseInt(v,a.SplitBoostPct), null);
             Add("Поля и содержимое", "Заметки, pt", "notes_size_pt", "double", a => a.NotesSizePt.ToString(CultureInfo.InvariantCulture), (a,v) => a.NotesSizePt = ParseDouble(v,a.NotesSizePt), null);
             Add("Поля и содержимое", "Режим заметок", "notes_mode", "string", a => a.NotesMode.ToString(), (a,v) => a.NotesMode = v, "normal,small,optional");
+            Add("Поля и содержимое", "Выравнивание текста", "notes_alignment", "string", a => a.NotesAlignment, (a,v) => a.NotesAlignment = v, "left,center,right,justify");
+            Add("Поля и содержимое", "Переносы слов", "notes_hyphenation", "bool", a => a.NotesHyphenation.ToString(), (a,v) => a.NotesHyphenation = string.Equals(v,"true",StringComparison.OrdinalIgnoreCase), null);
+            Add("Поля и содержимое", "Язык переносов", "notes_hyphen_language", "string", a => a.NotesHyphenLanguage, (a,v) => a.NotesHyphenLanguage = v, HyphenationPackages.ChoicesFor(model.NotesHyphenLanguage));
             Add("Коды восстановления", "Группировать секреты", "group_long_values", "bool", a => a.GroupLongValues.ToString(), (a,v) => a.GroupLongValues = string.Equals(v, "true", StringComparison.OrdinalIgnoreCase), null);
             Add("Коды восстановления", "Символов в группе", "group_size", "int", a => a.GroupSize.ToString(CultureInfo.InvariantCulture), (a,v) => a.GroupSize = ParseInt(v,a.GroupSize), null);
             Add("Коды восстановления", "Минимальная длина для групп", "group_min_length", "int", a => a.GroupMinLength.ToString(CultureInfo.InvariantCulture), (a,v) => a.GroupMinLength = ParseInt(v,a.GroupMinLength), null);
@@ -533,7 +539,7 @@ public static class AppearanceDescriptor
             Add("Иконки и цвета", "Цвет фона пустого оборота", "empty_back_background_color", "string", a=>a.EmptyBackBackgroundColor, (a,v)=>a.EmptyBackBackgroundColor=v, null);
             Add("Иконки и цвета", "Окраска иконок", "palette_icon_color_mode", "string", a=>CardIconColoring.NormalizeShared(a.PaletteIconColorMode), (a,v)=>a.PaletteIconColorMode=CardIconColoring.NormalizeShared(v), CardIconColoring.SharedOptions);
             Add("Иконки и цвета", "Окраска", "entry_icon_color_mode", "string", a=>CardIconColoring.NormalizeEntry(a.EntryIconColorMode), (a,v)=>CardIconColoring.SetEntryMode(a,v), CardIconColoring.EntryOptions);
-        if (result.Count != 175) throw new InvalidOperationException($"Appearance property registry out of sync: {result.Count} found, 175 expected.");
+        if (result.Count != 178) throw new InvalidOperationException($"Appearance property registry out of sync: {result.Count} found, 178 expected.");
         return result;
     }
 }

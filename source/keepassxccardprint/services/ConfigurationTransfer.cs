@@ -22,7 +22,7 @@ public static class ConfigurationTransfer
         foreach (var name in new[]
         {
             "ui-shell.json", "vault-state.json", "appearance.json", "mapping.json",
-            "domains.json", "appearance-template-source.json"
+            "domains.json", "appearance-template-source.json", HyphenationPackages.ConfigName
         })
         {
             var path = Path.Combine(sourceRoot, name);

@@ -74,7 +74,7 @@ internal static class TemplateEditorLayout
         G("fields", "values", "Значения", "Значення", "Values", "secret_font value_size_pt value_weight value_tracking_pt mark_zero short_fit_min_pct split_boost_pct field_value_color password_color"),
         G("fields", "spacing", "Разделы и интервалы", "Розділи та інтервали", "Sections and spacing", "section_headings section_rules line_spacing field_gap_pt adaptive_field_gaps adaptive_gap_max_mm continuation_repeat_label section_heading_color field_rule_color"),
         G("fields", "long-values", "Группировка длинных значений", "Групування довгих значень", "Long value grouping", "group_long_values group_size group_min_length group_spaces password_group_mode"),
-        G("fields", "notes", "Заметки", "Нотатки", "Notes", "notes_mode notes_size_pt notes_color"),
+        G("fields", "notes", "Заметки", "Нотатки", "Notes", "notes_mode notes_size_pt notes_alignment notes_hyphenation notes_hyphen_language notes_color"),
         G("mapping", "legacy-fields", "Общие ограничения печати", "Загальні обмеження друку", "Global print restrictions", "print_username print_password print_url print_notes print_custom print_group"),
         G("footer", "footer-layout", "Расположение", "Розташування", "Layout", "footer_height_mm footer_bottom_shift_mm footer_rule_color"),
         G("footer", "uuid", "Идентификатор UUID", "Ідентифікатор UUID", "UUID", "footer_uuid_show footer_uuid_length footer_uuid_separators footer_uuid_uppercase footer_uuid_prefix footer_uuid_size_pt footer_uuid_weight footer_uuid_color"),

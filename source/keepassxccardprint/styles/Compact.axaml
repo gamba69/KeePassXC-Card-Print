@@ -411,6 +411,9 @@
     <Setter Property="Background" Value="{DynamicResource KpSurfaceBrush}" />
     <Setter Property="Foreground" Value="{DynamicResource KpTextBrush}" />
   </Style>
+  <Style Selector="ListBox.mapping-list ListBoxItem:nth-child(2n)">
+    <Setter Property="Background" Value="{DynamicResource KpZebraBrush}" />
+  </Style>
   <Style Selector="ListBox.mapping-list ListBoxItem:pointerover">
     <Setter Property="Background" Value="{DynamicResource KpRowHoverBrush}" />
   </Style>
@@ -420,6 +423,34 @@
   </Style>
   <Style Selector="ListBox.mapping-list ListBoxItem:selected:pointerover">
     <Setter Property="Background" Value="{DynamicResource KpRowMarkedHoverBrush}" />
+  </Style>
+  <Style Selector="Border.hyphenation-row">
+    <Setter Property="Background" Value="{DynamicResource KpSurfaceBrush}" />
+  </Style>
+  <Style Selector="Border.hyphenation-row.stripe">
+    <Setter Property="Background" Value="{DynamicResource KpZebraBrush}" />
+  </Style>
+  <Style Selector="Border.hyphenation-row:pointerover">
+    <Setter Property="Background" Value="{DynamicResource KpRowHoverBrush}" />
+  </Style>
+  <!-- Sortable header cells look like the surrounding continuous table header,
+       not a separate row of toolbar buttons. Keep keyboard activation. -->
+  <Style Selector="Button.table-sort">
+    <Setter Property="MinHeight" Value="0" />
+    <Setter Property="Padding" Value="0" />
+    <Setter Property="BorderThickness" Value="0" />
+    <Setter Property="CornerRadius" Value="0" />
+    <Setter Property="Background" Value="Transparent" />
+  </Style>
+  <Style Selector="Button.table-sort /template/ ContentPresenter#PART_ContentPresenter">
+    <Setter Property="Background" Value="Transparent" />
+    <Setter Property="BorderThickness" Value="0" />
+  </Style>
+  <Style Selector="Button.table-sort:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+    <Setter Property="Background" Value="{DynamicResource KpRowHoverBrush}" />
+  </Style>
+  <Style Selector="Button.table-sort:pressed /template/ ContentPresenter#PART_ContentPresenter">
+    <Setter Property="Background" Value="{DynamicResource KpRowMarkedBrush}" />
   </Style>
   <Style Selector="Border.table-row">
     <Setter Property="Height" Value="24" />

@@ -59,7 +59,8 @@ public sealed class FieldMappingRow : INotifyPropertyChanged
 public sealed record MappingFieldDraft(
     string Label, string Order, string SizePct, string TrackingPt, string GroupSize, string GroupSpaces,
     string Role, string Section, string Visibility, string Heading, string UrlMode, string UrlSource,
-    string Fit, string Weight, string Group, bool PhoneFormat);
+    string Fit, string Weight, string Group, bool PhoneFormat, string Alignment = "inherit",
+    string Hyphenation = "inherit", string HyphenLanguage = "inherit");
 
 /// <summary>Field editor: valid changes update the in-memory map, never the saved JSON.</summary>
 public sealed class MappingEditor : INotifyPropertyChanged
@@ -68,7 +69,7 @@ public sealed class MappingEditor : INotifyPropertyChanged
     private void Changed([CallerMemberName]string? name=null) => PropertyChanged?.Invoke(this,new(name));
     private string _field = "";
     private bool _enabled;
-    public string Field { get=>_field; private set { _field=value; Changed(); } }
+    public string Field { get=>_field; private set { _field=value; Changed(); Changed(nameof(SupportsAlignment)); } }
     public bool Enabled { get=>_enabled; private set { _enabled=value; Changed(); } }
     public void SetEditable(bool value) => Enabled = value && Field.Length > 0;
     private string _label="";
@@ -93,7 +94,34 @@ public sealed class MappingEditor : INotifyPropertyChanged
     public ObservableCollection<MappingOption> Weights { get; } = new();
     public ObservableCollection<MappingOption> Groups { get; } = new();
     private MappingOption? _role, _section, _visibility, _heading, _url, _urlSource, _fit, _weight, _group;
-    public MappingOption? Role { get=>_role;set { _role=value;Changed(); } }
+    public MappingOption? Role { get=>_role;set { _role=value;Changed(); Changed(nameof(SupportsAlignment)); } }
+    public bool SupportsAlignment => FieldMappingDefaults.SupportsProseAlignment(Field, Role?.Code ?? "");
+    public ObservableCollection<MappingOption> Alignments { get; } = new();
+    private MappingOption? _alignment;
+    public MappingOption? Alignment { get=>_alignment;set { _alignment=value;Changed(); } }
+    public string AlignmentTitle => MappingLexicon.Text("Alignment",_language);
+    public string AlignmentHelp => MappingLexicon.Help("Alignment",_language);
+    public ObservableCollection<MappingOption> HyphenationModes { get; } = new();
+    public ObservableCollection<MappingOption> HyphenLanguages { get; } = new();
+    private MappingOption? _hyphenation, _hyphenLanguage;
+    public MappingOption? Hyphenation { get=>_hyphenation;set { _hyphenation=value;Changed(); } }
+    public MappingOption? HyphenLanguage { get=>_hyphenLanguage;set { _hyphenLanguage=value;Changed(); } }
+    public string HyphenationTitle => MappingLexicon.Text("Hyphenation",_language);
+    public string HyphenationHelp => MappingLexicon.Help("Hyphenation",_language);
+    public string HyphenLanguageTitle => MappingLexicon.Text("HyphenLanguage",_language);
+    public string HyphenLanguageHelp => MappingLexicon.Help("HyphenLanguage",_language);
+    // Keep an explicitly selected missing package visible; never silently substitute another language.
+    internal void RefreshHyphenLanguages(string? selected = null)
+    {
+        string code = FieldMappingDefaults.NormalizeHyphenLanguage(selected ?? HyphenLanguage?.Code);
+        string[] codes = ["inherit", .. HyphenationPackages.ChoicesFor(code == "inherit" ? "auto" : code).Split(',')];
+        if (!HyphenLanguages.Select(x=>x.Code).SequenceEqual(codes))
+        {
+            HyphenLanguages.Clear();
+            Fill(HyphenLanguages,"hyphenlanguage",codes);
+        }
+        HyphenLanguage=Select(HyphenLanguages,code);
+    }
     public MappingOption? Section { get=>_section;set { _section=value;Changed(); } }
     public MappingOption? Visibility { get=>_visibility;set { _visibility=value;Changed(); } }
     public MappingOption? Heading { get=>_heading;set { _heading=value;Changed(); } }
@@ -133,7 +161,8 @@ public sealed class MappingEditor : INotifyPropertyChanged
     }
     public MappingFieldDraft CaptureDraft() => new(Label,Order,SizePct,TrackingPt,GroupSize,GroupSpaces,
         Role?.Code??"",Section?.Code??"",Visibility?.Code??"",Heading?.Code??"",UrlMode?.Code??"",UrlSource?.Code??"",
-        Fit?.Code??"",Weight?.Code??"",Group?.Code??"",PhoneFormat);
+        Fit?.Code??"",Weight?.Code??"",Group?.Code??"",PhoneFormat,Alignment?.Code??"inherit",
+        Hyphenation?.Code??"inherit",HyphenLanguage?.Code??"inherit");
     public void RestoreDraft(MappingFieldDraft draft)
     {
         Label=draft.Label; Order=draft.Order; SizePct=draft.SizePct; TrackingPt=draft.TrackingPt;
@@ -142,6 +171,9 @@ public sealed class MappingEditor : INotifyPropertyChanged
         Visibility=Select(Visibilities,draft.Visibility); Heading=Select(Headings,draft.Heading);
         UrlMode=Select(UrlModes,draft.UrlMode); UrlSource=Select(UrlSources,draft.UrlSource); Fit=Select(Fits,draft.Fit);
         Weight=Select(Weights,draft.Weight); Group=Select(Groups,draft.Group); PhoneFormat=draft.PhoneFormat;
+        Alignment=Select(Alignments,draft.Alignment);
+        Hyphenation=Select(HyphenationModes,FieldMappingDefaults.NormalizeHyphenation(draft.Hyphenation));
+        RefreshHyphenLanguages(draft.HyphenLanguage);
     }
     private string _language;
     public string PhoneCaption => UiText.Tr("Логин — телефон",_language);
@@ -186,6 +218,10 @@ public sealed class MappingEditor : INotifyPropertyChanged
         Fill(Fits,"fit",["wrap","shrink","split","smart"]);
         Fill(Weights,"weight",["inherit","200","300","400","500","600","700","800"]);
         Fill(Groups,"group",["inherit","on","off","auto"]);
+        Fill(Alignments,"alignment",["inherit","left","center","right","justify"]);
+        Fill(HyphenationModes,"hyphenation",["inherit","on","off"]);
+        Hyphenation=Select(HyphenationModes,"inherit");
+        RefreshHyphenLanguages("inherit");
     }
     private void Fill(ObservableCollection<MappingOption> collection,string kind, string[] codes)
     { foreach(var code in codes) collection.Add(new MappingOption(kind,code,_language)); }
@@ -194,7 +230,10 @@ public sealed class MappingEditor : INotifyPropertyChanged
         _language=language;
         foreach(var key in new[]{nameof(DisplayTitle),nameof(GroupTitleTitle),nameof(LabelTitle),nameof(PriorityTitle),nameof(VisibleTitle),nameof(ShowHeadingTitle),nameof(UrlTitle),nameof(FitTitle),nameof(WeightTitle),nameof(SizeTitle),nameof(TrackingTitle),nameof(GroupTitle),nameof(GroupSizeTitle),nameof(GroupSpacesTitle),nameof(UrlSourceTitle),nameof(PhoneCaption),nameof(PhoneFormatCaption)})Changed(key);
         foreach(var key in new[]{nameof(DisplayHelp),nameof(GroupTitleHelp),nameof(LabelHelp),nameof(PriorityHelp),nameof(VisibleHelp),nameof(ShowHeadingHelp),nameof(UrlHelp),nameof(FitHelp),nameof(WeightHelp),nameof(SizeHelp),nameof(TrackingHelp),nameof(GroupHelp),nameof(GroupSizeHelp),nameof(GroupSpacesHelp)})Changed(key);
-        foreach(var items in new[]{Roles,Sections,Visibilities,Headings,UrlModes,UrlSources,Fits,Weights,Groups})
+        Changed(nameof(AlignmentTitle)); Changed(nameof(AlignmentHelp));
+        Changed(nameof(HyphenationTitle)); Changed(nameof(HyphenationHelp));
+        Changed(nameof(HyphenLanguageTitle)); Changed(nameof(HyphenLanguageHelp));
+        foreach(var items in new[]{Roles,Sections,Visibilities,Headings,UrlModes,UrlSources,Fits,Weights,Groups,Alignments,HyphenationModes,HyphenLanguages})
             foreach(var option in items) option.Relocalize(language);
     }
     private static MappingOption Select(ObservableCollection<MappingOption> options,string code) =>
@@ -212,6 +251,9 @@ public sealed class MappingEditor : INotifyPropertyChanged
         Visibility=Select(Visibilities,r.Visibility); Heading=Select(Headings,r.ShowLabel?"on":"off");
         UrlMode=Select(UrlModes,r.UrlMode); UrlSource=Select(UrlSources,r.UrlSource); Fit=Select(Fits,r.Fit);
         Weight=Select(Weights,r.ValueWeight=="inherit"?"inherit":FontWeights.Normalize(r.ValueWeight)); Group=Select(Groups,r.GroupMode); PhoneFormat=r.PhoneFormat;
+        Alignment=Select(Alignments,FieldMappingDefaults.NormalizeAlignment(r.ValueAlignment));
+        Hyphenation=Select(HyphenationModes,FieldMappingDefaults.NormalizeHyphenation(r.ValueHyphenation));
+        RefreshHyphenLanguages(r.ValueHyphenLanguage ?? "inherit");
     }
     private static double ParseDouble(string text,string label,double min,double max)
     {
@@ -249,6 +291,9 @@ public sealed class MappingEditor : INotifyPropertyChanged
             Order=ParseInt(Order,"Приоритет",-9999,9999),
             Visibility=Visibility.Code,ShowLabel=Heading.Code=="on",
             UrlMode=UrlMode.Code,UrlSource=UrlSource.Code,PhoneFormat=IsUsernameField && PhoneFormat,Fit=Fit.Code,ValueWeight=Weight.Code,
+            ValueAlignment=FieldMappingDefaults.NormalizeAlignment(Alignment?.Code),
+            ValueHyphenation=FieldMappingDefaults.NormalizeHyphenation(Hyphenation?.Code),
+            ValueHyphenLanguage=FieldMappingDefaults.NormalizeHyphenLanguage(HyphenLanguage?.Code),
             ValueSizePct=size,
             ValueTrackingPt=string.IsNullOrWhiteSpace(TrackingPt)?null:ParseDouble(TrackingPt,"Интервал букв",-.5,1.5),
             GroupMode=Group.Code,GroupSize=groupSize,GroupSpaces=spaces
@@ -448,13 +493,15 @@ public sealed partial class ShellViewModel
     private static bool RuleEquals(FieldRule a, FieldRule b) =>
         a.Label==b.Label && a.Role==b.Role && a.Section==b.Section && a.Order==b.Order &&
         a.Visibility==b.Visibility && a.ShowLabel==b.ShowLabel && a.UrlMode==b.UrlMode && a.UrlSource==b.UrlSource && a.PhoneFormat==b.PhoneFormat &&
-        a.Fit==b.Fit && a.ValueWeight==b.ValueWeight && a.ValueSizePct==b.ValueSizePct &&
+        a.Fit==b.Fit && a.ValueWeight==b.ValueWeight && a.ValueAlignment==b.ValueAlignment && a.ValueSizePct==b.ValueSizePct &&
+        a.ValueHyphenation==b.ValueHyphenation && a.ValueHyphenLanguage==b.ValueHyphenLanguage &&
         a.ValueTrackingPt==b.ValueTrackingPt && a.GroupMode==b.GroupMode &&
         a.GroupSize==b.GroupSize && a.GroupSpaces==b.GroupSpaces;
     private static FieldRule CloneRule(FieldRule x) => new()
     {
         Label=x.Label,Role=x.Role,Section=x.Section,Order=x.Order,Visibility=x.Visibility,
         ShowLabel=x.ShowLabel,UrlMode=x.UrlMode,UrlSource=x.UrlSource,PhoneFormat=x.PhoneFormat,Fit=x.Fit,ValueWeight=x.ValueWeight,
+        ValueAlignment=x.ValueAlignment,ValueHyphenation=x.ValueHyphenation,ValueHyphenLanguage=x.ValueHyphenLanguage,
         ValueSizePct=x.ValueSizePct,ValueTrackingPt=x.ValueTrackingPt,GroupMode=x.GroupMode,
         GroupSize=x.GroupSize,GroupSpaces=x.GroupSpaces
     };
@@ -478,7 +525,8 @@ public sealed partial class ShellViewModel
             nameof(MappingEditor.GroupSize) or nameof(MappingEditor.GroupSpaces) or
             nameof(MappingEditor.Role) or nameof(MappingEditor.Section) or nameof(MappingEditor.Visibility) or
             nameof(MappingEditor.Heading) or nameof(MappingEditor.UrlMode) or nameof(MappingEditor.UrlSource) or nameof(MappingEditor.PhoneFormat) or nameof(MappingEditor.Fit) or
-            nameof(MappingEditor.Weight) or nameof(MappingEditor.Group)))return;
+            nameof(MappingEditor.Weight) or nameof(MappingEditor.Group) or nameof(MappingEditor.Alignment) or
+            nameof(MappingEditor.Hyphenation) or nameof(MappingEditor.HyphenLanguage)))return;
         var field=_selectedMappingRow.Field;
         try
         {

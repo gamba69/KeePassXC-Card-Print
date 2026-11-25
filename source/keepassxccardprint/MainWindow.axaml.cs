@@ -136,6 +136,7 @@ public partial class MainWindow : Window
                 };
             }
         });
+        Opened += async (_, _) => await RestoreHyphenationAsync();
         Closed += (_, _) => _cloudSync.Dispose();
         Title = "KeePassXC Card Print  " + AppBuildInfo.Version;
         Opened += (_, _) => Dispatcher.UIThread.Post(async () =>
@@ -546,6 +547,7 @@ public partial class MainWindow : Window
                 var viewport=this.FindControl<Canvas>("PreviewViewport");
                 if(viewport is not null)EnsurePreviewOrigin(viewport);
             },DispatcherPriority.Loaded);
+            _ = RestoreHyphenationAsync();
             NotifyStorageOperation(StorageOperationText(true, null), true);
         }
         catch (Exception ex)
@@ -648,6 +650,7 @@ public partial class MainWindow : Window
         UiText.Apply(this, translateText: false);
         ApplyPreviewToolbarDock();
         SetTheme();
+        _ = RestoreHyphenationAsync();
     }
 
     private void InitializeComponent() => AvaloniaXamlLoader.Load(this);

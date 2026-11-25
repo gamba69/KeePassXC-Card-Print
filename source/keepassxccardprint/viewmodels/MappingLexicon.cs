@@ -30,6 +30,9 @@ public static class MappingLexicon
         ["Weight"]=("Начертание значения","Накреслення значення","Value weight"),
         ["Size"]=("Размер значения, %","Розмір значення, %","Value size, %"),
         ["Tracking"]=("Интервал букв, pt (пусто = общий)","Інтервал літер, pt (порожньо = загальний)","Letter tracking, pt (empty = global)"),
+        ["Alignment"]=("Выравнивание","Вирівнювання","Alignment"),
+        ["Hyphenation"]=("Переносы слов","Переноси слів","Word hyphenation"),
+        ["HyphenLanguage"]=("Язык переносов","Мова переносів","Hyphenation language"),
         ["Group"]=("Группы символов","Групи символів","Character grouping"),
         ["GroupSize"]=("Символов в группе (0 или 2–16)","Символів у групі (0 або 2–16)","Characters per group (0 or 2–16)"),
         ["GroupSpaces"]=("Пробелов между группами (0 или 0,1–2)","Пробілів між групами (0 або 0,1–2)","Group spacing (0 or 0.1–2)"),
@@ -90,6 +93,15 @@ public static class MappingLexicon
         ["GroupSize"]=("Сколько символов помещать в каждую группу. 0 — использовать общий размер группы из «Оформления»; от 2 до 16 — индивидуальный размер для этого поля. Действует, только если группировка включена и значение достаточно длинное.",
             "Скільки символів має бути в кожній групі. 0 — використовувати загальний розмір з «Оформлення»; від 2 до 16 — окремий розмір для цього поля. Працює лише коли групування увімкнено й значення достатньо довге.",
             "How many characters appear in each group. 0 uses the global group size from Appearance; 2–16 overrides it for this field. Has an effect only when grouping is enabled and the value is sufficiently long."),
+        ["Alignment"]=("Индивидуальное выравнивание многострочного текста. Последняя строка абзаца не растягивается.",
+            "Індивідуальне вирівнювання багаторядкового тексту. Останній рядок абзацу не розтягується.",
+            "Override multiline text alignment. The final line of each paragraph is not justified."),
+        ["Hyphenation"]=("Индивидуально включить или выключить языковые переносы в этом поле либо использовать настройки оформления. Исходное значение не изменяется.",
+            "Окремо увімкнути або вимкнути мовні переноси в цьому полі або використовувати налаштування оформлення. Вихідне значення не змінюється.",
+            "Enable or disable word hyphenation for this field, or inherit the template setting. The original value is not modified."),
+        ["HyphenLanguage"]=("Язык правил переноса этого поля. Действует при включённых переносах. Дополнительные языки устанавливаются в настройках.",
+            "Мова правил переносу цього поля. Діє за увімкнених переносів. Додаткові мови встановлюються в налаштуваннях.",
+            "Hyphenation language for this field. Applies when hyphenation is enabled. Install additional languages in Settings."),
         ["GroupSpaces"]=("Расстояние между группами символов. 0 — использовать значение из «Оформления»; от 0,1 до 2,0 — индивидуальный интервал, в долях обычного пробела. Действует только при включённой группировке. Это визуальное разделение, не изменение секрета.",
             "Відстань між групами символів. 0 — використовувати значення з «Оформлення»; від 0,1 до 2,0 — власний інтервал у частках звичайного пробілу. Діє лише за увімкненого групування. Це лише візуальне розділення, не зміна секрету.",
             "Spacing between character groups. 0 inherits the global setting from Appearance; 0.1–2.0 selects a local interval as a fraction of a normal space. Only applies when grouping is enabled. This is visual separation, not a change to the secret."),
@@ -97,6 +109,16 @@ public static class MappingLexicon
 
     private static readonly Dictionary<string,(string Ru,string Uk,string En)> Choices = new(StringComparer.Ordinal)
     {
+        ["alignment:inherit"]=("Как в оформлении","Як в оформленні","Inherit"),
+        ["alignment:left"]=("По левому краю","Ліворуч","Left"),
+        ["alignment:center"]=("По центру","По центру","Center"),
+        ["alignment:right"]=("По правому краю","Праворуч","Right"),
+        ["alignment:justify"]=("По ширине","За шириною","Justify"),
+        ["hyphenation:inherit"]=("Как в оформлении","Як в оформленні","Inherit"),
+        ["hyphenation:on"]=("Включены","Увімкнено","Enabled"),
+        ["hyphenation:off"]=("Выключены","Вимкнено","Disabled"),
+        ["hyphenlanguage:inherit"]=("Как в оформлении","Як в оформленні","Inherit"),
+        ["hyphenlanguage:auto"]=("Автоматически","Автоматично","Automatic"),
         ["role:text"]=("Текст","Текст","Text"),
         ["role:secret"]=("Секрет","Секрет","Secret"),
         ["role:codes"]=("Коды восстановления","Коди відновлення","Recovery codes"),
@@ -144,5 +166,6 @@ public static class MappingLexicon
     public static string Text(string key,string language) => Labels.TryGetValue(key,out var x)?Get(x,language):key;
     public static string Help(string key,string language) => HelpText.TryGetValue(key,out var x)?Get(x,language):Text(key,language);
     public static string OptionLabel(string category,string code,string language) =>
-        Choices.TryGetValue(category+":"+code,out var x)?Get(x,language):code;
+        Choices.TryGetValue(category+":"+code,out var x)?Get(x,language):
+        category == "hyphenlanguage" ? KeePassXCCardPrint.Services.HyphenationPackages.Find(code)?.Name ?? code : code;
 }

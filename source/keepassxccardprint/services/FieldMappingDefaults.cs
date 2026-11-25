@@ -45,6 +45,33 @@ public static class FieldMappingDefaults
             return new FieldRule {Label=raw,Role="secret",Section="auth",Order=80};
         return new FieldRule {Label=raw,Role="text",Section="extra",Order=500};
     }
+    internal static bool SupportsProseAlignment(string field, string role) =>
+        (role == "multiline" || (role == "text" && field.Equals("NOTES", StringComparison.OrdinalIgnoreCase))) &&
+        !field.Equals("PASSWORD", StringComparison.OrdinalIgnoreCase) &&
+        !field.Equals("USERNAME", StringComparison.OrdinalIgnoreCase) &&
+        !field.Equals("URL", StringComparison.OrdinalIgnoreCase) &&
+        !field.StartsWith("TOTP", StringComparison.OrdinalIgnoreCase) &&
+        !field.StartsWith("HOTP", StringComparison.OrdinalIgnoreCase);
+    internal static string NormalizeAlignment(string? value) => value is "left" or "center" or "right" or "justify" ? value : "inherit";
+    internal static string ResolveAlignment(FieldRule rule, CardAppearance appearance)
+    {
+        string value = NormalizeAlignment(rule.ValueAlignment);
+        return value == "inherit" ? appearance.NotesAlignment : value;
+    }
+
+    internal static string NormalizeHyphenation(string? value) => value is "on" or "off" ? value : "inherit";
+    internal static string NormalizeHyphenLanguage(string? value) => value == "auto" ||
+        (value != "inherit" && HyphenationPackages.ValidCode(value)) ? value! : "inherit";
+    internal static bool ResolveHyphenation(FieldRule rule, CardAppearance appearance) =>
+        NormalizeHyphenation(rule.ValueHyphenation) switch
+        { "on" => true, "off" => false, _ => appearance.NotesHyphenation };
+    internal static string ResolveHyphenLanguage(FieldRule rule, CardAppearance appearance)
+    {
+        string value = NormalizeHyphenLanguage(rule.ValueHyphenLanguage);
+        if (value == "inherit") value = NormalizeHyphenLanguage(appearance.NotesHyphenLanguage);
+        return value == "inherit" ? "auto" : value;
+    }
+
     public static FieldRule Normalize(FieldRule r)
     {
         var label = r.Label ?? string.Empty;
@@ -56,6 +83,9 @@ public static class FieldMappingDefaults
         if(!new[]{"main","fallback","extra"}.Contains(r.UrlSource))r.UrlSource="fallback";
         if(!new[]{"wrap","shrink","split","smart"}.Contains(r.Fit))r.Fit="wrap";
         if(!FontWeights.IsRecognized(r.ValueWeight))r.ValueWeight="inherit";
+        r.ValueAlignment=NormalizeAlignment(r.ValueAlignment);
+        r.ValueHyphenation=NormalizeHyphenation(r.ValueHyphenation);
+        r.ValueHyphenLanguage=NormalizeHyphenLanguage(r.ValueHyphenLanguage);
         if(!new[]{"inherit","on","off","auto"}.Contains(r.GroupMode))r.GroupMode="inherit";
         r.Order=Math.Clamp(r.Order,-9999,9999);
         r.ValueSizePct=Math.Clamp(r.ValueSizePct,65,160);

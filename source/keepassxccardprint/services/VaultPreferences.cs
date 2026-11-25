@@ -96,6 +96,9 @@ public sealed class FieldRule
     public bool PhoneFormat { get; set; } // USERNAME only, opt-in display transformation
     public string Fit { get; set; } = "wrap";
     public string ValueWeight { get; set; } = "inherit";
+    public string ValueAlignment { get; set; } = "inherit";
+    public string ValueHyphenation { get; set; } = "inherit";
+    public string ValueHyphenLanguage { get; set; } = "inherit";
     public int ValueSizePct { get; set; } = 100;
     public double? ValueTrackingPt { get; set; }
     public string GroupMode { get; set; } = "inherit";

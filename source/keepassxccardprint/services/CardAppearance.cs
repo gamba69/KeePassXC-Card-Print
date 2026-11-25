@@ -115,6 +115,9 @@ public sealed class CardAppearance
     [JsonPropertyName("split_boost_pct")] public int SplitBoostPct { get; set; } = 115;
     [JsonPropertyName("notes_size_pt")] public double NotesSizePt { get; set; } = 6.5;
     [JsonPropertyName("notes_mode")] public string NotesMode { get; set; } = "normal";
+    [JsonPropertyName("notes_alignment")] public string NotesAlignment { get; set; } = "left";
+    [JsonPropertyName("notes_hyphenation")] public bool NotesHyphenation { get; set; }
+    [JsonPropertyName("notes_hyphen_language")] public string NotesHyphenLanguage { get; set; } = "auto";
     [JsonPropertyName("group_long_values")] public bool GroupLongValues { get; set; } = false;
     [JsonPropertyName("group_size")] public int GroupSize { get; set; } = 4;
     [JsonPropertyName("group_min_length")] public int GroupMinLength { get; set; } = 12;

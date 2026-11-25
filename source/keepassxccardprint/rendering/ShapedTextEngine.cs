@@ -58,7 +58,7 @@ internal static class ShapedTextEngine
     /// grapheme clusters, never inside a surrogate/combining sequence.
     /// </summary>
     internal static ShapedTextLayout CreateLayout(string text, float fontSize,
-        string family, string weight, float tracking = 0, bool markZero = false)
+        string family, string weight, float tracking = 0, bool markZero = false, float wordSpacing = 0)
     {
         if (!float.IsFinite(tracking) || !float.IsFinite(fontSize) || fontSize <= 0)
             throw new ArgumentOutOfRangeException(nameof(fontSize));
@@ -75,7 +75,7 @@ internal static class ShapedTextEngine
 
             // Preserve whole-run kerning/shaping where there is no tracking,
             // missing-glyph fallback or zero highlighting.
-            if (!markZero && tracking == 0 && primary.ContainsGlyphs(text))
+            if (!markZero && tracking == 0 && wordSpacing == 0 && primary.ContainsGlyphs(text))
             {
                 var whole = ShapeOne(text, primary, secret, 0);
                 runs.Add(whole);
@@ -83,6 +83,8 @@ internal static class ShapedTextEngine
             }
 
             var elements = Elements(text).ToArray();
+            int firstContent = Array.FindIndex(elements, p => !string.IsNullOrWhiteSpace(p));
+            int lastContent = Array.FindLastIndex(elements, p => !string.IsNullOrWhiteSpace(p));
             float x = 0;
             for (int i = 0; i < elements.Length; ++i)
             {
@@ -104,6 +106,7 @@ internal static class ShapedTextEngine
                     marks.Add(run.ZeroMark.Value);
                 }
                 x += run.Advance;
+                if (wordSpacing > 0 && part == " " && i > firstContent && i < lastContent) x += wordSpacing;
                 if (i != elements.Length - 1) x += tracking;
             }
             return new ShapedTextLayout(primary, fallback, runs, marks, x);
@@ -133,11 +136,11 @@ internal static class ShapedTextEngine
 
     internal static float Draw(ICardCanvas canvas, string text, float left, float baseline,
         float pixels, SKColor color, string family, string weight,
-        float trackingPixels = 0, bool markZero = false)
+        float trackingPixels = 0, bool markZero = false, float wordSpacing = 0)
     {
         if (string.IsNullOrEmpty(text)) return 0;
         using var layout = CreateLayout(text, pixels, family, weight,
-            trackingPixels, markZero);
+            trackingPixels, markZero, wordSpacing);
         using var paint = new SKPaint { Color = color, IsAntialias = true };
         canvas.DrawGlyphRuns(layout, left, baseline, paint);
         return layout.Width;

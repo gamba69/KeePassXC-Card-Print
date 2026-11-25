@@ -572,6 +572,30 @@
                           </ComboBox.ItemTemplate>
                         </ComboBox>
                       </Grid>
+                      <Grid Width="350" Margin="0,0,9,4" ColumnDefinitions="140,*" ColumnSpacing="6" MinHeight="27" IsVisible="{Binding SupportsAlignment}">
+                        <TextBlock VerticalAlignment="Center" Text="{Binding AlignmentTitle}" TextTrimming="CharacterEllipsis">
+                          <ToolTip.Tip><TextBlock Text="{Binding AlignmentHelp}" TextWrapping="Wrap" MaxWidth="340"/></ToolTip.Tip>
+                        </TextBlock>
+                        <ComboBox Grid.Column="1" ItemsSource="{Binding Alignments}" SelectedItem="{Binding Alignment, Mode=TwoWay}">
+                          <ComboBox.ItemTemplate><DataTemplate x:DataType="vm:MappingOption"><TextBlock Text="{Binding Label}"/></DataTemplate></ComboBox.ItemTemplate>
+                        </ComboBox>
+                      </Grid>
+                      <Grid Width="350" Margin="0,0,9,4" ColumnDefinitions="140,*" ColumnSpacing="6" MinHeight="27" IsVisible="{Binding SupportsAlignment}">
+                        <TextBlock VerticalAlignment="Center" Text="{Binding HyphenationTitle}" TextTrimming="CharacterEllipsis">
+                          <ToolTip.Tip><TextBlock Text="{Binding HyphenationHelp}" TextWrapping="Wrap" MaxWidth="340"/></ToolTip.Tip>
+                        </TextBlock>
+                        <ComboBox Grid.Column="1" ItemsSource="{Binding HyphenationModes}" SelectedItem="{Binding Hyphenation, Mode=TwoWay}">
+                          <ComboBox.ItemTemplate><DataTemplate x:DataType="vm:MappingOption"><TextBlock Text="{Binding Label}"/></DataTemplate></ComboBox.ItemTemplate>
+                        </ComboBox>
+                      </Grid>
+                      <Grid Width="350" Margin="0,0,9,4" ColumnDefinitions="140,*" ColumnSpacing="6" MinHeight="27" IsVisible="{Binding SupportsAlignment}">
+                        <TextBlock VerticalAlignment="Center" Text="{Binding HyphenLanguageTitle}" TextTrimming="CharacterEllipsis">
+                          <ToolTip.Tip><TextBlock Text="{Binding HyphenLanguageHelp}" TextWrapping="Wrap" MaxWidth="340"/></ToolTip.Tip>
+                        </TextBlock>
+                        <ComboBox Grid.Column="1" ItemsSource="{Binding HyphenLanguages}" SelectedItem="{Binding HyphenLanguage, Mode=TwoWay}">
+                          <ComboBox.ItemTemplate><DataTemplate x:DataType="vm:MappingOption"><TextBlock Text="{Binding Label}"/></DataTemplate></ComboBox.ItemTemplate>
+                        </ComboBox>
+                      </Grid>
                       <Grid Width="350" Margin="0,0,9,4" ColumnDefinitions="140,*" ColumnSpacing="6" MinHeight="27">
                         <TextBlock VerticalAlignment="Center" Text="{Binding SizeTitle}" TextTrimming="CharacterEllipsis">
                           <ToolTip.Tip>

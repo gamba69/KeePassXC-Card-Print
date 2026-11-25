@@ -41,7 +41,7 @@ public static class CloudConfigurationArchive
     private const long MaxFileBytes = 4 * 1024 * 1024;
     private const int MaxFiles = 2000;
     private static readonly string[] FlatFiles =
-        ["appearance.json", "appearance-template-source.json", "domains.json"];
+        ["appearance.json", "appearance-template-source.json", "domains.json", HyphenationPackages.ConfigName];
 
     public static bool IsPortableChange(string name) => name == "ui-shell.json" || PortablePath(name);
 
@@ -137,6 +137,12 @@ public static class CloudConfigurationArchive
         {
             if (JsonSerializer.Deserialize(content, CardAppearanceJsonContext.Default.CardAppearance) is null)
                 throw new InvalidDataException("Invalid card appearance.");
+        }
+        else if (name == HyphenationPackages.ConfigName)
+        {
+            try { _ = HyphenationPackages.Parse(doc.RootElement); }
+            catch (Exception ex) when (ex is JsonException or InvalidOperationException or KeyNotFoundException or FormatException)
+            { throw new InvalidDataException("Invalid hyphenation package configuration.", ex); }
         }
         else if (name == "domains.json")
         {

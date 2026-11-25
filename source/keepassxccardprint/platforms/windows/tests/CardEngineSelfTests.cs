@@ -310,6 +310,7 @@ internal static class CardEngineSelfTests
         _testLog.Clear();
         try
         {
+            HyphenationSelfTests.Run(Check);
             // Host-contract smoke test: no printers, registry writes or vaults are touched.
             var platform = PlatformServices.Current;
             Check(platform.PlatformLabel == "Windows", "Windows host registered before card code");
@@ -543,7 +544,7 @@ internal static class CardEngineSelfTests
 
             var settings=Defaults();
             var appearanceFields=AppearanceDescriptor.Create(settings);
-            Check(appearanceFields.Count==175,"all 175 editable appearance parameters");
+            Check(appearanceFields.Count==178,"all 178 editable appearance parameters");
             var iconColorModel=Defaults();
             var iconColorFields=AppearanceDescriptor.Create(iconColorModel).ToDictionary(f=>f.Key,StringComparer.Ordinal);
             var iconSharedField=iconColorFields["palette_icon_color_mode"];
@@ -681,7 +682,7 @@ internal static class CardEngineSelfTests
             foreach (var field in appearanceFields) field.Relocalize("ru");
             TemplateEditorLayout.Validate(appearanceFields.Select(f=>f.Key));
             var ownership=TemplateEditorLayout.Groups.SelectMany(g=>g.Keys).ToArray();
-            Check(ownership.Length==175 && ownership.Distinct().Count()==175,"unified editor owns every setting exactly once");
+            Check(ownership.Length==178 && ownership.Distinct().Count()==178,"unified editor owns every setting exactly once");
             var navigationGlyphs=TemplateEditorLayout.Sections
                 .Select(s=>new TemplateEditorSection(s.Id,s.En).Glyph).ToArray();
             Check(navigationGlyphs.Length==10 && navigationGlyphs.Distinct().Count()==10,
@@ -864,9 +865,9 @@ internal static class CardEngineSelfTests
             var serializedKeys = serializedAppearance.RootElement.EnumerateObject()
                 .Select(p => p.Name).ToArray();
             var keyNames = serializedKeys.ToHashSet(StringComparer.Ordinal);
-            Check(serializedKeys.Length == 175,
-                $"persisted appearance JSON has 175 properties (actual {serializedKeys.Length})");
-            Check(keyNames.Count==175,
+            Check(serializedKeys.Length == 178,
+                $"persisted appearance JSON has 178 properties (actual {serializedKeys.Length})");
+            Check(keyNames.Count==178,
                 $"original and new appearance keys (actual {keyNames.Count})");
             Check(appearanceFields.Select(f=>f.Key).Distinct(StringComparer.Ordinal).Count()==appearanceFields.Count,
                 "appearance editor has unique property keys");

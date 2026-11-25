@@ -385,6 +385,19 @@ public static class CardSkiaRenderer
                     if(line.GroupedValue is { } groups)
                         DrawSeparatedGroups(c,groups,valueX,valueBaseline,valueWidth,size,valueInk,font,
                             weight,tracking,line.GroupGapMm,a.MarkZero);
+                    else if(line.ProseAlignment is { } alignment)
+                    {
+                        float measured=Width(line.Text,size,font,weight,Pt(tracking));
+                        float offset=ProseLayout.Offset(alignment,valueWidth,measured);
+                        int gaps=ProseLayout.ExpandableSpaces(line.Text);
+                        float extra=alignment=="justify" && !line.ParagraphFinal && gaps>0 ? Math.Max(0,valueWidth-measured)/gaps : 0;
+                        // Do not create excessive white rivers on very narrow cards.
+                        if(extra>Width(" ",size,font,weight)*2) extra=0;
+                        if(measured>valueWidth+.01f)
+                            Fit(c,line.Text,valueX,valueBaseline,valueWidth,size,95,valueInk,font,weight,tracking,markZero:a.MarkZero);
+                        else
+                            ShapedTextEngine.Draw(c,line.Text,valueX+offset,valueBaseline,size,valueInk,font,weight,Pt(tracking),a.MarkZero,extra);
+                    }
                     else
                         Fit(c,line.Text,valueX,valueBaseline,valueWidth,size,95,valueInk,font,weight,
                             tracking,markZero:a.MarkZero && font==a.SecretFont);

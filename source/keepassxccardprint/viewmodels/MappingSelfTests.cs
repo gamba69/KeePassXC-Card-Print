@@ -25,6 +25,61 @@ public static class MappingSelfTests
             Check(!editor.Enabled, "built-in template mapping editor stays read-only");
             editor.SetEditable(true);
             Check(editor.Enabled, "personal template mapping editor becomes editable");
+            Check(!editor.SupportsAlignment, "password does not offer prose alignment");
+            var proseEditor = new MappingEditor("en");
+            proseEditor.Load("NOTES",FieldMappingDefaults.Infer("NOTES"));
+            Check(proseEditor.SupportsAlignment && proseEditor.ToRule().ValueAlignment == "inherit", "legacy notes inherit alignment");
+            proseEditor.Alignment = proseEditor.Alignments.Single(x => x.Code == "justify");
+            var proseRule = proseEditor.ToRule();
+            Check(proseRule.ValueAlignment == "justify", "field-specific alignment is persisted");
+            var appearance = new CardAppearance { NotesAlignment = "right" };
+            Check(FieldMappingDefaults.ResolveAlignment(proseRule, appearance) == "justify" &&
+                FieldMappingDefaults.ResolveAlignment(new FieldRule(), appearance) == "right", "explicit alignment overrides template, inherit follows template");
+            var proseDraft = proseEditor.CaptureDraft();
+            proseEditor.Load("NOTES",new FieldRule { Role = "multiline" });
+            proseEditor.RestoreDraft(proseDraft);
+            Check(proseEditor.ToRule().ValueAlignment == "justify", "alignment survives incomplete mapping drafts");
+            using (var oldMapping = System.Text.Json.JsonDocument.Parse("{\"mapping\":{\"NOTES\":{\"Role\":\"multiline\"}}}"))
+                Check(CardAppearanceStore.ParseMapping(oldMapping.RootElement)["notes"].ValueAlignment == "inherit", "old template mapping inherits alignment");
+            using (var newMapping = System.Text.Json.JsonDocument.Parse("{\"mapping\":{\"NOTES\":{\"ValueAlignment\":\"center\"}}}"))
+                Check(CardAppearanceStore.ParseMapping(newMapping.RootElement)["notes"].ValueAlignment == "center", "template JSON preserves alignment override");
+            Check(proseEditor.ToRule().ValueHyphenation == "inherit" && proseEditor.ToRule().ValueHyphenLanguage == "inherit",
+                "old multiline rules inherit both word hyphenation settings");
+            Check(new[] { "inherit", "auto", "ru", "uk", "en-us" }.All(code=>proseEditor.HyphenLanguages.Any(x=>x.Code==code)),
+                "mapping language picker includes inherited, auto and bundled choices");
+            proseEditor.Hyphenation=proseEditor.HyphenationModes.Single(x=>x.Code=="on");
+            proseEditor.HyphenLanguage=proseEditor.HyphenLanguages.Single(x=>x.Code=="uk");
+            var hyphenRule=proseEditor.ToRule();
+            appearance.NotesHyphenation=false; appearance.NotesHyphenLanguage="ru";
+            Check(FieldMappingDefaults.ResolveHyphenation(hyphenRule,appearance) &&
+                FieldMappingDefaults.ResolveHyphenLanguage(hyphenRule,appearance)=="uk", "field enables hyphenation and overrides language independently");
+            Check(!FieldMappingDefaults.ResolveHyphenation(new FieldRule(),appearance) &&
+                FieldMappingDefaults.ResolveHyphenLanguage(new FieldRule(),appearance)=="ru", "inherited field follows template");
+            proseEditor.Hyphenation=proseEditor.HyphenationModes.Single(x=>x.Code=="off");
+            appearance.NotesHyphenation=true;
+            Check(!FieldMappingDefaults.ResolveHyphenation(proseEditor.ToRule(),appearance), "field disables template hyphenation");
+            var hyphenDraft=proseEditor.CaptureDraft();
+            proseEditor.Load("NOTES",new FieldRule { Role="multiline" });
+            proseEditor.RestoreDraft(hyphenDraft);
+            Check(proseEditor.ToRule().ValueHyphenation=="off" && proseEditor.ToRule().ValueHyphenLanguage=="uk", "hyphenation overrides survive drafts");
+            proseEditor.Load("NOTES",new FieldRule { Role="multiline", ValueHyphenLanguage="zz-future" });
+            proseEditor.RefreshHyphenLanguages();
+            Check(proseEditor.ToRule().ValueHyphenLanguage=="zz-future", "missing future language remains selected across package refresh");
+            proseEditor.Relocalize("uk");
+            Check(proseEditor.HyphenationTitle=="Переноси слів" && proseEditor.HyphenLanguages.Single(x=>x.Code=="auto").Label=="Автоматично", "mapping hyphenation choices are localized");
+            using(var oldHyphenMapping=System.Text.Json.JsonDocument.Parse("{\"mapping\":{\"NOTES\":{\"Role\":\"multiline\"}}}"))
+            {
+                var oldRule=CardAppearanceStore.ParseMapping(oldHyphenMapping.RootElement)["notes"];
+                Check(oldRule.ValueHyphenation=="inherit" && oldRule.ValueHyphenLanguage=="inherit", "legacy JSON inherits hyphenation");
+            }
+            using(var newHyphenMapping=System.Text.Json.JsonDocument.Parse("{\"mapping\":{\"NOTES\":{\"ValueHyphenation\":\"on\",\"ValueHyphenLanguage\":\"de-1996\"}}}"))
+            {
+                var newRule=CardAppearanceStore.ParseMapping(newHyphenMapping.RootElement)["notes"];
+                Check(newRule.ValueHyphenation=="on" && newRule.ValueHyphenLanguage=="de-1996", "portable template retains explicit hyphenation and language");
+            }
+            var invalidHyphen=FieldMappingDefaults.Normalize(new FieldRule { ValueHyphenation="bad",ValueHyphenLanguage="../escape" });
+            Check(invalidHyphen.ValueHyphenation=="inherit" && invalidHyphen.ValueHyphenLanguage=="inherit", "unsafe override values normalized");
+            Check(!FieldMappingDefaults.SupportsProseAlignment("PASSWORD","multiline") && !FieldMappingDefaults.SupportsProseAlignment("TOTP Secret","multiline"), "technical values cannot use prose overrides");
             Check(CardAppearanceStore.IsValidPersonalTemplateName("My template 2"),
                 "personal template rename accepts valid names");
             Check(!CardAppearanceStore.IsValidPersonalTemplateName("../unsafe") &&

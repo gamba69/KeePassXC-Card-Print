@@ -13,7 +13,7 @@
     <ApplicationIcon>assets\CardPrint_white.ico</ApplicationIcon>
     <AssemblyName>KeePassXCCardPrint</AssemblyName>
     <RootNamespace>KeePassXCCardPrint</RootNamespace>
-    <Version>10.1.3</Version>
+    <Version>10.2.7</Version>
     <WarningsAsErrors>$(WarningsAsErrors);CA1416;IL2026;IL2070;IL2072;IL2075;IL3050;IL3053;AVLN5001</WarningsAsErrors>
   </PropertyGroup>
   <ItemGroup>
@@ -34,6 +34,7 @@
     <PackageReference Include="HarfBuzzSharp" Version="14.2.1.400" />
     <PackageReference Include="QRCoder" Version="1.8.1" />
     <PackageReference Include="KeePassXC.CloudTransport" Version="1.0.4" />
+    <PackageReference Include="Meziantou.Framework.Unicode" Version="2.0.16" />
     <!-- Application branding: each ICO contains native sizes from 16 to 256 px. -->
     <AvaloniaResource Include="assets/CardPrint_black.ico" />
     <AvaloniaResource Include="assets/CardPrint_white.ico" />
@@ -42,6 +43,22 @@
     <AvaloniaResource Include="assets/CardPrint_white_*.png" />
     <AvaloniaResource Include="assets/icons/*.png" />
   </ItemGroup>
+  <!-- Fetch immutable, verified upstream files at build time; embed them in the EXE. -->
+  <Target Name="PrepareBundledHyphenation" BeforeTargets="PrepareForBuild">
+    <PropertyGroup><_HyphenationDir>$(MSBuildProjectDirectory)/obj/hyphenation/5684c0f51c0b81133db2efbe60a408b4155a3ff5</_HyphenationDir></PropertyGroup>
+    <Exec Command="powershell -NoProfile -NonInteractive -ExecutionPolicy Bypass -File &quot;$(MSBuildProjectDirectory)/Prepare-Hyphenation.ps1&quot; -Destination &quot;$(_HyphenationDir)&quot;" />
+    <ItemGroup>
+      <!-- Literal manifest names avoid item-metadata evaluation before glob expansion. -->
+      <EmbeddedResource Include="$(_HyphenationDir)/hyph-ru.pat.txt" LogicalName="Hyphenation.hyph-ru.pat.txt" />
+      <EmbeddedResource Include="$(_HyphenationDir)/hyph-ru.hyp.txt" LogicalName="Hyphenation.hyph-ru.hyp.txt" />
+      <EmbeddedResource Include="$(_HyphenationDir)/hyph-ru.tex" LogicalName="Hyphenation.hyph-ru.tex" />
+      <EmbeddedResource Include="$(_HyphenationDir)/hyph-uk.pat.txt" LogicalName="Hyphenation.hyph-uk.pat.txt" />
+      <EmbeddedResource Include="$(_HyphenationDir)/hyph-uk.tex" LogicalName="Hyphenation.hyph-uk.tex" />
+      <EmbeddedResource Include="$(_HyphenationDir)/hyph-en-us.pat.txt" LogicalName="Hyphenation.hyph-en-us.pat.txt" />
+      <EmbeddedResource Include="$(_HyphenationDir)/hyph-en-us.hyp.txt" LogicalName="Hyphenation.hyph-en-us.hyp.txt" />
+      <EmbeddedResource Include="$(_HyphenationDir)/hyph-en-us.tex" LogicalName="Hyphenation.hyph-en-us.tex" />
+    </ItemGroup>
+  </Target>
   <!-- Compile-time NuGet manifest. No reflection/Assembly.Load (Native AOT safe).
        Every version is read from the actual PackageReference, never copied by hand. -->
   <Target Name="GenerateAboutDependencyVersions" BeforeTargets="CoreCompile">

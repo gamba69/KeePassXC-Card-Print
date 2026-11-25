@@ -30,6 +30,7 @@
         <SolidColorBrush x:Key="KpDangerButtonTextBrush" Color="#ffffff" />
         <SolidColorBrush x:Key="KpRowHoverBrush" Color="#e6f0fc" />
         <SolidColorBrush x:Key="KpStripeBrush" Color="#f3f7fc" />
+        <SolidColorBrush x:Key="KpZebraBrush" Color="#eef3f8" />
         <SolidColorBrush x:Key="KpRowMarkedBrush" Color="#cce1f8" />
         <SolidColorBrush x:Key="KpRowMarkedHoverBrush" Color="#b6d6f8" />
         <SolidColorBrush x:Key="KpHeaderBrush" Color="#E9F1F8" />
@@ -73,6 +74,7 @@
         <SolidColorBrush x:Key="KpDangerButtonTextBrush" Color="#ffffff" />
         <SolidColorBrush x:Key="KpRowHoverBrush" Color="#23384d" />
         <SolidColorBrush x:Key="KpStripeBrush" Color="#1f3448" />
+        <SolidColorBrush x:Key="KpZebraBrush" Color="#1d3246" />
         <SolidColorBrush x:Key="KpRowMarkedBrush" Color="#264664" />
         <SolidColorBrush x:Key="KpRowMarkedHoverBrush" Color="#315673" />
         <SolidColorBrush x:Key="KpHeaderBrush" Color="#172738" />

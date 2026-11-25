@@ -401,6 +401,17 @@ public sealed partial class ShellViewModel
         NotifyTemplateState();
     }
 
+    internal void RefreshHyphenation()
+    {
+        RebuildAppearanceFields();
+        // Package refresh must not write to the mapping or disturb invalid numeric drafts.
+        bool wasLoading = _mappingLoadingEditor;
+        _mappingLoadingEditor = true;
+        try { MappingEditor?.RefreshHyphenLanguages(); }
+        finally { _mappingLoadingEditor = wasLoading; }
+        ScheduleCardPreview();
+    }
+
     private void RebuildAppearanceFields()
     {
         AppearanceFields.Clear();
