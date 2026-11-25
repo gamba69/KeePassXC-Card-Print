@@ -104,6 +104,15 @@ public sealed class FieldRule
     public string GroupMode { get; set; } = "inherit";
     public int GroupSize { get; set; }
     public double GroupSpaces { get; set; }
+    // Generic QR is opt-in on ordinary fields. Legacy OTP uses its unchanged settings.
+    public string QrMode { get; set; } = "text"; // text | qr | both
+    public string QrEcc { get; set; } = "Q"; // L | M | Q | H
+    public string QrPosition { get; set; } = "center"; // left | center | right
+    public double QrMinModuleMm { get; set; } = .40;
+    public double QrSizeMm { get; set; } = 0; // 0 = calculate from content
+    // Old TOTP templates keep their Appearance-driven QR until the QR settings
+    // of that particular mapped OTP field are edited. No silent migration.
+    public bool QrOtpOverride { get; set; }
 }
 
 // Individual mapping.json files are obsolete. A print template is the only

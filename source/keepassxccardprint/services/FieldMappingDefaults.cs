@@ -10,6 +10,12 @@ public static class FieldMappingDefaults
     public static FieldRule Infer(string name)
     {
         var raw=name.Trim(); var k=Regex.Replace(raw,@"[ _-]","").ToUpperInvariant();
+        if (name.Equals(PasskeyExport.FieldName,StringComparison.OrdinalIgnoreCase))
+            return new FieldRule { Label="Passkey (QR восстановления)", Role="secret",Section="recovery",
+                Order=55, QrMode="qr",QrEcc="Q",QrMinModuleMm=.4 };
+        // Raw WebAuthn attributes include the private key: never print implicitly.
+        if (PasskeyExport.IsPasskeyAttribute(name))
+            return new FieldRule { Label=name, Role="secret", Section="recovery",Order=500,Visibility="hidden" };
         var rules=new Dictionary<string,(string Label,string Role,string Section,int Order)>(StringComparer.Ordinal)
         {
             ["USERNAME"]=("Логин","secret","account",10),
@@ -92,6 +98,11 @@ public static class FieldMappingDefaults
         r.GroupSize=r.GroupSize is >=2 and <=16?r.GroupSize:0;
         r.GroupSpaces=double.IsFinite(r.GroupSpaces) && r.GroupSpaces>=.1 && r.GroupSpaces<=2?r.GroupSpaces:0;
         r.ValueTrackingPt= r.ValueTrackingPt is double tracking && double.IsFinite(tracking)?Math.Clamp(tracking,-.5,1.5):null;
+        if (r.QrMode is not ("text" or "qr" or "both")) r.QrMode="text";
+        if (r.QrEcc is not ("L" or "M" or "Q" or "H")) r.QrEcc="Q";
+        if (r.QrPosition is not ("left" or "center" or "right")) r.QrPosition="center";
+        if (!double.IsFinite(r.QrMinModuleMm) || r.QrMinModuleMm is not (.35 or .40 or .50)) r.QrMinModuleMm=.40;
+        if (!double.IsFinite(r.QrSizeMm) || r.QrSizeMm < 0 || r.QrSizeMm > 80) r.QrSizeMm=0;
         return r;
     }
 }

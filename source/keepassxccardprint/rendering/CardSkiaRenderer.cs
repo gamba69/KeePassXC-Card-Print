@@ -517,12 +517,15 @@ public static class CardSkiaRenderer
     {
         if(string.IsNullOrWhiteSpace(line.QrUri))return;
         float side=Px(line.FontPt),left;
-        if(line.QrInline)left=a.TotpQrPosition=="right"?x+width-side:x;
-        else left=a.TotpQrPosition switch {"left"=>x,"right"=>x+width-side,_=>x+(width-side)/2};
+        string position=line.QrStrict ? line.QrPosition : a.TotpQrPosition;
+        if(line.QrInline)left=position=="right"?x+width-side:x;
+        else left=position switch {"left"=>x,"right"=>x+width-side,_=>x+(width-side)/2};
         if(!line.QrInline)
         {
-            hits?.Add(new("qr","totp",new SKRect(left,y,left+side,y+side)));
-            DrawQr(c,line.QrUri,left,y,side);
+            hits?.Add(new("qr",line.QrStrict?"fields":"totp",new SKRect(left,y,left+side,y+side)));
+            DrawQr(c,line.QrUri,left,y,side,
+                line.QrStrict?QrPrintPolicy.Correction(line.QrEcc):QRCodeGenerator.ECCLevel.M,
+                line.QrStrict);
             return;
         }
         float textX=a.TotpQrPosition=="right"?x:x+side+Px(2);
@@ -548,7 +551,9 @@ public static class CardSkiaRenderer
             if(labelHeight>0) hits.Add(new("qr","totp",new SKRect(textX,textTop,textX+textWidth,textTop+labelHeight)));
             if(textBottom>textTop+labelHeight) hits.Add(new("qr","totp",new SKRect(textX,textTop+labelHeight,textX+textWidth,textBottom)));
         }
-        DrawQr(c,line.QrUri,left,y+qrShift,side);
+        DrawQr(c,line.QrUri,left,y+qrShift,side,
+            line.QrStrict?QrPrintPolicy.Correction(line.QrEcc):QRCodeGenerator.ECCLevel.M,
+            line.QrStrict);
         for(int i=0;i<qrLabels.Length;i++)
             Fit(c,qrLabels[i],textX,y+textShift+labelRowHeight*i+Math.Min(labelPt,labelRowHeight*.82f),
                 textWidth,labelPt,95,muted,a.LabelFont,a.LabelWeight);
@@ -578,9 +583,9 @@ public static class CardSkiaRenderer
                     textWidth,labelSize,95,CardPalette.Resolve(a,a.OtpMetaColor,CardPalette.FrontMuted(a)),a.LabelFont,a.LabelWeight);
         }
     }
-    internal static float QrFirstBlackRowFraction(string qrUri)
+    internal static float QrFirstBlackRowFraction(string qrUri,string ecc="M")
     {
-        using var data=QRCodeGenerator.GenerateQrCode(qrUri,QRCodeGenerator.ECCLevel.M);
+        using var data=QRCodeGenerator.GenerateQrCode(qrUri,QrPrintPolicy.Correction(ecc));
         var modules=data.ModuleMatrix;
         int count=modules.Count;
         if(count==0)throw new InvalidOperationException("QR-код пуст.");
@@ -590,17 +595,20 @@ public static class CardSkiaRenderer
         throw new InvalidOperationException("QR-код не содержит тёмных модулей.");
     }
 
-    private static void DrawQr(ICardCanvas c,string text,float left,float top,float side)
+    private static void DrawQr(ICardCanvas c,string text,float left,float top,float side,
+        QRCodeGenerator.ECCLevel ecc = QRCodeGenerator.ECCLevel.M,bool sharp=false)
     {
-        using var data=QRCodeGenerator.GenerateQrCode(text,QRCodeGenerator.ECCLevel.M);
+        using var data=QRCodeGenerator.GenerateQrCode(text,ecc);
         var modules=data.ModuleMatrix;int count=modules.Count;
         if(count==0)throw new InvalidOperationException("QR-код пуст.");
         float unit=side/count;
         using var white=Paint(SKColors.White);using var black=Paint(SKColors.Black);
+        if(sharp) { white.IsAntialias=false; black.IsAntialias=false; }
         c.DrawRect(new SKRect(left,top,left+side,top+side),white);
+        float bleed=sharp?0:.025f;
         for(int row=0;row<count;row++)for(int col=0;col<count;col++)if(modules[row][col])
             c.DrawRect(new SKRect(left+col*unit,top+row*unit,
-                left+(col+1)*unit+.025f,top+(row+1)*unit+.025f),black);
+                left+(col+1)*unit+bleed,top+(row+1)*unit+bleed),black);
     }
 
     // Available icon modes. Never mutate the KDBX custom-icon bytes.

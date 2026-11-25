@@ -15,7 +15,8 @@ public sealed record CardLine(CardLineKind Kind, string Text, float HeightMm, fl
     string[][]? QrGroupedRows = null, float QrGroupGapMm = 0,
     string[]? GroupedValue = null, float GroupGapMm = 0,
     bool RecoveryGrouped = false, float RecoveryGroupGapMm = 0,
-    float QrFirstBlackRowFraction = 0, string? ProseAlignment = null, bool ParagraphFinal = true);
+    float QrFirstBlackRowFraction = 0, string? ProseAlignment = null, bool ParagraphFinal = true,
+    bool QrStrict = false, string QrPosition = "center", string QrEcc = "Q");
 public sealed record CardPart(VaultRecord Record, IReadOnlyList<CardLine> Lines, int Number, int Total, int UuidLength = 12);
 public sealed record PhysicalCard(CardPart Front, CardPart? Continuation);
 
@@ -152,7 +153,7 @@ public static class CardLayoutEngine
         for(int i=0;i<rows.Count;i++)
         {
             var row=rows[i];
-            if(row.Kind==CardLineKind.Qr)
+            if(row.Kind==CardLineKind.Qr && !row.QrStrict)
             {
                 float remaining=capacity-used;
                 float smallest=(float)a.TotpQrMinHeightMm;
@@ -245,6 +246,14 @@ public static class CardLayoutEngine
         Add("PASSWORD",entry.Password,a.PrintPassword);
         Add("URL", ResolveMappedUrl(entry,map),a.PrintUrl);
         if(a.PrintCustom)foreach(var (key,value) in entry.AdditionalFields)Add(key,value,true);
+        // Computed field: never persist the unencrypted .passkey data in a template.
+        if (a.PrintCustom && PasskeyExport.HasPasskey(entry))
+        {
+            var passkeyRule=map.TryGetValue(PasskeyExport.FieldName,out var configured)
+                ? configured : FieldMappingDefaults.Infer(PasskeyExport.FieldName);
+            if (passkeyRule.Visibility!="hidden")
+                Add(PasskeyExport.FieldName,PasskeyExport.Create(entry),true);
+        }
         Add("NOTES",entry.Notes,a.PrintNotes);
         fields=fields.OrderBy(x=>FieldMappingDefaults.SectionRank(x.Rule.Section)).ThenBy(x=>x.Rule.Order).ThenBy(x=>x.Index).ToList();
         var result=new List<CardLine>();
@@ -290,9 +299,16 @@ public static class CardLayoutEngine
             if(f.Rule.ShowLabel && a.LabelsPosition!="left")
                 foreach(var l in CardTextMetrics.WrapExact(label,width,labelPt,a.LabelFont,a.LabelWeight))
                     result.Add(new CardLine(CardLineKind.Label,l,labelH,labelPt,Field:f.Name,Section:f.Rule.Section));
+            if (f.Rule.QrMode=="qr")
+            {
+                AppendGenericQr(result,f,entry,a,width);
+                AddGap(result,f,a,density);
+                continue;
+            }
             if(f.Rule.Role=="codes")
             {
                 AddRecovery(result,f,a,width,density,recoverySize);
+                if (f.Rule.QrMode=="both") AppendGenericQr(result,f,entry,a,width);
                 if(!HasPayload(result,blockStart))
                 {
                     result.RemoveRange(blockStart,result.Count-blockStart);
@@ -314,10 +330,18 @@ public static class CardLayoutEngine
             string? metadata=null;
             if(details.Count>0)
                 metadata=string.Join(" · ",details.Select(d=>OtpCaption(d.Name)+": "+d.Value));
-            bool inlineQr=a.TotpQrEnabled && otpType=="secret" && a.TotpQrPosition is "left" or "right" &&
+            // Unmodified OTP mappings retain legacy QR rendering. Per-field QR
+            // settings opt in to the same physical policy used by other fields.
+            bool mappedOtp=otpType=="secret" && (f.Rule.QrOtpOverride || f.Rule.QrMode!="text");
+            bool otpQrEnabled=otpType=="secret" &&
+                (mappedOtp ? f.Rule.QrMode=="both" : a.TotpQrEnabled);
+            string otpQrPosition=mappedOtp ? f.Rule.QrPosition : a.TotpQrPosition;
+            bool inlineQr=otpQrEnabled && otpQrPosition is "left" or "right" &&
                 TryQrUri(entry,f.Name,out _);
-            float qrSize=(float)Math.Clamp(a.TotpQrHeightMm,a.TotpQrMinHeightMm,
-                Math.Min(a.WidthMm-2*a.PaddingMm,a.HeightMm-18));
+            float qrSize=mappedOtp && otpQrEnabled && TryQrUri(entry,f.Name,out var mappedOtpPayload)
+                ? QrPrintPolicy.RequiredSide(mappedOtpPayload,f.Rule,width,ContentHeight(a,entry)-1)
+                : (float)Math.Clamp(a.TotpQrHeightMm,a.TotpQrMinHeightMm,
+                    Math.Min(a.WidthMm-2*a.PaddingMm,a.HeightMm-18));
             float qrTextWidth=width-qrSize-2;
             string[][]? groupedQrRows=null;
             float qrGapMm=0;
@@ -355,7 +379,8 @@ public static class CardLayoutEngine
                 result.RemoveRange(beforeFieldLabel,result.Count-beforeFieldLabel);
                 var labelRows=f.Rule.ShowLabel ? new List<string>{label} : new List<string>();
                 float captionHeight=labelRows.Count*labelH;
-                float blackRowFraction=CardSkiaRenderer.QrFirstBlackRowFraction(qr);
+                float blackRowFraction=CardSkiaRenderer.QrFirstBlackRowFraction(qr,
+                    mappedOtp ? f.Rule.QrEcc : "M");
                 float labelInkTop=labelRows.Count>0
                     ? InlineQrLabelInkTopMm(labelRows[0],labelPt,labelH,a):0;
                 float blackTop=qrSize*blackRowFraction;
@@ -370,7 +395,9 @@ public static class CardLayoutEngine
                     qrSize,"totp",f.Name,qr,labelRows.Count>0?string.Join("\n",labelRows):null,
                     f.Rule.Section,weight,tracking,null,true,
                     string.Join("\n",metaRows),pt,groupedQrRows,qrGapMm,
-                    QrFirstBlackRowFraction:blackRowFraction));
+                    QrFirstBlackRowFraction:blackRowFraction,
+                    QrStrict:mappedOtp,QrPosition:otpQrPosition,
+                    QrEcc:mappedOtp ? f.Rule.QrEcc : "M"));
             }
             else
             {
@@ -443,12 +470,15 @@ public static class CardLayoutEngine
                 if(metadata is not null)
                     foreach(var line in OtpMetadataRows(details,width,labelPt,a))
                         result.Add(new CardLine(CardLineKind.Meta,line,Height(labelPt,a),labelPt,Field:f.Name,Section:f.Rule.Section));
-                if(a.TotpQrEnabled && otpType=="secret" && TryQrUri(entry,f.Name,out var qrUri))
+                if(otpQrEnabled && TryQrUri(entry,f.Name,out var qrUri))
                 {
                     // Reuse the QR dimension calculated above for both layout paths.
-                    result.Add(new CardLine(CardLineKind.Qr,"",qrSize+1,qrSize,"totp",f.Name,qrUri,Section:f.Rule.Section));
+                    result.Add(new CardLine(CardLineKind.Qr,"",qrSize+1,qrSize,"totp",f.Name,qrUri,
+                        Section:f.Rule.Section,QrStrict:mappedOtp,QrPosition:otpQrPosition,
+                        QrEcc:mappedOtp ? f.Rule.QrEcc : "M"));
                 }
             }
+            if (f.Rule.QrMode=="both" && otpType!="secret") AppendGenericQr(result,f,entry,a,width);
             if(!HasPayload(result,blockStart))
             {
                 result.RemoveRange(blockStart,result.Count-blockStart);
@@ -458,6 +488,20 @@ public static class CardLayoutEngine
             AddGap(result,f,a,density);
         }
         return result;
+    }
+
+    // Generic QR is an indivisible physical block. It never inherits the legacy
+    // OTP shrink-to-fit path or its position/text layout.
+    private static void AppendGenericQr(List<CardLine> result, Field field, VaultRecord record,
+        CardAppearance appearance, float width)
+    {
+        string payload=field.Value;
+        if (field.Rule.Role=="totp" && TryQrUri(record,field.Name,out var otpUri))
+            payload=otpUri;
+        float size=QrPrintPolicy.RequiredSide(payload,field.Rule,width,ContentHeight(appearance,record));
+        result.Add(new CardLine(CardLineKind.Qr,"",size+1,size,field.Rule.Role,
+            field.Name,payload,Section:field.Rule.Section,QrStrict:true,
+            QrPosition:field.Rule.QrPosition,QrEcc:field.Rule.QrEcc));
     }
 
     // Only real values contribute to layout, pagination, and page numbering.

@@ -682,6 +682,37 @@
                           </Grid>
                         </Grid>
                       </Grid>
+                      <!-- Per-field generic QR; legacy OTP Appearance controls stay untouched. -->
+                      <Grid Width="350" Margin="0,0,9,4" ColumnDefinitions="140,*" ColumnSpacing="6" MinHeight="27">
+                        <TextBlock Text="{Binding QrModeTitle}" VerticalAlignment="Center"/>
+                        <ComboBox Grid.Column="1" ItemsSource="{Binding QrModes}" SelectedItem="{Binding QrMode, Mode=TwoWay}">
+                          <ComboBox.ItemTemplate><DataTemplate x:DataType="vm:MappingOption"><TextBlock Text="{Binding Label}"/></DataTemplate></ComboBox.ItemTemplate>
+                        </ComboBox>
+                      </Grid>
+                      <Grid Width="350" Margin="0,0,9,4" ColumnDefinitions="140,*" ColumnSpacing="6" MinHeight="27">
+                        <TextBlock Text="{Binding QrEccTitle}" VerticalAlignment="Center"/>
+                        <ComboBox Grid.Column="1" ItemsSource="{Binding QrEccLevels}" SelectedItem="{Binding QrEcc, Mode=TwoWay}">
+                          <ComboBox.ItemTemplate><DataTemplate x:DataType="vm:MappingOption"><TextBlock Text="{Binding Label}"/></DataTemplate></ComboBox.ItemTemplate>
+                        </ComboBox>
+                      </Grid>
+                      <Grid Width="350" Margin="0,0,9,4" ColumnDefinitions="140,*" ColumnSpacing="6" MinHeight="27">
+                        <TextBlock Text="{Binding QrPositionTitle}" VerticalAlignment="Center"/>
+                        <ComboBox Grid.Column="1" ItemsSource="{Binding QrPositions}" SelectedItem="{Binding QrPosition, Mode=TwoWay}">
+                          <ComboBox.ItemTemplate><DataTemplate x:DataType="vm:MappingOption"><TextBlock Text="{Binding Label}"/></DataTemplate></ComboBox.ItemTemplate>
+                        </ComboBox>
+                      </Grid>
+                      <Grid Width="350" Margin="0,0,9,4" ColumnDefinitions="140,*" ColumnSpacing="6" MinHeight="27">
+                        <TextBlock Text="{Binding QrModuleTitle}" VerticalAlignment="Center"/>
+                        <ComboBox Grid.Column="1" ItemsSource="{Binding QrModules}" SelectedItem="{Binding QrModule, Mode=TwoWay}">
+                          <ComboBox.ItemTemplate><DataTemplate x:DataType="vm:MappingOption"><TextBlock Text="{Binding Label}"/></DataTemplate></ComboBox.ItemTemplate>
+                        </ComboBox>
+                      </Grid>
+                      <Grid Width="350" Margin="0,0,9,4" ColumnDefinitions="140,*" ColumnSpacing="6" MinHeight="27">
+                        <TextBlock Text="{Binding QrSizeTitle}" VerticalAlignment="Center"/>
+                        <TextBox Grid.Column="1" Width="90" HorizontalAlignment="Left"
+                                 Text="{Binding QrSizeMm, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                 Classes.invalid="{Binding QrSizeInvalid}"/>
+                      </Grid>
                     </WrapPanel>
                   </Border>
                 </ScrollViewer>

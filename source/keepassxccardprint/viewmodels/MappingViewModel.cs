@@ -51,7 +51,7 @@ public sealed class FieldMappingRow : INotifyPropertyChanged
         Heading=MappingLexicon.OptionLabel("heading",r.ShowLabel?"on":"off",language);
         Fit=MappingLexicon.OptionLabel("fit",r.Fit,language);
         Grouping=MappingLexicon.OptionLabel("group",r.GroupMode,language)+(r.GroupSize>0?$" · {r.GroupSize}":"");
-        DisplayGroup=r.Role switch { "codes"=>"Коды", "bitlocker"=>"BitLocker", "totp"=>"TOTP", _=>"—" };
+        DisplayGroup=r.QrMode!="text" ? "QR" : r.Role switch { "codes"=>"Коды", "bitlocker"=>"BitLocker", "totp"=>"TOTP", _=>"—" };
     }
 }
 
@@ -60,7 +60,9 @@ public sealed record MappingFieldDraft(
     string Label, string Order, string SizePct, string TrackingPt, string GroupSize, string GroupSpaces,
     string Role, string Section, string Visibility, string Heading, string UrlMode, string UrlSource,
     string Fit, string Weight, string Group, bool PhoneFormat, string Alignment = "inherit",
-    string Hyphenation = "inherit", string HyphenLanguage = "inherit");
+    string Hyphenation = "inherit", string HyphenLanguage = "inherit",
+    string QrMode = "text", string QrEcc = "Q", string QrPosition = "center",
+    string QrModule = "0.40", string QrSizeMm = "0", bool QrOtpOverride = false);
 
 /// <summary>Field editor: valid changes update the in-memory map, never the saved JSON.</summary>
 public sealed class MappingEditor : INotifyPropertyChanged
@@ -78,6 +80,20 @@ public sealed class MappingEditor : INotifyPropertyChanged
     private string _tracking="";
     private string _groupSize="0";
     private string _groupSpaces="0";
+    private string _qrSizeMm="0";
+    private FieldRule _originalQrRule = new();
+    private bool _qrOtpOverride;
+    private bool IsOtpSecretField => Role?.Code=="totp" &&
+        (Field.StartsWith("TOTP",StringComparison.OrdinalIgnoreCase) ||
+         Field.StartsWith("HOTP",StringComparison.OrdinalIgnoreCase)) &&
+        Field.Contains("Secret",StringComparison.OrdinalIgnoreCase);
+    // Selecting an OTP QR property opts in to mapped settings. Other field edits
+    // must not silently replace the legacy OTP layout on existing templates.
+    public void ActivateOtpQrSettings()
+    {
+        if (IsOtpSecretField) _qrOtpOverride=true;
+    }
+    public string QrSizeMm { get=>_qrSizeMm;set { _qrSizeMm=value??"";Changed(); } }
     public string Label { get=>_label;set { _label=value??"";Changed(); } }
     public string Order { get=>_order;set { _order=value??"";Changed(); } }
     public string SizePct { get=>_size;set { _size=value??"";Changed(); } }
@@ -93,7 +109,16 @@ public sealed class MappingEditor : INotifyPropertyChanged
     public ObservableCollection<MappingOption> Fits { get; } = new();
     public ObservableCollection<MappingOption> Weights { get; } = new();
     public ObservableCollection<MappingOption> Groups { get; } = new();
+    public ObservableCollection<MappingOption> QrModes { get; } = new();
+    public ObservableCollection<MappingOption> QrEccLevels { get; } = new();
+    public ObservableCollection<MappingOption> QrPositions { get; } = new();
+    public ObservableCollection<MappingOption> QrModules { get; } = new();
     private MappingOption? _role, _section, _visibility, _heading, _url, _urlSource, _fit, _weight, _group;
+    private MappingOption? _qrMode, _qrEcc, _qrPosition, _qrModule;
+    public MappingOption? QrMode { get=>_qrMode;set { _qrMode=value;Changed(); } }
+    public MappingOption? QrEcc { get=>_qrEcc;set { _qrEcc=value;Changed(); } }
+    public MappingOption? QrPosition { get=>_qrPosition;set { _qrPosition=value;Changed(); } }
+    public MappingOption? QrModule { get=>_qrModule;set { _qrModule=value;Changed(); } }
     public MappingOption? Role { get=>_role;set { _role=value;Changed(); Changed(nameof(SupportsAlignment)); } }
     public bool SupportsAlignment => FieldMappingDefaults.SupportsProseAlignment(Field, Role?.Code ?? "");
     public ObservableCollection<MappingOption> Alignments { get; } = new();
@@ -147,6 +172,8 @@ public sealed class MappingEditor : INotifyPropertyChanged
     public bool TrackingPtInvalid { get=>_trackingInvalid; private set { if(_trackingInvalid==value)return; _trackingInvalid=value;Changed(); } }
     public bool GroupSizeInvalid { get=>_groupSizeInvalid; private set { if(_groupSizeInvalid==value)return; _groupSizeInvalid=value;Changed(); } }
     public bool GroupSpacesInvalid { get=>_groupSpacesInvalid; private set { if(_groupSpacesInvalid==value)return; _groupSpacesInvalid=value;Changed(); } }
+    private bool _qrSizeInvalid;
+    public bool QrSizeInvalid { get=>_qrSizeInvalid;private set { if(_qrSizeInvalid==value)return;_qrSizeInvalid=value;Changed(); } }
     private static bool GoodInt(string text,int lo,int hi) => int.TryParse(text,NumberStyles.Integer,CultureInfo.InvariantCulture,out var x) && x>=lo && x<=hi;
     private static bool GoodDouble(string text,double lo,double hi) => double.TryParse(text.Replace(',','.'),NumberStyles.Float,CultureInfo.InvariantCulture,out var x) && double.IsFinite(x) && x>=lo && x<=hi;
     public void Validate(string? error)
@@ -157,12 +184,15 @@ public sealed class MappingEditor : INotifyPropertyChanged
         GroupSizeInvalid=!GoodInt(GroupSize,0,16) || GroupSize.Trim()=="1";
         GroupSpacesInvalid=!GoodDouble(GroupSpaces,0,2) ||
             (GoodDouble(GroupSpaces,0,2) && double.TryParse(GroupSpaces.Replace(',','.'),NumberStyles.Float,CultureInfo.InvariantCulture,out var sp) && sp>0 && sp<.1);
+        QrSizeInvalid=!GoodDouble(QrSizeMm,0,80);
         ValidationMessage=error??"";
     }
     public MappingFieldDraft CaptureDraft() => new(Label,Order,SizePct,TrackingPt,GroupSize,GroupSpaces,
         Role?.Code??"",Section?.Code??"",Visibility?.Code??"",Heading?.Code??"",UrlMode?.Code??"",UrlSource?.Code??"",
         Fit?.Code??"",Weight?.Code??"",Group?.Code??"",PhoneFormat,Alignment?.Code??"inherit",
-        Hyphenation?.Code??"inherit",HyphenLanguage?.Code??"inherit");
+        Hyphenation?.Code??"inherit",HyphenLanguage?.Code??"inherit",
+        QrMode?.Code??"text",QrEcc?.Code??"Q",QrPosition?.Code??"center",QrModule?.Code??"0.40",QrSizeMm,
+        _qrOtpOverride);
     public void RestoreDraft(MappingFieldDraft draft)
     {
         Label=draft.Label; Order=draft.Order; SizePct=draft.SizePct; TrackingPt=draft.TrackingPt;
@@ -174,6 +204,10 @@ public sealed class MappingEditor : INotifyPropertyChanged
         Alignment=Select(Alignments,draft.Alignment);
         Hyphenation=Select(HyphenationModes,FieldMappingDefaults.NormalizeHyphenation(draft.Hyphenation));
         RefreshHyphenLanguages(draft.HyphenLanguage);
+        QrMode=Select(QrModes,draft.QrMode);QrEcc=Select(QrEccLevels,draft.QrEcc);
+        QrPosition=Select(QrPositions,draft.QrPosition);QrModule=Select(QrModules,draft.QrModule);
+        QrSizeMm=draft.QrSizeMm;
+        _qrOtpOverride=draft.QrOtpOverride;
     }
     private string _language;
     public string PhoneCaption => UiText.Tr("Логин — телефон",_language);
@@ -192,6 +226,11 @@ public sealed class MappingEditor : INotifyPropertyChanged
     public string GroupTitle => MappingLexicon.Text("Group",_language);
     public string GroupSizeTitle => MappingLexicon.Text("GroupSize",_language);
     public string GroupSpacesTitle => MappingLexicon.Text("GroupSpaces",_language);
+    public string QrModeTitle => MappingLexicon.Text("QrMode",_language);
+    public string QrEccTitle => MappingLexicon.Text("QrEcc",_language);
+    public string QrPositionTitle => MappingLexicon.Text("QrPosition",_language);
+    public string QrModuleTitle => MappingLexicon.Text("QrModule",_language);
+    public string QrSizeTitle => MappingLexicon.Text("QrSize",_language);
     public string DisplayHelp => MappingLexicon.Help("Display",_language);
     public string GroupTitleHelp => MappingLexicon.Help("GroupTitle",_language);
     public string LabelHelp => MappingLexicon.Help("Label",_language);
@@ -218,6 +257,10 @@ public sealed class MappingEditor : INotifyPropertyChanged
         Fill(Fits,"fit",["wrap","shrink","split","smart"]);
         Fill(Weights,"weight",["inherit","200","300","400","500","600","700","800"]);
         Fill(Groups,"group",["inherit","on","off","auto"]);
+        Fill(QrModes,"qrmode",["text","qr","both"]);
+        Fill(QrEccLevels,"qrecc",["L","M","Q","H"]);
+        Fill(QrPositions,"qrposition",["left","center","right"]);
+        Fill(QrModules,"qrmodule",["0.35","0.40","0.50"]);
         Fill(Alignments,"alignment",["inherit","left","center","right","justify"]);
         Fill(HyphenationModes,"hyphenation",["inherit","on","off"]);
         Hyphenation=Select(HyphenationModes,"inherit");
@@ -228,17 +271,17 @@ public sealed class MappingEditor : INotifyPropertyChanged
     public void Relocalize(string language)
     {
         _language=language;
-        foreach(var key in new[]{nameof(DisplayTitle),nameof(GroupTitleTitle),nameof(LabelTitle),nameof(PriorityTitle),nameof(VisibleTitle),nameof(ShowHeadingTitle),nameof(UrlTitle),nameof(FitTitle),nameof(WeightTitle),nameof(SizeTitle),nameof(TrackingTitle),nameof(GroupTitle),nameof(GroupSizeTitle),nameof(GroupSpacesTitle),nameof(UrlSourceTitle),nameof(PhoneCaption),nameof(PhoneFormatCaption)})Changed(key);
+        foreach(var key in new[]{nameof(DisplayTitle),nameof(GroupTitleTitle),nameof(LabelTitle),nameof(PriorityTitle),nameof(VisibleTitle),nameof(ShowHeadingTitle),nameof(UrlTitle),nameof(FitTitle),nameof(WeightTitle),nameof(SizeTitle),nameof(TrackingTitle),nameof(GroupTitle),nameof(GroupSizeTitle),nameof(GroupSpacesTitle),nameof(UrlSourceTitle),nameof(PhoneCaption),nameof(PhoneFormatCaption),nameof(QrModeTitle),nameof(QrEccTitle),nameof(QrPositionTitle),nameof(QrModuleTitle),nameof(QrSizeTitle)})Changed(key);
         foreach(var key in new[]{nameof(DisplayHelp),nameof(GroupTitleHelp),nameof(LabelHelp),nameof(PriorityHelp),nameof(VisibleHelp),nameof(ShowHeadingHelp),nameof(UrlHelp),nameof(FitHelp),nameof(WeightHelp),nameof(SizeHelp),nameof(TrackingHelp),nameof(GroupHelp),nameof(GroupSizeHelp),nameof(GroupSpacesHelp)})Changed(key);
         Changed(nameof(AlignmentTitle)); Changed(nameof(AlignmentHelp));
         Changed(nameof(HyphenationTitle)); Changed(nameof(HyphenationHelp));
         Changed(nameof(HyphenLanguageTitle)); Changed(nameof(HyphenLanguageHelp));
-        foreach(var items in new[]{Roles,Sections,Visibilities,Headings,UrlModes,UrlSources,Fits,Weights,Groups,Alignments,HyphenationModes,HyphenLanguages})
+        foreach(var items in new[]{Roles,Sections,Visibilities,Headings,UrlModes,UrlSources,Fits,Weights,Groups,Alignments,HyphenationModes,HyphenLanguages,QrModes,QrEccLevels,QrPositions,QrModules})
             foreach(var option in items) option.Relocalize(language);
     }
     private static MappingOption Select(ObservableCollection<MappingOption> options,string code) =>
         options.FirstOrDefault(o=>o.Code==code) ?? options[0];
-    public void Load(string? field, FieldRule? r)
+    public void Load(string? field, FieldRule? r, CardAppearance? legacyAppearance = null)
     {
         Enabled=r is not null; Field=field??""; Changed(nameof(IsUrlField)); Changed(nameof(IsUsernameField));
         r ??= new();
@@ -254,6 +297,16 @@ public sealed class MappingEditor : INotifyPropertyChanged
         Alignment=Select(Alignments,FieldMappingDefaults.NormalizeAlignment(r.ValueAlignment));
         Hyphenation=Select(HyphenationModes,FieldMappingDefaults.NormalizeHyphenation(r.ValueHyphenation));
         RefreshHyphenLanguages(r.ValueHyphenLanguage ?? "inherit");
+        _originalQrRule=r;
+        _qrOtpOverride=r.QrOtpOverride || (IsOtpSecretField && r.QrMode!="text");
+        // Display the effective legacy values so the mapping editor never claims
+        // "Text" while a TOTP QR is actually being printed from Appearance.
+        bool legacyOtp=IsOtpSecretField && !_qrOtpOverride && legacyAppearance is not null;
+        QrMode=Select(QrModes,legacyOtp ? (legacyAppearance!.TotpQrEnabled ? "both" : "text") : r.QrMode);
+        QrEcc=Select(QrEccLevels,legacyOtp ? "M" : r.QrEcc);
+        QrPosition=Select(QrPositions,legacyOtp ? legacyAppearance!.TotpQrPosition : r.QrPosition);
+        QrModule=Select(QrModules,legacyOtp ? "0.35" : r.QrMinModuleMm.ToString("0.00",CultureInfo.InvariantCulture));
+        QrSizeMm=(legacyOtp ? legacyAppearance!.TotpQrHeightMm : r.QrSizeMm).ToString("0.##",CultureInfo.InvariantCulture);
     }
     private static double ParseDouble(string text,string label,double min,double max)
     {
@@ -278,7 +331,8 @@ public sealed class MappingEditor : INotifyPropertyChanged
     }
     public FieldRule ToRule()
     {
-        if (!Enabled || Role is null || Section is null || Visibility is null || Heading is null || UrlMode is null || UrlSource is null || Fit is null || Weight is null || Group is null)
+        if (!Enabled || Role is null || Section is null || Visibility is null || Heading is null || UrlMode is null || UrlSource is null || Fit is null || Weight is null || Group is null ||
+            QrMode is null || QrEcc is null || QrPosition is null || QrModule is null)
             throw new ArgumentException("Выберите поле и параметры.");
         var size=ParseInt(SizePct,"Размер значения",65,160);
         var groupSize=ParseInt(GroupSize,"Символов в группе",0,16);
@@ -296,7 +350,15 @@ public sealed class MappingEditor : INotifyPropertyChanged
             ValueHyphenLanguage=FieldMappingDefaults.NormalizeHyphenLanguage(HyphenLanguage?.Code),
             ValueSizePct=size,
             ValueTrackingPt=string.IsNullOrWhiteSpace(TrackingPt)?null:ParseDouble(TrackingPt,"Интервал букв",-.5,1.5),
-            GroupMode=Group.Code,GroupSize=groupSize,GroupSpaces=spaces
+            GroupMode=Group.Code,GroupSize=groupSize,GroupSpaces=spaces,
+            QrMode=IsOtpSecretField && !_qrOtpOverride ? _originalQrRule.QrMode : QrMode.Code,
+            QrEcc=IsOtpSecretField && !_qrOtpOverride ? _originalQrRule.QrEcc : QrEcc.Code,
+            QrPosition=IsOtpSecretField && !_qrOtpOverride ? _originalQrRule.QrPosition : QrPosition.Code,
+            QrMinModuleMm=IsOtpSecretField && !_qrOtpOverride ? _originalQrRule.QrMinModuleMm :
+                ParseDouble(QrModule.Code,"QR модуль",.35,.5),
+            QrSizeMm=IsOtpSecretField && !_qrOtpOverride ? _originalQrRule.QrSizeMm :
+                ParseDouble(QrSizeMm,"QR размер",0,80),
+            QrOtpOverride=IsOtpSecretField && _qrOtpOverride
         };
     }
 }
@@ -330,7 +392,7 @@ public sealed partial class ShellViewModel
             _mappingLoadingEditor=true;
             try
             {
-                MappingEditor.Load(value?.Field,value is null ? null : GetRule(value.Field));
+                MappingEditor.Load(value?.Field,value is null ? null : GetRule(value.Field),_appearance);
                 MappingEditor.SetEditable(CanEditAppearance);
                 if(value is not null && _invalidMappingDrafts.TryGetValue(value.Field,out var draft))
                     MappingEditor.RestoreDraft(draft);
@@ -432,20 +494,24 @@ public sealed partial class ShellViewModel
             if (!string.IsNullOrWhiteSpace(record.Notes)) names.Add("NOTES");
             foreach(var k in record.AdditionalFields.Keys)
                 if(!UrlSourceSelector.IsAdditionalUrlAttribute(k)) names.Add(k);
+            if (PasskeyExport.HasPasskey(record)) names.Add(PasskeyExport.FieldName);
             MappingScopeDescription=string.Format(MappingLexicon.Text("CurrentCard",_settings.Language),record.Title);
         }
         else
         {
             foreach(var r in VaultRecords)
+            {
                 foreach(var k in r.AdditionalFields.Keys)
                     if(!UrlSourceSelector.IsAdditionalUrlAttribute(k)) names.Add(k);
+                if (PasskeyExport.HasPasskey(r)) names.Add(PasskeyExport.FieldName);
+            }
             foreach(var k in _map.Keys)
                 if(!UrlSourceSelector.IsAdditionalUrlAttribute(k)) names.Add(k);
             MappingScopeDescription=MappingLexicon.Text("AllKnown",_settings.Language);
         }
         Changed(nameof(MappingScopeDescription));
         var list=names.Select(n=>(Name:n,Rule:GetRule(n)))
-            .Where(x=>record is null || x.Rule.Visibility!="hidden")
+            .Where(x=>record is null || x.Rule.Visibility!="hidden" || PasskeyExport.IsPasskeyAttribute(x.Name))
             .OrderBy(x=>FieldMappingDefaults.SectionRank(x.Rule.Section))
             .ThenBy(x=>x.Rule.Order).ThenBy(x=>x.Name,StringComparer.OrdinalIgnoreCase).ToList();
         _selectedMappingRow=null;
@@ -496,14 +562,19 @@ public sealed partial class ShellViewModel
         a.Fit==b.Fit && a.ValueWeight==b.ValueWeight && a.ValueAlignment==b.ValueAlignment && a.ValueSizePct==b.ValueSizePct &&
         a.ValueHyphenation==b.ValueHyphenation && a.ValueHyphenLanguage==b.ValueHyphenLanguage &&
         a.ValueTrackingPt==b.ValueTrackingPt && a.GroupMode==b.GroupMode &&
-        a.GroupSize==b.GroupSize && a.GroupSpaces==b.GroupSpaces;
+        a.GroupSize==b.GroupSize && a.GroupSpaces==b.GroupSpaces &&
+        a.QrMode==b.QrMode && a.QrEcc==b.QrEcc && a.QrPosition==b.QrPosition &&
+        a.QrMinModuleMm==b.QrMinModuleMm && a.QrSizeMm==b.QrSizeMm &&
+        a.QrOtpOverride==b.QrOtpOverride;
     private static FieldRule CloneRule(FieldRule x) => new()
     {
         Label=x.Label,Role=x.Role,Section=x.Section,Order=x.Order,Visibility=x.Visibility,
         ShowLabel=x.ShowLabel,UrlMode=x.UrlMode,UrlSource=x.UrlSource,PhoneFormat=x.PhoneFormat,Fit=x.Fit,ValueWeight=x.ValueWeight,
         ValueAlignment=x.ValueAlignment,ValueHyphenation=x.ValueHyphenation,ValueHyphenLanguage=x.ValueHyphenLanguage,
         ValueSizePct=x.ValueSizePct,ValueTrackingPt=x.ValueTrackingPt,GroupMode=x.GroupMode,
-        GroupSize=x.GroupSize,GroupSpaces=x.GroupSpaces
+        GroupSize=x.GroupSize,GroupSpaces=x.GroupSpaces,
+        QrMode=x.QrMode,QrEcc=x.QrEcc,QrPosition=x.QrPosition,
+        QrMinModuleMm=x.QrMinModuleMm,QrSizeMm=x.QrSizeMm,QrOtpOverride=x.QrOtpOverride
     };
     private static Dictionary<string, FieldRule> CloneMap(Dictionary<string,FieldRule> source) =>
         source.ToDictionary(x=>x.Key,x=>CloneRule(x.Value),StringComparer.OrdinalIgnoreCase);
@@ -523,6 +594,8 @@ public sealed partial class ShellViewModel
         if(e.PropertyName is not (nameof(MappingEditor.Label) or nameof(MappingEditor.Order) or
             nameof(MappingEditor.SizePct) or nameof(MappingEditor.TrackingPt) or
             nameof(MappingEditor.GroupSize) or nameof(MappingEditor.GroupSpaces) or
+            nameof(MappingEditor.QrSizeMm) or nameof(MappingEditor.QrMode) or nameof(MappingEditor.QrEcc) or
+            nameof(MappingEditor.QrPosition) or nameof(MappingEditor.QrModule) or
             nameof(MappingEditor.Role) or nameof(MappingEditor.Section) or nameof(MappingEditor.Visibility) or
             nameof(MappingEditor.Heading) or nameof(MappingEditor.UrlMode) or nameof(MappingEditor.UrlSource) or nameof(MappingEditor.PhoneFormat) or nameof(MappingEditor.Fit) or
             nameof(MappingEditor.Weight) or nameof(MappingEditor.Group) or nameof(MappingEditor.Alignment) or
@@ -530,6 +603,9 @@ public sealed partial class ShellViewModel
         var field=_selectedMappingRow.Field;
         try
         {
+            if(e.PropertyName is nameof(MappingEditor.QrSizeMm) or nameof(MappingEditor.QrMode) or
+                nameof(MappingEditor.QrEcc) or nameof(MappingEditor.QrPosition) or nameof(MappingEditor.QrModule))
+                MappingEditor.ActivateOtpQrSettings();
             var rule=MappingEditor.ToRule();
             MappingEditor.Validate(null);
             _invalidMappingDrafts.Remove(field);
@@ -559,7 +635,7 @@ public sealed partial class ShellViewModel
         _invalidMappingDrafts.Remove(field);
         _map.Remove(field);
         _mappingLoadingEditor=true;
-        try { MappingEditor.Load(field,GetRule(field)); MappingEditor.Validate(null); }
+        try { MappingEditor.Load(field,GetRule(field),_appearance); MappingEditor.Validate(null); }
         finally { _mappingLoadingEditor=false; }
         RefreshMappingRows();
         ScheduleCardPreview();

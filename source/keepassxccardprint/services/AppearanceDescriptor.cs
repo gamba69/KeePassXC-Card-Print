@@ -116,7 +116,9 @@ public sealed class AppearanceField : INotifyPropertyChanged
     private bool _editorVisible = true;
     public bool EditorVisible
     {
-        get => _editorVisible;
+        get => _editorVisible && Key is not
+            ("totp_qr_enabled" or "totp_qr_position" or
+             "totp_qr_height_mm" or "totp_qr_min_height_mm");
         internal set { if (_editorVisible == value) return; _editorVisible = value; Raise(); }
     }
     public string EditorLabel

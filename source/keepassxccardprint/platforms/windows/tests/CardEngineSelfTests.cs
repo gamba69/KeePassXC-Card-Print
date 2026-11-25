@@ -304,12 +304,77 @@ internal static class CardEngineSelfTests
             "combining marks remain attached when tracking between graphemes");
     }
 
+    private static void TestPasskeyQr()
+    {
+        // Native AOT smoke checks: generated key exists only in RAM; no KDBX writes.
+        using var key=ECDsa.Create(ECCurve.NamedCurves.nistP256);
+        var pem=key.ExportPkcs8PrivateKeyPem();
+        var record=new VaultRecord
+        {
+            Uuid=Guid.Parse("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"),
+            Title="Passkey fixture",Group="Examples",UserName="test-user",
+            Url="https://example.invalid",
+            AdditionalFields=new Dictionary<string,string>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["KPEX_PASSKEY_CREDENTIAL_ID"]="AQIDBAUG",
+                ["KPEX_PASSKEY_PRIVATE_KEY_PEM"]=pem,
+                ["KPEX_PASSKEY_RELYING_PARTY"]="example.invalid",
+                ["KPEX_PASSKEY_USER_HANDLE"]="AQIDBA",
+                ["KPEX_PASSKEY_USERNAME"]="test-user"
+            }
+        };
+        string exported=PasskeyExport.Create(record);
+        using (var doc=JsonDocument.Parse(exported))
+        {
+            var json=doc.RootElement;
+            Check(json.EnumerateObject().Count()==6,"passkey has exactly six native import fields");
+            Check(json.GetProperty("privateKey").GetString()==pem &&
+                  json.GetProperty("credentialId").GetString()=="AQIDBAUG" &&
+                  json.GetProperty("relyingParty").GetString()=="example.invalid" &&
+                  json.GetProperty("username").GetString()=="test-user",
+                  "passkey fields survive JSON escaping without loss");
+        }
+        Check(FieldMappingDefaults.Infer("KPEX_PASSKEY_PRIVATE_KEY_PEM").Visibility=="hidden",
+            "raw passkey private key is hidden by default");
+        var rule=FieldMappingDefaults.Infer(PasskeyExport.FieldName);
+        Check(rule.QrMode=="qr" && rule.QrEcc=="Q" && rule.QrMinModuleMm==.4,
+            "passkey gets a computed QR field with guarded size");
+        float side=QrPrintPolicy.RequiredSide(exported,rule,88,88);
+        Check(side>10 && side<=88,"passkey QR fits with physical quiet-zone sizing");
+        foreach(var ecc in new[] { "L", "M", "Q", "H" })
+        {
+            rule.QrEcc=ecc;
+            Check(QrPrintPolicy.RequiredSide(exported,rule,88,88)>0,
+                "QR correction level " + ecc + " accepted");
+        }
+        rule.QrEcc="Q";
+        bool rejected=false;
+        try { QrPrintPolicy.RequiredSide(exported,rule,10,10); }
+        catch(InvalidOperationException) { rejected=true; }
+        Check(rejected,"QR too small is rejected instead of silently shrunk");
+        var incomplete=new VaultRecord { AdditionalFields=new Dictionary<string,string>
+        { ["KPEX_PASSKEY_CREDENTIAL_ID"]="AQIDBA" } };
+        bool incompleteRejected=false;
+        try { PasskeyExport.Create(incomplete); }
+        catch(InvalidOperationException) { incompleteRejected=true; }
+        Check(incompleteRejected,"incomplete passkey is not exported as a recovery QR");
+        var appearance=Defaults();appearance.WidthMm=92;appearance.HeightMm=110;
+        var cards=CardLayoutEngine.Build([record],appearance,
+            new Dictionary<string,FieldRule>(StringComparer.OrdinalIgnoreCase));
+        var qr=All(cards).Single(line=>line.Kind==CardLineKind.Qr);
+        Check(qr.QrStrict && qr.QrEcc=="Q" && qr.QrUri==exported,
+            "mapped passkey renders its original JSON as an unsplittable QR");
+        LayoutFits(cards,appearance);
+    }
+
     public static int Run()
     {
         _checks = 0;
         _testLog.Clear();
         try
         {
+            TestPasskeyQr();
+            OtpQrMappingSelfTests.Run(Check);
             HyphenationSelfTests.Run(Check);
             // Host-contract smoke test: no printers, registry writes or vaults are touched.
             var platform = PlatformServices.Current;

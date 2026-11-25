@@ -1,5 +1,36 @@
 # Changelog
 
+## [10.3.3] - 2026-11-25
+
+### Fixed
+- Recognize the expected oversized-OTP-QR rejection when parallel card layout wraps the error in AggregateException; the self-test continues to reject unrelated errors. QR layout and output are unchanged.
+
+## [10.3.2] - 2026-11-25
+
+### Changed
+- TOTP/HOTP QR encoding now accepts per-field mapping settings: correction L/M/Q/H, module pitch, physical size and position. Left/right OTP text layout, grouping and labels remain intact.
+- Legacy template QR behavior is unchanged until that OTP field QR setting is edited; mapping inherits its visible values.
+- Legacy QR geometry controls remain stored for compatibility but are hidden from the Appearance editor.
+
+### Tested
+- Synthetic OTP regression cases cover legacy layout, per-field size and error correction, QR-only and text-only modes, and minimum-size rejection.
+
+## [10.3.1] - 2026-11-25
+
+### Fixed
+- Avoid a false positive in the repository privacy guard from PKCS#8 PEM delimiter literals used by the passkey validator. Runtime validation remains unchanged.
+
+## [10.3.0] - 2026-11-25
+
+### Added
+- QR output per mapped field: text, QR, or both; ECC L/M/Q/H, left/center/right alignment, 0.35/0.40/0.50 mm minimum module, and optional manual size.
+- In-memory KeePassXC passkey JSON export field for paper recovery using native KPEX_PASSKEY_* attributes.
+- Strict QR physical-size validation: no silent shrinking; block layouts that cannot fit the required module pitch.
+
+### Compatibility
+- Existing OTP QR/text positioning, grouping, typography, ECC M, and pagination are unchanged for old templates.
+- Existing templates default to text for ordinary fields. Raw passkey secrets are hidden unless explicitly enabled in mapping.
+
 ## [10.2.7] - 2026-11-25
 
 ### Added
