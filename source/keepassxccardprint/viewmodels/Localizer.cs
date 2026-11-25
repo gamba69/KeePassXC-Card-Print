@@ -78,7 +78,7 @@ public static class Localizer
         ["DemoActive"] = ("ДЕМО: случайные тестовые записи", "ДЕМО: випадкові тестові записи", "DEMO: randomly generated sample entries"),
         ["DemoDatabasePlaceholder"] = ("ДЕМО — реальная база не используется", "ДЕМО — справжня база не використовується", "DEMO — no real database"),
         ["DemoKeyFilePlaceholder"] = ("ДЕМО — файл-ключ не используется", "ДЕМО — файл-ключ не використовується", "DEMO — no key file"),
-        ["Clear"] = ("Очистить", "Очистити", "Clear"),
+        ["Clear"] = ("Закрыть базу", "Закрити базу", "Close database"),
         ["RememberPaths"] = ("Запоминать базу и файл-ключ", "Запам’ятовувати базу й файл-ключ", "Remember database and key file"),
         ["RememberSelection"] = ("Запоминать выбор записей", "Запам’ятовувати вибір записів", "Remember selection"),
         ["Forget"] = ("Забыть сохранённое", "Забути збережене", "Forget stored"),

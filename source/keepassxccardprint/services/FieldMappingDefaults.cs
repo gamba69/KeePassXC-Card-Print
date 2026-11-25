@@ -78,8 +78,19 @@ public static class FieldMappingDefaults
         return value == "inherit" ? "auto" : value;
     }
 
+    internal static string NormalizePagination(string? value) => value is "whole" or "split" ? value : "auto";
+    internal static string NormalizeLink(string? value)
+    {
+        if(value == "next") return "next";
+        if(value is not null && value.StartsWith("field:",StringComparison.Ordinal) &&
+           !string.IsNullOrWhiteSpace(value[6..])) return "field:"+value[6..];
+        return "none";
+    }
+
     public static FieldRule Normalize(FieldRule r)
     {
+        r.PaginationMode=NormalizePagination(r.PaginationMode);
+        r.KeepWithNext=NormalizeLink(r.KeepWithNext);
         var label = r.Label ?? string.Empty;
         r.Label = label.Length > 120 ? label[..120] : label;
         if(!new[]{"text","secret","codes","bitlocker","totp","multiline"}.Contains(r.Role))r.Role="text";

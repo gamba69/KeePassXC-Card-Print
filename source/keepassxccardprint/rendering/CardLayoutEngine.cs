@@ -62,10 +62,10 @@ public static class CardLayoutEngine
             float height=ContentHeight(a,record);
             if(height<5)throw new InvalidOperationException("Недостаточно места для содержимого карточки.");
             var rows=BuildLines(record,a,mapping);
-            var parts=Paginate(rows,height,a);
+            var parts=CardPagination.Paginate(rows,height,a,mapping);
             if(a.NotesMode=="optional" && rows.Any(l=>l.Field.Equals("NOTES",StringComparison.OrdinalIgnoreCase)))
             {
-                var without=Paginate(rows.Where(l=>!l.Field.Equals("NOTES",StringComparison.OrdinalIgnoreCase)).ToList(),height,a);
+                var without=CardPagination.Paginate(rows.Where(l=>!l.Field.Equals("NOTES",StringComparison.OrdinalIgnoreCase)).ToList(),height,a,mapping);
                 if(without.Count<parts.Count)parts=without;
             }
             if(a.RecoveryAutosize && rows.Any(l=>l.Kind==CardLineKind.Recovery))
@@ -78,7 +78,7 @@ public static class CardLayoutEngine
                     try
                     {
                         var bigger=BuildLines(record,a,mapping,size);
-                        var trial=Paginate(bigger,height,a);
+                        var trial=CardPagination.Paginate(bigger,height,a,mapping);
                         if(trial.Count<=baseline){rows=bigger;parts=trial;break;}
                     }
                     catch(InvalidOperationException) { /* test a smaller size */ }
@@ -140,66 +140,11 @@ public static class CardLayoutEngine
         return lines.Select((l,i)=>set.Contains(i)?l with {HeightMm=l.HeightMm+grow}:l).ToList();
     }
 
-    private static List<List<CardLine>> Paginate(IReadOnlyList<CardLine> rows,float capacity,CardAppearance a)
+    private static float RequiredQrSide(string payload,FieldRule rule,float width,float height,string field)
     {
-        var result=new List<List<CardLine>>();var current=new List<CardLine>();float used=0;
-        var captions=new Dictionary<string,List<CardLine>>(StringComparer.OrdinalIgnoreCase);
-        foreach(var row in rows)
-            if(row.Kind==CardLineKind.Label)
-            {
-                if(!captions.TryGetValue(row.Field,out var list))captions[row.Field]=list=[];
-                list.Add(row);
-            }
-        for(int i=0;i<rows.Count;i++)
-        {
-            var row=rows[i];
-            if(row.Kind==CardLineKind.Qr && !row.QrStrict)
-            {
-                float remaining=capacity-used;
-                float smallest=(float)a.TotpQrMinHeightMm;
-                // Prefer the configured size; a QR block is indivisible.
-                // It may shrink toward the configured minimum, never below it.
-                if(row.FontPt>smallest && row.HeightMm>remaining &&
-                   remaining>=smallest+1 && !row.QrInline)
-                {
-                    float side=Math.Min(row.FontPt,remaining-1);
-                    row=row with {FontPt=side,HeightMm=side+1};
-                }
-                if(row.HeightMm>capacity && !row.QrInline && smallest+1<=capacity)
-                    row=row with {FontPt=smallest,HeightMm=smallest+1};
-            }
-            float need=row.HeightMm;
-            if(row.Kind==CardLineKind.Label && i+1<rows.Count && rows[i+1].Field==row.Field)
-                need+=rows[i+1].HeightMm;
-            if(row.HeightMm>capacity+.001f || need>capacity+.001f)
-                throw new InvalidOperationException("Поле не помещается на карточке.");
-            if(current.Count>0 && used+need>capacity+.001f)
-            {
-                while(current.Count>0 && current[^1].Kind==CardLineKind.Gap)
-                {used-=current[^1].HeightMm;current.RemoveAt(current.Count-1);}
-                if(current.Count>0)result.Add(current);
-                current=[];used=0;
-            }
-            if(row.Kind==CardLineKind.Gap && current.Count==0)continue;
-            if(current.Count==0 && result.Count>0 && a.ContinuationRepeatLabel &&
-               row.Kind is not (CardLineKind.Label or CardLineKind.Gap or CardLineKind.Section))
-            {
-                var prior=result[^1].LastOrDefault(l=>l.Kind!=CardLineKind.Gap);
-                if(prior is not null && prior.Field==row.Field && captions.TryGetValue(row.Field,out var labelRows))
-                {
-                    float labelsHeight=labelRows.Sum(l=>l.HeightMm);
-                    if(labelsHeight+row.HeightMm>capacity)
-                        throw new InvalidOperationException("Заголовок продолжения не помещается.");
-                    current.AddRange(labelRows);used+=labelsHeight;
-                }
-            }
-            current.Add(row);used+=row.HeightMm;
-        }
-        while(current.Count>0 && current[^1].Kind==CardLineKind.Gap)current.RemoveAt(current.Count-1);
-        if(current.Count>0)result.Add(current);
-        // A decorative-only fragment is never a physical card. A field block
-        // must contain a value, code, or QR payload to claim a page number.
-        return result.Where(part=>HasPayload(part)).ToList();
+        try { return QrPrintPolicy.RequiredSide(payload,rule,width,height); }
+        catch(InvalidOperationException ex)
+        { throw new InvalidOperationException(ex.Message+$" Поле: «{field}».",ex); }
     }
 
     private static string Family(Field f,CardAppearance a) => a.SecretFont;
@@ -339,9 +284,12 @@ public static class CardLayoutEngine
             bool inlineQr=otpQrEnabled && otpQrPosition is "left" or "right" &&
                 TryQrUri(entry,f.Name,out _);
             float qrSize=mappedOtp && otpQrEnabled && TryQrUri(entry,f.Name,out var mappedOtpPayload)
-                ? QrPrintPolicy.RequiredSide(mappedOtpPayload,f.Rule,width,ContentHeight(a,entry)-1)
+                ? RequiredQrSide(mappedOtpPayload,f.Rule,width,ContentHeight(a,entry)-1,f.Name)
                 : (float)Math.Clamp(a.TotpQrHeightMm,a.TotpQrMinHeightMm,
                     Math.Min(a.WidthMm-2*a.PaddingMm,a.HeightMm-18));
+            if(!mappedOtp && otpQrEnabled && TryQrUri(entry,f.Name,out var legacyPayload))
+                qrSize=RequiredQrSide(legacyPayload,new FieldRule
+                    { QrEcc="M",QrMinModuleMm=.35,QrSizeMm=qrSize },width,ContentHeight(a,entry)-1,f.Name);
             float qrTextWidth=width-qrSize-2;
             string[][]? groupedQrRows=null;
             float qrGapMm=0;
@@ -498,7 +446,17 @@ public static class CardLayoutEngine
         string payload=field.Value;
         if (field.Rule.Role=="totp" && TryQrUri(record,field.Name,out var otpUri))
             payload=otpUri;
-        float size=QrPrintPolicy.RequiredSide(payload,field.Rule,width,ContentHeight(appearance,record));
+        float size=RequiredQrSide(payload,field.Rule,width,ContentHeight(appearance,record)-1,field.Name);
+        // Standalone QR needs its own caption even in left-label mode or when
+        // preceded by a splittable text representation of the same field.
+        if(field.Rule.ShowLabel && (result.Count==0 || result[^1].Kind!=CardLineKind.Label ||
+            !result[^1].Field.Equals(field.Name,StringComparison.OrdinalIgnoreCase)))
+        {
+            float pt=(float)appearance.LabelSizePt*DensityScale(appearance);
+            foreach(var line in CardTextMetrics.WrapExact(Title(field,appearance),width,pt,appearance.LabelFont,appearance.LabelWeight))
+                result.Add(new CardLine(CardLineKind.Label,line,Height(pt,appearance,1.25f),pt,
+                    Field:field.Name,Section:field.Rule.Section));
+        }
         result.Add(new CardLine(CardLineKind.Qr,"",size+1,size,field.Rule.Role,
             field.Name,payload,Section:field.Rule.Section,QrStrict:true,
             QrPosition:field.Rule.QrPosition,QrEcc:field.Rule.QrEcc));
@@ -506,7 +464,7 @@ public static class CardLayoutEngine
 
     // Only real values contribute to layout, pagination, and page numbering.
     // Captions, section headings, and spacing are not printable payloads.
-    private static bool HasPayload(IReadOnlyList<CardLine> lines,int start=0)
+    internal static bool HasPayload(IReadOnlyList<CardLine> lines,int start=0)
     {
         for(int i=start;i<lines.Count;i++)
         {

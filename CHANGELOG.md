@@ -1,5 +1,23 @@
 # Changelog
 
+## [10.4.1] - 2026-11-25
+
+### Fixed
+- Rename the database closing action from Clear to Close database in Russian, Ukrainian and English.
+
+## [10.4.0] - 2026-11-25
+
+### Added
+- Content-aware pagination with indivisible QR/OTP compositions and recovery-code rows, and optional whole-field placement.
+- Per-field directional links to the next printed field or a named mapping field; overlapping links are considered together without reordering content.
+- Per-field forced side breaks and localized mapping controls. Existing custom mappings default to automatic pagination and no links.
+- Built-in mappings link login to password and explicitly enabled passkey attributes to the passkey export QR.
+- Synthetic pagination and mapping regression tests.
+
+### Changed
+- The paginator prefers intact linked blocks, relaxes oversized links at legal boundaries, and accounts for repeated captions before selecting a break.
+- QR blocks are no longer shrunk to fill leftover space; impossible indivisible blocks report the affected field without printing its value.
+
 ## [10.3.3] - 2026-11-25
 
 ### Fixed

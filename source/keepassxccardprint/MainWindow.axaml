@@ -349,27 +349,33 @@
                 <Grid Grid.Row="2" RowDefinitions="*" MinHeight="125">
                   <Border Grid.Row="0" BorderThickness="0" BorderBrush="{DynamicResource KpBorderBrush}" Background="Transparent" IsVisible="{Binding MappingCompactVisible}">
                     <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Disabled">
-                      <Grid MinWidth="668" RowDefinitions="27,*">
+                      <Grid MinWidth="818" RowDefinitions="27,*">
                         <Border Grid.Row="0" Classes="table-header" Padding="5,0">
-                          <Grid ColumnDefinitions="38,167,123,75,126,118">
+                          <Grid ColumnDefinitions="38,167,123,75,126,118,150">
                             <TextBlock VerticalAlignment="Center" Text="№"/>
                             <TextBlock Grid.Column="1" VerticalAlignment="Center" Text="{Binding Field}"/>
                             <TextBlock Grid.Column="2" VerticalAlignment="Center" Text="{Binding Section}"/>
                             <TextBlock Grid.Column="3" VerticalAlignment="Center" Text="{Binding Priority}"/>
                             <TextBlock Grid.Column="4" VerticalAlignment="Center" Text="{Binding OutputGroup}"/>
                             <TextBlock Grid.Column="5" VerticalAlignment="Center" Text="{Binding Visibility}"/>
+                            <TextBlock Grid.Column="6" VerticalAlignment="Center" Text="{Binding MappingLinkText}"/>
                           </Grid>
                         </Border>
                         <ListBox Grid.Row="1" Classes="mapping-list" ItemsSource="{Binding FieldRows}" SelectedItem="{Binding SelectedMappingRow, Mode=TwoWay}" BorderThickness="0" Background="{DynamicResource KpSurfaceBrush}">
                           <ListBox.ItemTemplate>
                             <DataTemplate x:DataType="vm:FieldMappingRow">
-                              <Grid ColumnDefinitions="38,167,123,75,126,118" Height="25" Margin="5,0">
+                              <Grid ColumnDefinitions="38,167,123,75,126,118,150" Height="25" Margin="5,0">
                                 <TextBlock VerticalAlignment="Center" Text="{Binding PositionText}" ToolTip.Tip="! — проверьте параметры поля"/>
                                 <TextBlock Grid.Column="1" VerticalAlignment="Center" Text="{Binding Field}" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding Field}"/>
                                 <TextBlock Grid.Column="2" VerticalAlignment="Center" Text="{Binding Section}" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding Section}"/>
                                 <TextBlock Grid.Column="3" VerticalAlignment="Center" Text="{Binding Order}"/>
                                 <TextBlock Grid.Column="4" VerticalAlignment="Center" Text="{Binding DisplayGroup}" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding DisplayGroup}"/>
                                 <TextBlock Grid.Column="5" VerticalAlignment="Center" Text="{Binding Visibility}" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding Visibility}"/>
+                                <Grid Grid.Column="6" ColumnDefinitions="18,*" ColumnSpacing="3" ToolTip.Tip="{Binding LinkHint}">
+                                  <fi:FluentIcon Icon="Link" IconVariant="Regular" IconSize="Size20" Width="14" Height="14" FontSize="14" Foreground="{DynamicResource KpTextBrush}" IsVisible="{Binding HasActiveLink}"/>
+                                  <TextBlock Text="!" FontWeight="Bold" HorizontalAlignment="Center" VerticalAlignment="Center" IsVisible="{Binding LinkInactive}"/>
+                                  <TextBlock Grid.Column="1" VerticalAlignment="Center" Text="{Binding LinkText}" TextTrimming="CharacterEllipsis"/>
+                                </Grid>
                               </Grid>
                             </DataTemplate>
                           </ListBox.ItemTemplate>
@@ -379,9 +385,9 @@
                   </Border>
                   <Border Grid.Row="0" BorderThickness="0" BorderBrush="{DynamicResource KpBorderBrush}" Background="Transparent" IsVisible="{Binding MappingDetailedVisible}">
                     <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Disabled">
-                      <Grid MinWidth="1335" RowDefinitions="27,*">
+                      <Grid MinWidth="1635" RowDefinitions="27,*">
                         <Border Grid.Row="0" Classes="table-header" Padding="5,0">
-                          <Grid ColumnDefinitions="38,167,130,75,118,141,128,135,190,130">
+                          <Grid ColumnDefinitions="38,167,130,75,118,141,128,135,190,130,150,150">
                             <TextBlock VerticalAlignment="Center" Text="№"/>
                             <TextBlock Grid.Column="1" VerticalAlignment="Center" Text="{Binding Field}"/>
                             <TextBlock Grid.Column="2" VerticalAlignment="Center" Text="{Binding Section}"/>
@@ -392,12 +398,14 @@
                             <TextBlock Grid.Column="7" VerticalAlignment="Center" Text="{Binding Label}"/>
                             <TextBlock Grid.Column="8" VerticalAlignment="Center" Text="{Binding LongValue}"/>
                             <TextBlock Grid.Column="9" VerticalAlignment="Center" Text="{Binding Grouping}"/>
+                            <TextBlock Grid.Column="10" VerticalAlignment="Center" Text="{Binding MappingPaginationText}" TextTrimming="CharacterEllipsis"/>
+                            <TextBlock Grid.Column="11" VerticalAlignment="Center" Text="{Binding MappingLinkText}"/>
                           </Grid>
                         </Border>
                         <ListBox Grid.Row="1" Classes="mapping-list" ItemsSource="{Binding FieldRows}" SelectedItem="{Binding SelectedMappingRow, Mode=TwoWay}" BorderThickness="0" Background="{DynamicResource KpSurfaceBrush}">
                           <ListBox.ItemTemplate>
                             <DataTemplate x:DataType="vm:FieldMappingRow">
-                              <Grid ColumnDefinitions="38,167,130,75,118,141,128,135,190,130" Height="25" Margin="5,0">
+                              <Grid ColumnDefinitions="38,167,130,75,118,141,128,135,190,130,150,150" Height="25" Margin="5,0">
                                 <TextBlock VerticalAlignment="Center" Text="{Binding PositionText}" ToolTip.Tip="! — проверьте параметры поля"/>
                                 <TextBlock Grid.Column="1" VerticalAlignment="Center" Text="{Binding Field}" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding Field}"/>
                                 <TextBlock Grid.Column="2" VerticalAlignment="Center" Text="{Binding Section}" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding Section}"/>
@@ -408,6 +416,12 @@
                                 <TextBlock Grid.Column="7" VerticalAlignment="Center" Text="{Binding Heading}" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding Heading}"/>
                                 <TextBlock Grid.Column="8" VerticalAlignment="Center" Text="{Binding Fit}" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding Fit}"/>
                                 <TextBlock Grid.Column="9" VerticalAlignment="Center" Text="{Binding Grouping}" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding Grouping}"/>
+                                <TextBlock Grid.Column="10" VerticalAlignment="Center" Text="{Binding Pagination}" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding Pagination}"/>
+                                <Grid Grid.Column="11" ColumnDefinitions="18,*" ColumnSpacing="3" ToolTip.Tip="{Binding LinkHint}">
+                                  <fi:FluentIcon Icon="Link" IconVariant="Regular" IconSize="Size20" Width="14" Height="14" FontSize="14" Foreground="{DynamicResource KpTextBrush}" IsVisible="{Binding HasActiveLink}"/>
+                                  <TextBlock Text="!" FontWeight="Bold" HorizontalAlignment="Center" VerticalAlignment="Center" IsVisible="{Binding LinkInactive}"/>
+                                  <TextBlock Grid.Column="1" VerticalAlignment="Center" Text="{Binding LinkText}" TextTrimming="CharacterEllipsis"/>
+                                </Grid>
                               </Grid>
                             </DataTemplate>
                           </ListBox.ItemTemplate>
@@ -543,6 +557,22 @@
                       <Grid Width="350" Margin="0,0,9,4" ColumnDefinitions="140,*" ColumnSpacing="6" MinHeight="27" IsVisible="{Binding IsUsernameField}">
                         <TextBlock VerticalAlignment="Center" Text="{Binding PhoneCaption}" ToolTip.Tip="Только отображение, без изменения данных базы. Поддерживаются явные номера +380 и +1."/>
                         <CheckBox Grid.Column="1" Content="{Binding PhoneFormatCaption}" VerticalAlignment="Center" IsChecked="{Binding PhoneFormat, Mode=TwoWay}"/>
+                      </Grid>
+                      <Grid Width="350" Margin="0,0,9,4" ColumnDefinitions="140,*" ColumnSpacing="6" MinHeight="27">
+                        <TextBlock Text="{Binding PaginationTitle}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding PaginationHelp}"/>
+                        <ComboBox Grid.Column="1" ItemsSource="{Binding PaginationModes}" SelectedItem="{Binding PaginationMode, Mode=TwoWay}">
+                          <ComboBox.ItemTemplate><DataTemplate x:DataType="vm:MappingOption"><TextBlock Text="{Binding Label}"/></DataTemplate></ComboBox.ItemTemplate>
+                        </ComboBox>
+                      </Grid>
+                      <Grid Width="350" Margin="0,0,9,4" ColumnDefinitions="140,*" ColumnSpacing="6" MinHeight="27">
+                        <TextBlock Text="{Binding LinkTitle}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding LinkHelp}"/>
+                        <ComboBox Grid.Column="1" ItemsSource="{Binding LinkTargets}" SelectedItem="{Binding LinkTarget, Mode=TwoWay}">
+                          <ComboBox.ItemTemplate><DataTemplate x:DataType="vm:MappingOption"><TextBlock Text="{Binding Label}" TextTrimming="CharacterEllipsis"/></DataTemplate></ComboBox.ItemTemplate>
+                        </ComboBox>
+                      </Grid>
+                      <Grid Width="350" Margin="0,0,9,4" ColumnDefinitions="140,*" ColumnSpacing="6" MinHeight="27">
+                        <TextBlock Text="{Binding BreakBeforeTitle}" VerticalAlignment="Center" ToolTip.Tip="{Binding BreakBeforeHelp}"/>
+                        <CheckBox Grid.Column="1" VerticalAlignment="Center" IsChecked="{Binding BreakBefore, Mode=TwoWay}" ToolTip.Tip="{Binding BreakBeforeHelp}"/>
                       </Grid>
                       <Grid Width="350" Margin="0,0,9,4" ColumnDefinitions="140,*" ColumnSpacing="6" MinHeight="27">
                         <TextBlock VerticalAlignment="Center" Text="{Binding FitTitle}" TextTrimming="CharacterEllipsis">

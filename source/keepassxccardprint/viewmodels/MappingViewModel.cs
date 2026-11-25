@@ -40,11 +40,35 @@ public sealed class FieldMappingRow : INotifyPropertyChanged
     public string Fit { get=>_fit; private set { if(_fit==value)return; _fit=value;Changed(); } }
     public string Grouping { get=>_grouping; private set { if(_grouping==value)return; _grouping=value;Changed(); } }
     public string DisplayGroup { get=>_displayGroup; private set { if(_displayGroup==value)return; _displayGroup=value;Changed(); } }
+    public string Pagination { get; private set; } = "";
+    public string LinkText { get; private set; } = "";
+    public bool HasLink { get; private set; }
+    public bool LinkInactive { get; private set; }
+    public string LinkHint { get; private set; } = "";
+    public bool HasActiveLink => HasLink && !LinkInactive;
+    private string _linkCode="none";
+    public void UpdateLink(IReadOnlyList<FieldMappingRow> ordered,string language)
+    {
+        HasLink=_linkCode!="none";
+        var target=_linkCode.StartsWith("field:",StringComparison.Ordinal)
+            ? ordered.FirstOrDefault(x=>x.Field.Equals(_linkCode[6..],StringComparison.OrdinalIgnoreCase)):null;
+        LinkInactive=HasLink && (_linkCode=="next" ? Position>=ordered.Count :
+            target is null || target.Position<=Position);
+        LinkText=HasLink ? MappingLexicon.OptionLabel("link",_linkCode,language) : "—";
+        if(LinkInactive)LinkText=MappingLexicon.OptionLabel("linkinvalid",_linkCode,language);
+        LinkHint=LinkInactive ? LinkText+" · "+MappingLexicon.Text(
+            target is not null ? "LinkAbove" : "LinkMissing",language) : LinkText;
+        Changed(nameof(HasLink));Changed(nameof(LinkInactive));Changed(nameof(HasActiveLink));
+        Changed(nameof(LinkText));Changed(nameof(LinkHint));
+    }
     public FieldMappingRow(string field, FieldRule r, int pos, string language)
     { Field=field; Update(r,pos,language); }
     public void Update(FieldRule r, int pos, string language)
     {
         Position=pos; Label=r.Label; Order=r.Order;
+        _linkCode=FieldMappingDefaults.NormalizeLink(r.KeepWithNext);
+        Pagination=MappingLexicon.OptionLabel("pagination",FieldMappingDefaults.NormalizePagination(r.PaginationMode),language);
+        Changed(nameof(Pagination));
         Role=MappingLexicon.OptionLabel("role",r.Role,language);
         Section=MappingLexicon.OptionLabel("section",r.Section,language);
         Visibility=MappingLexicon.OptionLabel("visibility",r.Visibility,language);
@@ -62,7 +86,8 @@ public sealed record MappingFieldDraft(
     string Fit, string Weight, string Group, bool PhoneFormat, string Alignment = "inherit",
     string Hyphenation = "inherit", string HyphenLanguage = "inherit",
     string QrMode = "text", string QrEcc = "Q", string QrPosition = "center",
-    string QrModule = "0.40", string QrSizeMm = "0", bool QrOtpOverride = false);
+    string QrModule = "0.40", string QrSizeMm = "0", bool QrOtpOverride = false,
+    string PaginationMode = "auto", string KeepWithNext = "none", bool BreakBefore = false);
 
 /// <summary>Field editor: valid changes update the in-memory map, never the saved JSON.</summary>
 public sealed class MappingEditor : INotifyPropertyChanged
@@ -109,6 +134,42 @@ public sealed class MappingEditor : INotifyPropertyChanged
     public ObservableCollection<MappingOption> Fits { get; } = new();
     public ObservableCollection<MappingOption> Weights { get; } = new();
     public ObservableCollection<MappingOption> Groups { get; } = new();
+    public ObservableCollection<MappingOption> PaginationModes { get; } = new();
+    public ObservableCollection<MappingOption> LinkTargets { get; } = new();
+    private MappingOption? _paginationMode, _linkTarget;
+    private bool _breakBefore;
+    public MappingOption? PaginationMode { get=>_paginationMode;set { _paginationMode=value;Changed(); } }
+    public MappingOption? LinkTarget { get=>_linkTarget;set { _linkTarget=value;Changed(); } }
+    public bool BreakBefore { get=>_breakBefore;set { _breakBefore=value;Changed(); } }
+    public string PaginationTitle => MappingLexicon.Text("Pagination",_language);
+    public string LinkTitle => MappingLexicon.Text("Link",_language);
+    public string BreakBeforeTitle => MappingLexicon.Text("BreakBefore",_language);
+    public string PaginationHelp => MappingLexicon.Help("Pagination",_language);
+    public string LinkHelp => MappingLexicon.Help("Link",_language);
+    public string BreakBeforeHelp => MappingLexicon.Help("BreakBefore",_language);
+    private string[] _availableLinks=[];
+    internal void RefreshLinkTargets(IEnumerable<string> below,string? selected=null)
+    {
+        string code=FieldMappingDefaults.NormalizeLink(selected??LinkTarget?.Code);
+        _availableLinks=below.Select(x=>"field:"+x).Distinct(StringComparer.OrdinalIgnoreCase).ToArray();
+        string[] codes=["none","next",.._availableLinks];
+        if(!codes.Contains(code,StringComparer.OrdinalIgnoreCase))codes=[..codes,code];
+        string Kind(string item)=>_availableLinks.Contains(item,StringComparer.OrdinalIgnoreCase) ||
+            item is "none" or "next" ? "link" : "linkinvalid";
+        if(LinkTargets.Count==codes.Length && LinkTargets.Select((option,i)=>
+            option.Code.Equals(codes[i],StringComparison.OrdinalIgnoreCase) &&
+            option.Label==MappingLexicon.OptionLabel(Kind(codes[i]),codes[i],_language)).All(x=>x))
+        {
+            var target=LinkTargets.First(x=>x.Code.Equals(code,StringComparison.OrdinalIgnoreCase));
+            if(!ReferenceEquals(LinkTarget,target))LinkTarget=target;
+            return;
+        }
+        LinkTargets.Clear();
+        foreach(var item in codes)
+            LinkTargets.Add(new MappingOption(Kind(item),item,_language));
+        LinkTarget=LinkTargets.First(x=>x.Code.Equals(code,StringComparison.OrdinalIgnoreCase));
+    }
+    internal void RestoreLink(string code) => RefreshLinkTargets(_availableLinks.Select(x=>x[6..]).ToArray(),code);
     public ObservableCollection<MappingOption> QrModes { get; } = new();
     public ObservableCollection<MappingOption> QrEccLevels { get; } = new();
     public ObservableCollection<MappingOption> QrPositions { get; } = new();
@@ -192,7 +253,7 @@ public sealed class MappingEditor : INotifyPropertyChanged
         Fit?.Code??"",Weight?.Code??"",Group?.Code??"",PhoneFormat,Alignment?.Code??"inherit",
         Hyphenation?.Code??"inherit",HyphenLanguage?.Code??"inherit",
         QrMode?.Code??"text",QrEcc?.Code??"Q",QrPosition?.Code??"center",QrModule?.Code??"0.40",QrSizeMm,
-        _qrOtpOverride);
+        _qrOtpOverride,PaginationMode?.Code??"auto",LinkTarget?.Code??"none",BreakBefore);
     public void RestoreDraft(MappingFieldDraft draft)
     {
         Label=draft.Label; Order=draft.Order; SizePct=draft.SizePct; TrackingPt=draft.TrackingPt;
@@ -208,6 +269,8 @@ public sealed class MappingEditor : INotifyPropertyChanged
         QrPosition=Select(QrPositions,draft.QrPosition);QrModule=Select(QrModules,draft.QrModule);
         QrSizeMm=draft.QrSizeMm;
         _qrOtpOverride=draft.QrOtpOverride;
+        PaginationMode=Select(PaginationModes,FieldMappingDefaults.NormalizePagination(draft.PaginationMode));
+        RestoreLink(draft.KeepWithNext);BreakBefore=draft.BreakBefore;
     }
     private string _language;
     public string PhoneCaption => UiText.Tr("Логин — телефон",_language);
@@ -257,6 +320,9 @@ public sealed class MappingEditor : INotifyPropertyChanged
         Fill(Fits,"fit",["wrap","shrink","split","smart"]);
         Fill(Weights,"weight",["inherit","200","300","400","500","600","700","800"]);
         Fill(Groups,"group",["inherit","on","off","auto"]);
+        Fill(PaginationModes,"pagination",["auto","whole","split"]);
+        PaginationMode=Select(PaginationModes,"auto");
+        RefreshLinkTargets([],"none");
         Fill(QrModes,"qrmode",["text","qr","both"]);
         Fill(QrEccLevels,"qrecc",["L","M","Q","H"]);
         Fill(QrPositions,"qrposition",["left","center","right"]);
@@ -276,7 +342,9 @@ public sealed class MappingEditor : INotifyPropertyChanged
         Changed(nameof(AlignmentTitle)); Changed(nameof(AlignmentHelp));
         Changed(nameof(HyphenationTitle)); Changed(nameof(HyphenationHelp));
         Changed(nameof(HyphenLanguageTitle)); Changed(nameof(HyphenLanguageHelp));
-        foreach(var items in new[]{Roles,Sections,Visibilities,Headings,UrlModes,UrlSources,Fits,Weights,Groups,Alignments,HyphenationModes,HyphenLanguages,QrModes,QrEccLevels,QrPositions,QrModules})
+        Changed(nameof(PaginationTitle));Changed(nameof(LinkTitle));Changed(nameof(BreakBeforeTitle));
+        Changed(nameof(PaginationHelp));Changed(nameof(LinkHelp));Changed(nameof(BreakBeforeHelp));
+        foreach(var items in new[]{Roles,Sections,Visibilities,Headings,UrlModes,UrlSources,Fits,Weights,Groups,Alignments,HyphenationModes,HyphenLanguages,QrModes,QrEccLevels,QrPositions,QrModules,PaginationModes,LinkTargets})
             foreach(var option in items) option.Relocalize(language);
     }
     private static MappingOption Select(ObservableCollection<MappingOption> options,string code) =>
@@ -297,6 +365,8 @@ public sealed class MappingEditor : INotifyPropertyChanged
         Alignment=Select(Alignments,FieldMappingDefaults.NormalizeAlignment(r.ValueAlignment));
         Hyphenation=Select(HyphenationModes,FieldMappingDefaults.NormalizeHyphenation(r.ValueHyphenation));
         RefreshHyphenLanguages(r.ValueHyphenLanguage ?? "inherit");
+        PaginationMode=Select(PaginationModes,FieldMappingDefaults.NormalizePagination(r.PaginationMode));
+        RestoreLink(r.KeepWithNext);BreakBefore=r.BreakBefore;
         _originalQrRule=r;
         _qrOtpOverride=r.QrOtpOverride || (IsOtpSecretField && r.QrMode!="text");
         // Display the effective legacy values so the mapping editor never claims
@@ -358,7 +428,9 @@ public sealed class MappingEditor : INotifyPropertyChanged
                 ParseDouble(QrModule.Code,"QR модуль",.35,.5),
             QrSizeMm=IsOtpSecretField && !_qrOtpOverride ? _originalQrRule.QrSizeMm :
                 ParseDouble(QrSizeMm,"QR размер",0,80),
-            QrOtpOverride=IsOtpSecretField && _qrOtpOverride
+            QrOtpOverride=IsOtpSecretField && _qrOtpOverride,
+            PaginationMode=FieldMappingDefaults.NormalizePagination(PaginationMode?.Code),
+            KeepWithNext=FieldMappingDefaults.NormalizeLink(LinkTarget?.Code),BreakBefore=BreakBefore
         };
     }
 }
@@ -393,6 +465,7 @@ public sealed partial class ShellViewModel
             try
             {
                 MappingEditor.Load(value?.Field,value is null ? null : GetRule(value.Field),_appearance);
+                RefreshLinkEditor();
                 MappingEditor.SetEditable(CanEditAppearance);
                 if(value is not null && _invalidMappingDrafts.TryGetValue(value.Field,out var draft))
                     MappingEditor.RestoreDraft(draft);
@@ -418,6 +491,8 @@ public sealed partial class ShellViewModel
     public string MappingHeaderText => ML("Header");
     public string MappingToolbarTitle => ML("Toolbar");
     public string MappingFieldsHeading => ML("FieldsList");
+    public string MappingPaginationText => ML("Pagination");
+    public string MappingLinkText => ML("Link");
     public string MappingLabelText => ML("Label");
     public string MappingPriorityText => ML("Priority");
     public string MappingVisibleText => ML("Visible");
@@ -473,6 +548,7 @@ public sealed partial class ShellViewModel
         if (!_mappingInitialized) return;
         MappingEditor.Relocalize(_settings.Language);
         Changed(nameof(MappingFieldHeading));
+        Changed(nameof(MappingPaginationText));Changed(nameof(MappingLinkText));
         foreach(var key in new[]{nameof(MappingScopeHelpText),nameof(MappingFilterHelpText),nameof(MappingHeaderText),nameof(MappingToolbarTitle),nameof(MappingFieldsHeading),nameof(MappingLabelText),nameof(MappingPriorityText),nameof(MappingVisibleText),nameof(MappingShowHeadingText),nameof(MappingUrlText),nameof(MappingFitText),nameof(MappingWeightText),nameof(MappingSizeText),nameof(MappingTrackingText),nameof(MappingGroupText),nameof(MappingGroupSizeText),nameof(MappingGroupSpacesText),nameof(MappingResetText),nameof(MappingSaveText),nameof(MappingDomainsText),nameof(MappingDisplayText),nameof(MappingGroupTitleText),nameof(MappingFieldTitleText),nameof(MappingCardTitleText)}) Changed(key);
         RebuildMapping();
         UpdateMappingStatus();
@@ -523,6 +599,7 @@ public sealed partial class ShellViewModel
             row.HasDraftError=_invalidMappingDrafts.ContainsKey(x.Name);
             FieldRows.Add(row);
         }
+        RefreshLinkRows();
         SelectedMappingRow=FieldRows.FirstOrDefault(x=>string.Equals(x.Field,old,StringComparison.OrdinalIgnoreCase)) ?? FieldRows.FirstOrDefault();
         _mappingInitialized=true;
     }
@@ -540,6 +617,25 @@ public sealed partial class ShellViewModel
             row.Update(GetRule(row.Field),i+1,_settings.Language);
             row.HasDraftError=_invalidMappingDrafts.ContainsKey(row.Field);
         }
+        RefreshLinkRows();
+        RefreshLinkEditor();
+    }
+    private void RefreshLinkRows()
+    {
+        var ordered=FieldRows.ToArray();
+        foreach(var row in ordered)row.UpdateLink(ordered,_settings.Language);
+    }
+    private void RefreshLinkEditor()
+    {
+        bool loading=_mappingLoadingEditor;
+        _mappingLoadingEditor=true;
+        try
+        {
+            var below=_selectedMappingRow is null ? Array.Empty<string>() :
+                FieldRows.Where(x=>x.Position>_selectedMappingRow.Position).Select(x=>x.Field).ToArray();
+            MappingEditor.RefreshLinkTargets(below);
+        }
+        finally { _mappingLoadingEditor=loading; }
     }
     private void CheckCurrentEditor()
     {
@@ -563,6 +659,8 @@ public sealed partial class ShellViewModel
         a.ValueHyphenation==b.ValueHyphenation && a.ValueHyphenLanguage==b.ValueHyphenLanguage &&
         a.ValueTrackingPt==b.ValueTrackingPt && a.GroupMode==b.GroupMode &&
         a.GroupSize==b.GroupSize && a.GroupSpaces==b.GroupSpaces &&
+        a.PaginationMode==b.PaginationMode && string.Equals(a.KeepWithNext,b.KeepWithNext,StringComparison.OrdinalIgnoreCase) &&
+        a.BreakBefore==b.BreakBefore &&
         a.QrMode==b.QrMode && a.QrEcc==b.QrEcc && a.QrPosition==b.QrPosition &&
         a.QrMinModuleMm==b.QrMinModuleMm && a.QrSizeMm==b.QrSizeMm &&
         a.QrOtpOverride==b.QrOtpOverride;
@@ -573,6 +671,7 @@ public sealed partial class ShellViewModel
         ValueAlignment=x.ValueAlignment,ValueHyphenation=x.ValueHyphenation,ValueHyphenLanguage=x.ValueHyphenLanguage,
         ValueSizePct=x.ValueSizePct,ValueTrackingPt=x.ValueTrackingPt,GroupMode=x.GroupMode,
         GroupSize=x.GroupSize,GroupSpaces=x.GroupSpaces,
+        PaginationMode=x.PaginationMode,KeepWithNext=x.KeepWithNext,BreakBefore=x.BreakBefore,
         QrMode=x.QrMode,QrEcc=x.QrEcc,QrPosition=x.QrPosition,
         QrMinModuleMm=x.QrMinModuleMm,QrSizeMm=x.QrSizeMm,QrOtpOverride=x.QrOtpOverride
     };
@@ -599,6 +698,7 @@ public sealed partial class ShellViewModel
             nameof(MappingEditor.Role) or nameof(MappingEditor.Section) or nameof(MappingEditor.Visibility) or
             nameof(MappingEditor.Heading) or nameof(MappingEditor.UrlMode) or nameof(MappingEditor.UrlSource) or nameof(MappingEditor.PhoneFormat) or nameof(MappingEditor.Fit) or
             nameof(MappingEditor.Weight) or nameof(MappingEditor.Group) or nameof(MappingEditor.Alignment) or
+            nameof(MappingEditor.PaginationMode) or nameof(MappingEditor.LinkTarget) or nameof(MappingEditor.BreakBefore) or
             nameof(MappingEditor.Hyphenation) or nameof(MappingEditor.HyphenLanguage)))return;
         var field=_selectedMappingRow.Field;
         try

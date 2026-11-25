@@ -183,6 +183,7 @@ public static class CardAppearancePresets
         }
         Add("GROUP", "Раздел", "text", "account", 1);
         Add("USERNAME", "Логин", "secret", "account", 10);
+        map["USERNAME"].KeepWithNext="field:PASSWORD";
         Add("PASSWORD", "Пароль", "secret", "auth", 20, "smart");
         Add("URL", "Адрес", "text", "account", 30, "shrink");
         Add("NOTES", "Примечания", "multiline", "extra", 900, "wrap", 90);
@@ -240,6 +241,16 @@ public static class CardAppearancePresets
                 map["NOTES"].ValueSizePct = 80;
                 map["LONG DESCRIPTION"].ValueSizePct = 76;
                 break;
+        }
+        // Preserve the default hidden status of raw WebAuthn attributes. If a
+        // user enables them in a copy of this preset, keep them with the export.
+        foreach(var field in new[]{"KPEX_PASSKEY_RELYING_PARTY","KPEX_PASSKEY_USERNAME",
+            "KPXC_PASSKEY_USERNAME","KPEX_PASSKEY_USER_HANDLE","KPEX_PASSKEY_CREDENTIAL_ID"})
+        {
+            var rule=FieldMappingDefaults.Infer(field);
+            rule.Order=54;
+            rule.KeepWithNext="field:"+PasskeyExport.FieldName;
+            map[field]=rule;
         }
         return map;
     }

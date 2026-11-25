@@ -36,6 +36,11 @@ public static class MappingLexicon
         ["Group"]=("Группы символов","Групи символів","Character grouping"),
         ["GroupSize"]=("Символов в группе (0 или 2–16)","Символів у групі (0 або 2–16)","Characters per group (0 or 2–16)"),
         ["GroupSpaces"]=("Пробелов между группами (0 или 0,1–2)","Пробілів між групами (0 або 0,1–2)","Group spacing (0 or 0.1–2)"),
+        ["Pagination"]=("Перенос содержимого","Перенос вмісту","Content pagination"),
+        ["Link"]=("Связать с полем","Зв’язати з полем","Keep with field"),
+        ["BreakBefore"]=("С новой стороны","З нового боку","Start on new side"),
+        ["LinkAbove"]=("Целевое поле находится выше","Цільове поле вище","Target field is above this field"),
+        ["LinkMissing"]=("Цель отсутствует в текущем списке","Ціль відсутня в поточному списку","Target unavailable in the current list"),
         ["QrMode"]=("Вывод QR", "Вивід QR", "QR output"),
         ["QrEcc"]=("Коррекция QR", "Корекція QR", "QR correction"),
         ["QrPosition"]=("Расположение QR", "Розташування QR", "QR position"),
@@ -98,6 +103,9 @@ public static class MappingLexicon
         ["GroupSize"]=("Сколько символов помещать в каждую группу. 0 — использовать общий размер группы из «Оформления»; от 2 до 16 — индивидуальный размер для этого поля. Действует, только если группировка включена и значение достаточно длинное.",
             "Скільки символів має бути в кожній групі. 0 — використовувати загальний розмір з «Оформлення»; від 2 до 16 — окремий розмір для цього поля. Працює лише коли групування увімкнено й значення достатньо довге.",
             "How many characters appear in each group. 0 uses the global group size from Appearance; 2–16 overrides it for this field. Has an effect only when grouping is enabled and the value is sufficiently long."),
+        ["Pagination"]=("Авто выбирает правило по содержимому; целиком — строгий перенос поля; разделение допускается только по безопасным границам.","Авто обирає правило за вмістом; цілком — суворе перенесення поля; поділ лише за безпечними межами.","Auto uses the content type; Whole is mandatory; Split uses only safe boundaries."),
+        ["Link"]=("Сохранять вместе с выбранным полем ниже. Промежуточные поля входят в блок. Связь ослабляется, если блок больше стороны.","Зберігати разом з вибраним полем нижче. Проміжні поля входять до блоку. Зв’язок послаблюється, якщо блок більший за бік.","Keep with a later field, including intervening fields. Oversized links are relaxed."),
+        ["BreakBefore"]=("Начать поле с новой стороны; имеет приоритет над связями.","Почати поле з нового боку; має пріоритет над зв’язками.","Start on a new side; overrides links."),
         ["Alignment"]=("Индивидуальное выравнивание многострочного текста. Последняя строка абзаца не растягивается.",
             "Індивідуальне вирівнювання багаторядкового тексту. Останній рядок абзацу не розтягується.",
             "Override multiline text alignment. The final line of each paragraph is not justified."),
@@ -165,6 +173,12 @@ public static class MappingLexicon
         ["group:on"]=("Группировать","Групувати","Group"),
         ["group:off"]=("Не группировать","Не групувати","Do not group"),
         ["group:auto"]=("Авто: только случайные","Авто: лише випадкові","Auto: random only"),
+        ["pagination:auto"]=("Автоматически","Автоматично","Automatic"),
+        ["pagination:whole"]=("Целиком","Цілком","Whole field"),
+        ["pagination:split"]=("Разрешить разделение","Дозволити поділ","Allow split"),
+        ["link:none"]=("Без связи","Без зв’язку","No link"),
+        ["link:next"]=("Следующее поле","Наступне поле","Next printed field"),
+        ["linkinvalid:next"]=("! Следующее поле","! Наступне поле","! Next printed field"),
         ["qrmode:text"]=("Текст","Текст","Text"),
         ["qrmode:qr"]=("QR","QR","QR"),
         ["qrmode:both"]=("Текст + QR","Текст + QR","Text + QR"),
@@ -185,5 +199,7 @@ public static class MappingLexicon
     public static string Help(string key,string language) => HelpText.TryGetValue(key,out var x)?Get(x,language):Text(key,language);
     public static string OptionLabel(string category,string code,string language) =>
         Choices.TryGetValue(category+":"+code,out var x)?Get(x,language):
+        (category is "link" or "linkinvalid") && code.StartsWith("field:",StringComparison.Ordinal)
+            ? (category=="linkinvalid"?"! ":"")+code[6..] :
         category == "hyphenlanguage" ? KeePassXCCardPrint.Services.HyphenationPackages.Find(code)?.Name ?? code : code;
 }

@@ -375,6 +375,7 @@ internal static class CardEngineSelfTests
         {
             TestPasskeyQr();
             OtpQrMappingSelfTests.Run(Check);
+            PaginationSelfTests.Run(Check);
             HyphenationSelfTests.Run(Check);
             // Host-contract smoke test: no printers, registry writes or vaults are touched.
             var platform = PlatformServices.Current;

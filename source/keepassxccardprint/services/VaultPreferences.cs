@@ -113,6 +113,9 @@ public sealed class FieldRule
     // Old TOTP templates keep their Appearance-driven QR until the QR settings
     // of that particular mapped OTP field are edited. No silent migration.
     public bool QrOtpOverride { get; set; }
+    public string PaginationMode { get; set; } = "auto"; // auto | whole | split
+    public string KeepWithNext { get; set; } = "none"; // none | next | field:<mapping key>
+    public bool BreakBefore { get; set; }
 }
 
 // Individual mapping.json files are obsolete. A print template is the only
