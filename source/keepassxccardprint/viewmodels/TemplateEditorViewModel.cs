@@ -19,20 +19,45 @@ public sealed partial class ShellViewModel
             Changed(nameof(TemplateMappingVisible));
             Changed(nameof(TemplateAppearanceRow));
             Changed(nameof(TemplateAppearanceRowSpan));
+            Changed(nameof(TemplateAppearanceVisible));
             Changed(nameof(TemplateAppearanceMaxHeight));
             RebuildTemplateEditorGroups();
             HighlightTemplateGroup("");
         }
     }
     public bool TemplateMappingVisible => _selectedTemplateEditorSection?.Id == "mapping";
-    public int TemplateAppearanceRow => TemplateMappingVisible ? 1 : 0;
-    public int TemplateAppearanceRowSpan => TemplateMappingVisible ? 1 : 2;
-    public double TemplateAppearanceMaxHeight => TemplateMappingVisible ? 150 : double.PositiveInfinity;
+    private bool _mappingRestrictionsExpanded;
+    private double _templateViewportHeight = 300;
+    public bool MappingRestrictionsExpanded
+    {
+        get => _mappingRestrictionsExpanded;
+        set
+        {
+            if (_mappingRestrictionsExpanded == value) return;
+            _mappingRestrictionsExpanded = value;
+            Changed();
+            Changed(nameof(TemplateAppearanceVisible));
+        }
+    }
+    public string MappingRestrictionsCaption => TemplateEditorLayout.L(_settings.Language,
+        "Общие ограничения печати", "Загальні обмеження друку", "Global print restrictions");
+    public int TemplateAppearanceRow => TemplateMappingVisible ? 2 : 0;
+    public int TemplateAppearanceRowSpan => TemplateMappingVisible ? 1 : 3;
+    public bool TemplateAppearanceVisible => !TemplateMappingVisible || MappingRestrictionsExpanded;
+    public double TemplateAppearanceMaxHeight => TemplateMappingVisible
+        ? AdaptiveViewport.RestrictionsHeight(_templateViewportHeight) : double.PositiveInfinity;
+    internal void SetTemplateViewportHeight(double height)
+    {
+        if (height <= 0 || Math.Abs(_templateViewportHeight-height)<.5) return;
+        _templateViewportHeight = height;
+        Changed(nameof(TemplateAppearanceMaxHeight));
+    }
     public bool TemplateEditorActive => ActiveTab == 1;
 
     private void RelocalizeTemplateEditor()
     {
         var id = _selectedTemplateEditorSection?.Id ?? "general";
+        Changed(nameof(MappingRestrictionsCaption));
         TemplateEditorSections.Clear();
         foreach (var section in TemplateEditorLayout.Sections)
             TemplateEditorSections.Add(new(section.Id, TemplateEditorLayout.L(_settings.Language, section.Ru, section.Uk, section.En)));

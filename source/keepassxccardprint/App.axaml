@@ -99,6 +99,10 @@
       <Thickness x:Key="ComboBoxDropdownContentMargin">0</Thickness>
       <Thickness x:Key="ComboBoxDropdownBorderPadding">0</Thickness>
       <Thickness x:Key="ComboBoxDropdownBorderThickness">1</Thickness>
+      <!-- Fluent uses these resources for the track, thumb and line buttons.
+           Keep the standard template, scrolling behaviour and theme colours. -->
+      <x:Double x:Key="ScrollBarSize">7</x:Double>
+      <x:Double x:Key="ScrollBarButtonArrowIconFontSize">4</x:Double>
     </ResourceDictionary>
   </Application.Resources>
   <Application.Styles>

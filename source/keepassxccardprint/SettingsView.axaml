@@ -4,12 +4,15 @@
              xmlns:fi="using:FluentIcons.Avalonia"
              x:Class="KeePassXCCardPrint.SettingsView"
              x:DataType="vm:ShellViewModel"
-             Background="{DynamicResource KpSurfaceBrush}">
+             Background="{DynamicResource KpTabWindowBrush}">
   <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" MinHeight="0">
-    <StackPanel Margin="11" Spacing="10">
+    <StackPanel Margin="6" Spacing="8">
       <Border Classes="settings-card" Padding="11">
         <StackPanel Spacing="8">
-          <TextBlock x:Name="StorageTitle" Classes="section-heading" Text="Хранение конфигурации"/>
+          <Grid Classes="section-heading-row" ColumnDefinitions="16,*">
+            <fi:FluentIcon Classes="section-heading-icon" Icon="Cloud" IconVariant="Regular" IconSize="Size20" Width="16" Height="16" FontSize="16" VerticalAlignment="Center" Foreground="{DynamicResource KpTextBrush}"/>
+            <TextBlock Grid.Column="1" x:Name="StorageTitle" Classes="section-heading" Text="Хранение конфигурации" VerticalAlignment="Center"/>
+          </Grid>
           <TextBlock x:Name="StorageCaption" Text="Способ хранения"/>
           <ComboBox x:Name="StoragePicker" HorizontalAlignment="Stretch"
                     ItemsSource="{Binding StorageOptions}" SelectedItem="{Binding SelectedStorage, Mode=OneWay}"
@@ -102,7 +105,10 @@
       </Border>
       <Border Classes="settings-card" Padding="11">
         <StackPanel Spacing="8">
-          <TextBlock x:Name="UpdatesCaption" Classes="section-heading" Text="Обновления программы"/>
+          <Grid Classes="section-heading-row" ColumnDefinitions="16,*">
+            <fi:FluentIcon Classes="section-heading-icon" Icon="ArrowDownload" IconVariant="Regular" IconSize="Size20" Width="16" Height="16" FontSize="16" VerticalAlignment="Center" Foreground="{DynamicResource KpTextBrush}"/>
+            <TextBlock Grid.Column="1" x:Name="UpdatesCaption" Classes="section-heading" Text="Обновления программы" VerticalAlignment="Center"/>
+          </Grid>
           <CheckBox x:Name="AutoCheck" Content="Проверять обновления автоматически"/>
           <CheckBox x:Name="AutoDownload" Content="Автоматически скачивать обновления"/>
           <TextBlock x:Name="InstallModeCaption" Text="Установка обновлений"/>
@@ -111,7 +117,10 @@
       </Border>
       <Border Classes="settings-card" Padding="11">
         <StackPanel Spacing="8">
-          <TextBlock x:Name="HyphenationCaption" Classes="section-heading" Text="Правила переноса слов"/>
+          <Grid Classes="section-heading-row" ColumnDefinitions="16,*">
+            <fi:FluentIcon Classes="section-heading-icon" Icon="TextWrap" IconVariant="Regular" IconSize="Size20" Width="16" Height="16" FontSize="16" VerticalAlignment="Center" Foreground="{DynamicResource KpTextBrush}"/>
+            <TextBlock Grid.Column="1" x:Name="HyphenationCaption" Classes="section-heading" Text="Правила переноса слов" VerticalAlignment="Center"/>
+          </Grid>
           <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Disabled">
             <Grid x:Name="HyphenationTable" MinWidth="960"/>
           </ScrollViewer>
@@ -132,7 +141,10 @@
       </Border>
       <Border Classes="settings-card" Padding="11">
         <StackPanel Spacing="8">
-          <TextBlock x:Name="MaintenanceCaption" Classes="section-heading" Text="Обслуживание"/>
+          <Grid Classes="section-heading-row" ColumnDefinitions="16,*">
+            <fi:FluentIcon Classes="section-heading-icon" Icon="Wrench" IconVariant="Regular" IconSize="Size20" Width="16" Height="16" FontSize="16" VerticalAlignment="Center" Foreground="{DynamicResource KpTextBrush}"/>
+            <TextBlock Grid.Column="1" x:Name="MaintenanceCaption" Classes="section-heading" Text="Обслуживание" VerticalAlignment="Center"/>
+          </Grid>
           <TextBlock x:Name="ResetHelp" TextWrapping="Wrap" FontSize="11"
                      Text="Сброс настроек с резервным копированием. История печати сохраняется, если явно не выбрать её удаление."/>
           <Button x:Name="ResetSettingsButton" HorizontalAlignment="Left" Click="OnResetSettings">

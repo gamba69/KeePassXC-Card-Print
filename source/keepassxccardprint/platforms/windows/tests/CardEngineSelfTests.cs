@@ -377,6 +377,17 @@ internal static class CardEngineSelfTests
             OtpQrMappingSelfTests.Run(Check);
             PaginationSelfTests.Run(Check);
             HyphenationSelfTests.Run(Check);
+            Check(AdaptiveViewport.MappingFraction(double.NaN)==.45 && AdaptiveViewport.MappingFraction(.99)==.75 &&
+                  AdaptiveViewport.MappingFraction(.01)==.25,"mapping splitter default and bounds");
+            Check(AdaptiveViewport.SourceConnectionHeight(300)<=100 && AdaptiveViewport.SourceConnectionHeight(700)>300,
+                "source connection scroll is bounded by viewport, leaves room for records");
+            Check(AdaptiveViewport.RestrictionsHeight(240)==50 && AdaptiveViewport.RestrictionsHeight(800)==150,
+                "expanded print restrictions leave room for both mapping panes");
+            Check(AdaptiveViewport.UseSideToolbar("top",410,true) && !AdaptiveViewport.UseSideToolbar("top",430,true) &&
+                  !AdaptiveViewport.UseSideToolbar("top",410,false) && AdaptiveViewport.UseSideToolbar("side",800,false),
+                "toolbar automatically docks without changing user preference");
+            Check(AdaptiveViewport.DialogHeight(900,1.5)==560 && AdaptiveViewport.DialogHeight(900,2)==410,
+                "dialog work-area limit uses monitor DPI");
             // Host-contract smoke test: no printers, registry writes or vaults are touched.
             var platform = PlatformServices.Current;
             Check(platform.PlatformLabel == "Windows", "Windows host registered before card code");
@@ -753,6 +764,18 @@ internal static class CardEngineSelfTests
                 .Select(s=>new TemplateEditorSection(s.Id,s.En).Glyph).ToArray();
             Check(navigationGlyphs.Length==10 && navigationGlyphs.Distinct().Count()==10,
                 "template navigation has ten distinct Fluent glyphs");
+            var headingGlyphs=TemplateEditorLayout.Groups
+                .Select(g=>new TemplateEditorGroup(g.Id,g.En,Array.Empty<AppearanceField>()).Glyph).ToArray();
+            Check(headingGlyphs.Length==TemplateEditorLayout.Groups.Length &&
+                  headingGlyphs.Distinct().Count()>=30,"every template group has a semantic Fluent heading glyph");
+            Check(new TemplateEditorGroup("auth-badge","",Array.Empty<AppearanceField>()).Glyph==FluentIcons.Common.Icon.ShieldKeyhole &&
+                  new TemplateEditorGroup("page-badge","",Array.Empty<AppearanceField>()).Glyph==FluentIcons.Common.Icon.NumberSymbol &&
+                  new TemplateEditorGroup("legacy-fields","",Array.Empty<AppearanceField>()).Glyph==FluentIcons.Common.Icon.Shield,
+                  "template heading glyphs identify authentication, part number and restrictions");
+            Check(new TemplateEditorGroup("uuid","",Array.Empty<AppearanceField>()).Glyph==FluentIcons.Common.Icon.NumberSymbolSquare &&
+                  new TemplateEditorGroup("front-background","",Array.Empty<AppearanceField>()).Glyph==FluentIcons.Common.Icon.Document &&
+                  new TemplateEditorGroup("back-background","",Array.Empty<AppearanceField>()).Glyph==FluentIcons.Common.Icon.DocumentCopy,
+                  "UUID and front/back heading glyphs represent identifiers and single/double documents");
             Check(new TemplateEditorSection("header", "").Glyph==FluentIcons.Common.Icon.DocumentHeader &&
                   new TemplateEditorSection("footer", "").Glyph==FluentIcons.Common.Icon.DocumentFooter &&
                   new TemplateEditorSection("fields", "").Glyph==FluentIcons.Common.Icon.TextBulletList &&

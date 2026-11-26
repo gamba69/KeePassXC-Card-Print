@@ -23,6 +23,7 @@
         </Button>
       </StackPanel>
     </Border>
+    <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" MinHeight="0">
     <Border Classes="settings-card" Margin="12" Padding="14">
       <StackPanel Spacing="12">
         <TextBlock x:Name="TitleText" Classes="section-heading" Text="Сброс настроек"/>
@@ -37,5 +38,6 @@
         <TextBlock x:Name="SafetyText" FontSize="11" TextWrapping="Wrap"/>
       </StackPanel>
     </Border>
+    </ScrollViewer>
   </DockPanel>
 </Window>

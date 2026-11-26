@@ -57,8 +57,9 @@ public sealed class PrintDialog : Window
         _vm=vm;_settings=settings;_appearance=job.Appearance;_sheets=job.Sheets;_save=save;
         Title="Печать карточек";
         PrintWindowIcons.Attach(this);
-        Width=570;MinWidth=500;Height=600;MinHeight=500;
+        Width=570;MinWidth=500;Height=600;MinHeight=300;
         WindowStartupLocation=WindowStartupLocation.CenterOwner;
+        AdaptiveViewport.LimitDialog(this);
 
         // Reuse the same settings-card surfaces and typography as the main
         // window. Only the contents scroll: print actions stay visible.

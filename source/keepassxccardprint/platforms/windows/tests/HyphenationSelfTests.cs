@@ -84,6 +84,17 @@ internal static class HyphenationSelfTests
         check(string.Concat(technical.Select(x => x.Text)) == "https://example.org", "technical tokens are not hyphenated");
         check(ProseLayout.Offset("center", 10, 6) == 2 && ProseLayout.Offset("right", 10, 6) == 4, "prose horizontal alignment offsets");
         check(ProseLayout.ExpandableSpaces("  one two  ") == 1, "justification ignores outer whitespace");
+        check(Controls.UiProseTextBlock.LanguageFor("мова", "мова", "uk") == "uk" &&
+              Controls.UiProseTextBlock.LanguageFor("information", "information", "ru") == "en-us",
+              "UI prose uses its localized language for ambiguous words and recognizes Latin words");
+        var metadata = new Avalonia.Size[] { new(20, 10), new(4, 10), new(30, 10), new(4, 10), new(25, 10) };
+        var wideMetadata = Controls.MetadataWrapPanel.Plan(metadata, 100);
+        var narrowMetadata = Controls.MetadataWrapPanel.Plan(metadata, 54);
+        check(wideMetadata.Slots[1].Width == 4 && wideMetadata.Slots[3].Width == 4 && wideMetadata.Extent.Height == 10,
+            "About metadata keeps separators inside a row");
+        check(narrowMetadata.Slots[1].Width == 4 && narrowMetadata.Slots[3].Width == 0 &&
+              narrowMetadata.Slots[4].X == 0 && narrowMetadata.Slots[4].Y == 10,
+            "About metadata suppresses separators at wrapped row boundaries");
         check(HyphenationPackages.ResolveAuto("українська", "українська") == "uk" &&
               HyphenationPackages.ResolveAuto("объект", "объект") == "ru" &&
               HyphenationPackages.ResolveAuto("information", "information") == "en-us" &&

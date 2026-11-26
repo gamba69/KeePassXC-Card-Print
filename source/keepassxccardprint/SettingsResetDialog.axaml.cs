@@ -15,6 +15,7 @@ public partial class SettingsResetDialog : Window
     {
         InitializeComponent();
         PrintWindowIcons.Attach(this);
+        AdaptiveViewport.LimitDialog(this);
         var lang = Localizer.ResolveLanguage(language);
         Title = lang switch
         {

@@ -25,6 +25,47 @@ public sealed class TemplateEditorGroup(string id, string label, IReadOnlyList<A
 {
     public string Id { get; } = id;
     public string Label { get; } = label;
+    // Stable group IDs keep the glyph independent of localization and user settings.
+    public FluentIcons.Common.Icon Glyph => Id switch
+    {
+        "geometry" => FluentIcons.Common.Icon.Resize,
+        "frame" => FluentIcons.Common.Icon.BorderAll,
+        "title" => FluentIcons.Common.Icon.TextHeader1,
+        "header-info" => FluentIcons.Common.Icon.Info,
+        "page-badge" => FluentIcons.Common.Icon.NumberSymbol,
+        "auth-badge" => FluentIcons.Common.Icon.ShieldKeyhole,
+        "header-group" => FluentIcons.Common.Icon.Folder,
+        "entry-icon" => FluentIcons.Common.Icon.Image,
+        "header-layout" => FluentIcons.Common.Icon.DocumentHeader,
+        "labels" => FluentIcons.Common.Icon.TextDescription,
+        "values" => FluentIcons.Common.Icon.TextFont,
+        "spacing" => FluentIcons.Common.Icon.TextLineSpacing,
+        "long-values" => FluentIcons.Common.Icon.TextIndentIncrease,
+        "notes" => FluentIcons.Common.Icon.Note,
+        "legacy-fields" => FluentIcons.Common.Icon.Shield,
+        "footer-layout" => FluentIcons.Common.Icon.AlignBottom,
+        "uuid" => FluentIcons.Common.Icon.NumberSymbolSquare,
+        "date" => FluentIcons.Common.Icon.Calendar,
+        "palette" => FluentIcons.Common.Icon.Color,
+        "common-background" => FluentIcons.Common.Icon.Wallpaper,
+        "front-background" => FluentIcons.Common.Icon.Document,
+        "back-background" => FluentIcons.Common.Icon.DocumentCopy,
+        "empty-background" => FluentIcons.Common.Icon.ImageAltText,
+        "recovery-layout" => FluentIcons.Common.Icon.Grid,
+        "recovery-size" => FluentIcons.Common.Icon.TextFontSize,
+        "totp" => FluentIcons.Common.Icon.QrCode,
+        "reverse-use" => FluentIcons.Common.Icon.ArrowSwap,
+        "empty-reverse" => FluentIcons.Common.Icon.DocumentOnePage,
+        "caption" => FluentIcons.Common.Icon.TextEffects,
+        "caption-title" => FluentIcons.Common.Icon.DocumentHeader,
+        "caption-subtitle" => FluentIcons.Common.Icon.DocumentFooter,
+        "back-icon" => FluentIcons.Common.Icon.ImageSparkle,
+        "back-composition" => FluentIcons.Common.Icon.LayoutColumnTwo,
+        "back-rules" => FluentIcons.Common.Icon.LineHorizontal3,
+        "cut" => FluentIcons.Common.Icon.Cut,
+        "alignment" => FluentIcons.Common.Icon.FlipHorizontal,
+        _ => throw new InvalidOperationException("Missing Fluent heading glyph for group: " + Id)
+    };
     public IReadOnlyList<AppearanceField> Fields { get; } = fields;
     public bool IsVisible => Fields.Any(f => f.EditorVisible);
     public bool IsPrintPermissionGroup => Id == "legacy-fields";

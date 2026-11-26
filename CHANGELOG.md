@@ -1,5 +1,65 @@
 # Changelog
 
+## [10.6.1] - 2026-11-26
+
+- Use an identifier symbol for UUID and a single-document icon for the front background, paired with the existing double-document back icon.
+
+## [10.6.0] - 2026-11-26
+
+- Add semantic Fluent Regular icons to all main-tab card headings and all template parameter groups.
+- Use shared compact heading layout, consistent 16-DIP glyphs and theme text color. Preserve existing navigation, actions, and card geometry.
+- Extend preflight and group coverage tests for heading icon consistency.
+
+## [10.5.9] - 2026-11-26
+
+- Remove the redundant Output group column from both field mapping tables; retain Section and align the remaining columns.
+- Reduce mapping table minimum widths and verify header/row column contracts during preflight.
+
+## [10.5.8] - 2026-11-26
+
+- Unify Settings and About page backgrounds with the other main tabs, using the shared card surface only for individual sections.
+- Place About identity, wrapped metadata, repository link and description inside a standard card; normalize outer spacing.
+
+## [10.5.7] - 2026-11-26
+
+- Update the template preflight to require the dictionary-aware restriction help control introduced in 10.5.6.
+
+## [10.5.6] - 2026-11-26
+
+- Unify compact content margins across all main tabs, retaining only necessary scrollbar clearance.
+- Wrap About metadata as complete segments, suppressing separators at line breaks.
+- Reuse bundled language patterns and the existing prose line breaker for About and template help text.
+
+## [10.5.5] - 2026-11-26
+
+- Restore semantic section-heading typography for both collapsible headers without changing their shared interaction style.
+
+## [10.5.4] - 2026-11-26
+
+- Unify the source connection header with the mapping restrictions toggle; preserve the Fluent heading icons.
+
+## [10.5.3] - 2026-11-25
+
+- Restore the source card heading without a full-width selected-state background; use a compact chevron on the right.
+- Add matching Fluent icons to the source and print-records headings.
+
+## [10.5.2] - 2026-11-25
+
+- Match the source connection header and content to the application palette; remove the nested Fluent expander frame.
+- Reserve right-side content clearance and allow the YubiKey options to wrap in narrow panes.
+
+## [10.5.1] - 2026-11-25
+
+- Slim down existing scrollbars in both themes, including the preview.
+- Draw existing panel splitters as 2-DIP lines while retaining their full drag hit area.
+
+## [10.5.0] - 2026-11-25
+
+- Rework source and mapping layout for small viewports: independent bounded scroll areas, collapsible connection and print restrictions, and a persistent mapping splitter.
+- Keep the preview toolbar accessible with automatic narrow-pane docking without overwriting the saved preference.
+- Bound print and confirmation dialogs to the monitor work area; retain fixed action footers.
+- Update layout preflight and add adaptive viewport regression checks.
+
 ## [10.4.6] - 2026-11-25
 
 ### Fixed

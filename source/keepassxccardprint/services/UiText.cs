@@ -14,6 +14,9 @@ public static class UiText
     private static readonly IReadOnlyDictionary<string, (string Uk, string En)> Lines =
         new Dictionary<string, (string Uk, string En)>(StringComparer.Ordinal)
         {
+            ["Перетаскивайте для изменения высоты панелей"] = ("Перетягуйте для зміни висоти панелей", "Drag to resize the panels vertically"),
+            ["Размещать панель сверху при достаточной ширине"] = ("Розміщувати панель зверху за достатньої ширини", "Place toolbar at the top when space permits"),
+            ["Закрепить панель вертикально слева"] = ("Закріпити панель вертикально ліворуч", "Pin toolbar vertically on the left"),
             ["Статус печати"] = ("Стан друку", "Print status"),
             ["Считать напечатанной"] = ("Позначити як надруковану", "Mark as printed"),
             ["Считать не напечатанной"] = ("Позначити як ненадруковану", "Mark as not printed"),

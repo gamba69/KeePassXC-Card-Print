@@ -382,10 +382,46 @@ foreach ($codeFile in (Get-ChildItem -LiteralPath $sourceRoot -Recurse -File -Fi
         throw "NON-FLUENT UI ICON: $($codeFile.Name) contains legacy icon code."
     }
 }
-$aboutGlyphs = [regex]::Matches($aboutView, '<fi:FluentIcon\b[^>]*>')
+$aboutGlyphs = @([regex]::Matches($aboutView, '<fi:FluentIcon\b[^>]*>') | Where-Object { $_.Value -notmatch 'Classes="section-heading-icon"' })
 if ($aboutGlyphs.Count -ne 4 -or @($aboutGlyphs | Where-Object { $_.Value -notmatch 'FontSize="18"' }).Count -ne 0) {
     throw 'ABOUT ICON SIZE: all four action glyphs must be 18 DIP.'
 }
+# Check every static section title, including both already-iconified source headings.
+function Assert-SectionHeadingIcon($page, [string]$attribute, [string]$caption, [string]$glyphName) {
+    $heading = $page.SelectSingleNode("//*[local-name()='TextBlock' and @Classes='section-heading' and @$attribute='$caption']")
+    if ($null -eq $heading) { throw "UI check: missing section heading $caption." }
+    $glyphNode = $heading.ParentNode.SelectSingleNode("./*[local-name()='FluentIcon' and @Classes='section-heading-icon' and @Icon='$glyphName']")
+    if ($null -eq $glyphNode -or $glyphNode.GetAttribute('Width') -ne '16' -or
+        $glyphNode.GetAttribute('Height') -ne '16' -or $glyphNode.GetAttribute('FontSize') -ne '16' -or
+        $glyphNode.GetAttribute('Foreground') -ne '{DynamicResource KpTextBrush}' -or
+        $glyphNode.GetAttribute('IconVariant') -ne 'Regular' -or $glyphNode.GetAttribute('IconSize') -ne 'Size20') {
+        throw "UI check: missing or inconsistent Fluent heading glyph for $caption."
+    }
+}
+[xml]$headingMain = $mainXaml
+[xml]$headingSettings = Get-Content -LiteralPath (Join-Path $sourceRoot 'SettingsView.axaml') -Raw -Encoding UTF8
+[xml]$headingAbout = $aboutView
+Assert-SectionHeadingIcon $headingMain 'Text' '{Binding SourceTitle}' 'Database'
+Assert-SectionHeadingIcon $headingMain 'Text' '{Binding Records}' 'TextBulletList'
+Assert-SectionHeadingIcon $headingMain 'Text' '{Binding UiTemplate}' 'DocumentSettings'
+Assert-SectionHeadingIcon $headingMain 'Text' '{Binding MappingFieldsHeading}' 'Table'
+Assert-SectionHeadingIcon $headingMain 'Text' '{Binding MappingFieldHeading}' 'Settings'
+Assert-SectionHeadingIcon $headingMain 'Text' '{Binding MappingRestrictionsCaption}' 'Shield'
+Assert-SectionHeadingIcon $headingMain 'Text' '{Binding Label}' '{Binding Glyph}'
+Assert-SectionHeadingIcon $headingSettings 'Text' 'Хранение конфигурации' 'Cloud'
+Assert-SectionHeadingIcon $headingSettings 'Text' 'Обновления программы' 'ArrowDownload'
+Assert-SectionHeadingIcon $headingSettings 'Text' 'Правила переноса слов' 'TextWrap'
+Assert-SectionHeadingIcon $headingSettings 'Text' 'Обслуживание' 'Wrench'
+Assert-SectionHeadingIcon $headingAbout 'Text' '{Binding ComponentsTitle}' 'Apps'
+Assert-SectionHeadingIcon $headingAbout 'Text' '{Binding GraphicsTitle}' 'Desktop'
+Assert-SectionHeadingIcon $headingAbout 'Text' '{Binding PrintingTitle}' 'Print'
+Assert-SectionHeadingIcon $headingAbout 'Text' 'Обновления приложения' 'ArrowDownload'
+Assert-SectionHeadingIcon $headingAbout 'Text' '{Binding PerformanceTitle}' 'Gauge'
+$headingStyle = ([xml]$compactStyleSource).SelectSingleNode("//*[local-name()='Style' and @Selector='Grid.section-heading-row']/*[local-name()='Setter' and @Property='ColumnSpacing' and @Value='6']")
+if ($null -eq $headingStyle -or @($headingAbout.SelectNodes("//*[local-name()='FluentIcon' and @Classes='section-heading-icon']")).Count -ne 5) {
+    throw 'UI check: common heading spacing or About heading glyph count is incorrect.'
+}
+Write-Host '[PASS] all main tab section headings have themed Fluent icons.' -ForegroundColor Green
 Write-Host '[PASS] project-wide Fluent Regular action icons, explicit matching glyph sizes and About 18-DIP controls.' -ForegroundColor Green
 
 # The unified template editor has five mapping stepper pairs and one shared
@@ -555,7 +591,7 @@ if ($chromeXaml -match 'Classes="heading"' -or
 }
 # Mapping no longer has a separate title: all three editor tabs show the same
 # print-template toolbar, and its section heading is UiTemplate.
-foreach ($headingCaption in @('SourceTitle','Records','MappingFieldsHeading','MappingFieldHeading')) {
+foreach ($headingCaption in @('SourceTitle','Records','MappingFieldsHeading','MappingFieldHeading','MappingRestrictionsCaption')) {
     if ($chromeXaml -notmatch ('Classes="section-heading"[^>]*Text="\{Binding ' + $headingCaption + '\}"') -and
         $chromeXaml -notmatch ('Text="\{Binding ' + $headingCaption + '\}"[^>]*Classes="section-heading"')) {
         throw "UI typography check: semantic section style missing for $headingCaption."
@@ -768,7 +804,9 @@ $aboutBrandCode = Get-Content -LiteralPath (Join-Path $sourceRoot 'AboutView.axa
 if ($projectText -notmatch '<ApplicationIcon>assets\\CardPrint_white\.ico</ApplicationIcon>' -or
     $aboutBrand -notmatch 'x:Name="AboutAppIcon" Width="32" Height="32"' -or
     $aboutBrand -notmatch 'RowDefinitions="Auto,Auto"' -or
-    $aboutBrand -notmatch 'Grid.Column="1" Grid.Row="1" Text="\{Binding Purpose\}"' -or
+    $aboutBrand -notmatch 'Grid.Column="1" Grid.Row="1" SourceText="\{Binding Purpose\}"' -or
+    $aboutBrand -notmatch '<controls:MetadataWrapPanel' -or
+    $aboutBrand -notmatch '<controls:UiProseTextBlock Grid.Column="1" Grid.Row="1"' -or
     $aboutBrand -match '<Border[^>]*>\s*<Image[^>]*x:Name="AboutAppIcon"' -or
     $aboutBrandCode -notmatch 'BrandArtwork\.Apply\(AboutAppIcon' -or
     $aboutBrandCode -notmatch 'scaling, 32' -or
@@ -777,6 +815,24 @@ if ($projectText -notmatch '<ApplicationIcon>assets\\CardPrint_white\.ico</Appli
     throw 'APP BRANDING REGRESSION: light executable/window icons, theme-specific in-app artwork and no About-icon backdrop must remain intact.'
 }
 Write-Host '[PASS] consistent CardPrint branding in executable, About page and dialogs.' -ForegroundColor Green
+# Main tabs share the page background; only their cards use the surface brush.
+[xml]$aboutPageSurface = $aboutBrand
+[xml]$settingsPageSurface = Get-Content -LiteralPath (Join-Path $sourceRoot 'SettingsView.axaml') -Raw -Encoding UTF8
+foreach ($pageSurface in @($aboutPageSurface, $settingsPageSurface)) {
+    if ($pageSurface.DocumentElement.GetAttribute('Background') -ne '{DynamicResource KpTabWindowBrush}' -or
+        $null -eq $pageSurface.DocumentElement.SelectSingleNode("./*[local-name()='ScrollViewer']/*[local-name()='StackPanel' and @Margin='6' and @Spacing='8']")) {
+        throw 'UI check: Settings and About must share the main tab background and compact page spacing.'
+    }
+}
+$identityCard = $aboutPageSurface.DocumentElement.SelectSingleNode("./*[local-name()='ScrollViewer']/*[local-name()='StackPanel']/*[local-name()='Border' and @Classes='settings-card' and @*[local-name()='Name']='AboutIdentityCard']")
+if ($null -eq $identityCard -or
+    $null -eq $identityCard.SelectSingleNode(".//*[local-name()='Image' and @*[local-name()='Name']='AboutAppIcon']") -or
+    $null -eq $identityCard.SelectSingleNode(".//*[local-name()='TextBlock' and @Text='{Binding AppTitle}']") -or
+    $null -eq $identityCard.SelectSingleNode(".//*[local-name()='MetadataWrapPanel']//*[local-name()='TextBlock' and @*[local-name()='Name']='AboutRepositoryLink']") -or
+    $null -eq $identityCard.SelectSingleNode(".//*[local-name()='UiProseTextBlock' and @SourceText='{Binding Purpose}']")) {
+    throw 'UI check: About identity card must contain the artwork, title, wrapped metadata/link and dictionary-aware description.'
+}
+Write-Host '[PASS] unified tab backgrounds and complete About identity card.' -ForegroundColor Green
 $brandSelector = Get-Content -LiteralPath (Join-Path $sourceRoot 'services\BrandArtwork.cs') -Raw -Encoding UTF8
 if ($brandSelector -notmatch 'nativePixels / scale' -or
     $brandSelector -notmatch 'new Bitmap\(stream\)' -or
@@ -838,7 +894,7 @@ $navGlyph = $strip.SelectSingleNode(".//*[local-name()='FluentIcon' and @Icon='{
 if ($null -eq $fieldEditor -or $null -eq $autoMode -or $null -eq $navGlyph -or
     $null -eq $groups.SelectSingleNode(".//*[local-name()='WrapPanel']") -or
     $navGlyph.GetAttribute('IconVariant') -ne 'Regular' -or
-    $null -eq $groups.SelectSingleNode(".//*[local-name()='TextBlock' and @Text='{Binding Help}']")) {
+    $null -eq $groups.SelectSingleNode(".//*[local-name()='UiProseTextBlock' and @SourceText='{Binding Help}' and @Classes='hint' and @TextWrapping='Wrap' and @IsVisible='{Binding IsPrintPermissionGroup}']")) {
     throw 'UI check: compact field groups, automatic sizes, mapping restriction help and Fluent navigation are required.'
 }
 # Natural label height, fixed compact editor height and bottom alignment in
@@ -947,11 +1003,58 @@ if ($null -eq $toolbar -or $null -eq $mappingSave -or $null -eq $mappingCreate -
 if ($null -eq $mappingReset -or $null -ne $mappingApply -or
     $mappingReset.GetAttribute('IsEnabled') -ne '{Binding MappingCanEdit}' -or
     $domainButton.GetAttribute('Grid.Column') -ne '1' -or
-    $fieldListHeading.ParentNode.GetAttribute('Grid.Row') -ne '0' -or
-    $null -eq $fieldListHeading.ParentNode.ParentNode.SelectSingleNode("./*[local-name()='WrapPanel' and @Grid.Row='1']")) {
+    $fieldListHeading.ParentNode.GetAttribute('Classes') -ne 'section-heading-row' -or
+    $fieldListHeading.ParentNode.ParentNode.GetAttribute('Grid.Row') -ne '0' -or
+    $domainButton.ParentNode -ne $fieldListHeading.ParentNode.ParentNode -or
+    $null -eq $fieldListHeading.ParentNode.ParentNode.ParentNode.SelectSingleNode("./*[local-name()='WrapPanel' and @Grid.Row='1']")) {
     throw 'UI check: domain action and view checkboxes must be in the field list header, editor respects read-only templates.'
 }
 Write-Host '[PASS] one print-template toolbar in all editors; built-in field mapping is read-only.' -ForegroundColor Green
+# Both mapping tables expose Section, not the derived OutputGroup. Keep headers
+# and item templates in the same order, including the last link cell.
+foreach ($mode in @('MappingCompactVisible', 'MappingDetailedVisible')) {
+    $table = $mappingTab.SelectSingleNode(".//*[local-name()='Border' and @IsVisible='{Binding $mode}']/*[local-name()='ScrollViewer']/*[local-name()='Grid']")
+    if ($null -eq $table) { throw "UI check: missing mapping table $mode." }
+    $header = $table.SelectSingleNode("./*[local-name()='Border' and @Classes='table-header']/*[local-name()='Grid']")
+    $row = $table.SelectSingleNode("./*[local-name()='ListBox' and @ItemsSource='{Binding FieldRows}']/*[local-name()='ListBox.ItemTemplate']/*[local-name()='DataTemplate']/*[local-name()='Grid']")
+    if ($null -eq $header -or $null -eq $row -or
+        $header.GetAttribute('ColumnDefinitions') -ne $row.GetAttribute('ColumnDefinitions')) {
+        throw "UI check: mapping header and row widths differ in $mode."
+    }
+    if ($mode -eq 'MappingCompactVisible') {
+        $expectedHeaders = @('Field','Section','Priority','Visibility','MappingLinkText')
+        $expectedValues = @('PositionText','Field','Section','Order','Visibility','LinkText')
+    } else {
+        $expectedHeaders = @('Field','Section','Priority','Format','Visibility','Label','LongValue','Grouping','MappingPaginationText','MappingLinkText')
+        $expectedValues = @('PositionText','Field','Section','Order','Role','Visibility','Heading','Fit','Grouping','Pagination','LinkText')
+    }
+    $headCells = @($header.SelectNodes('./*'))
+    $rowCells = @($row.SelectNodes('./*'))
+    $count = $expectedValues.Count
+    if ($headCells.Count -ne $count -or $rowCells.Count -ne $count -or
+        ($header.GetAttribute('ColumnDefinitions') -split ',').Count -ne $count -or
+        $headCells[0].GetAttribute('Text') -ne '№') {
+        throw "UI check: unexpected mapping column count in $mode."
+    }
+    for ($i = 0; $i -lt $count; $i++) {
+        if ([int]$headCells[$i].GetAttribute('Grid.Column') -ne $i -or
+            [int]$rowCells[$i].GetAttribute('Grid.Column') -ne $i) {
+            throw "UI check: mapping column index mismatch in $mode."
+        }
+        if ($i -gt 0 -and $headCells[$i].GetAttribute('Text') -ne ('{Binding ' + $expectedHeaders[$i - 1] + '}')) {
+            throw "UI check: mapping header binding mismatch in $mode."
+        }
+        $valueBinding = '{Binding ' + $expectedValues[$i] + '}'
+        if ($i -eq ($count - 1)) {
+            if ($null -eq $rowCells[$i].SelectSingleNode("./*[local-name()='TextBlock' and @Text='$valueBinding']")) {
+                throw "UI check: missing mapping link cell in $mode."
+            }
+        } elseif ($rowCells[$i].GetAttribute('Text') -ne $valueBinding) {
+            throw "UI check: mapping row binding mismatch in $mode."
+        }
+    }
+}
+Write-Host '[PASS] mapping tables retain Section and aligned columns without Output group.' -ForegroundColor Green
 # Template data and mapping must be persisted together, never via mapping.json.
 $templatesSource = Get-Content -LiteralPath (Join-Path $sourceRoot 'services\CardAppearance.cs') -Raw -Encoding UTF8
 $mapSource = Get-Content -LiteralPath (Join-Path $sourceRoot 'viewmodels\MappingViewModel.cs') -Raw -Encoding UTF8
@@ -965,15 +1068,26 @@ if ($templatesSource -notmatch 'UpdatePersonalTemplate\(string path, CardAppeara
     throw 'UI check: mapping must be saved only as part of the complete print template.'
 }
 Write-Host '[PASS] unified template persistence and no standalone mapping Save.' -ForegroundColor Green
-# Source and mapping use vertically scrollable content grids.
-foreach ($scrollName in @('SourceTabScroll', 'MappingTabScroll')) {
-    $outerScroll = $ui.SelectSingleNode("//*[local-name()='ScrollViewer' and @*[local-name()='Name']='$scrollName']")
-    if ($null -eq $outerScroll -or
-        $outerScroll.GetAttribute('VerticalScrollBarVisibility') -ne 'Auto' -or
-        $outerScroll.GetAttribute('SizeChanged') -ne 'OnEditorTabScrollSizeChanged' -or
-        $null -eq $outerScroll.SelectSingleNode("./*[local-name()='Grid']")) {
-        throw "UI check: $scrollName must contain a vertically scrollable editor Grid."
+# Source and mapping must be bounded siblings, not vertically scrolling pages.
+foreach ($pageName in @('SourcePage', 'MappingPage')) {
+    $page = $ui.SelectSingleNode("//*[local-name()='Grid' and @*[local-name()='Name']='$pageName']")
+    if ($null -eq $page -or $page.GetAttribute('ClipToBounds') -ne 'True' -or
+        $null -ne $page.SelectSingleNode("ancestor::*[local-name()='ScrollViewer']")) {
+        throw "UI check: $pageName must be a bounded, non-scrolling grid."
     }
+}
+foreach ($oldName in @('SourceTabScroll','MappingTabScroll')) {
+    if ($null -ne $ui.SelectSingleNode("//*[@*[local-name()='Name']='$oldName']")) {
+        throw "UI check: obsolete outer scrolling viewport $oldName."
+    }
+}
+if ($null -eq $ui.SelectSingleNode("//*[local-name()='GridSplitter' and @*[local-name()='Name']='MappingSplitter' and @ResizeDirection='Rows']") -or
+    $null -eq $ui.SelectSingleNode("//*[local-name()='ToggleButton' and @*[local-name()='Name']='SourceConnectionToggle' and @Click='OnSourceConnectionToggle']") -or
+    $null -eq $ui.SelectSingleNode("//*[local-name()='ToggleButton' and @*[local-name()='Name']='SourceConnectionToggle' and *[local-name()='StackPanel']/*[local-name()='FluentIcon' and @Icon='Database'] and *[local-name()='StackPanel']/*[local-name()='TextBlock' and @Text='{Binding SourceTitle}']]") -or
+    $null -eq $ui.SelectSingleNode("//*[local-name()='Grid' and *[local-name()='TextBlock' and @Text='{Binding Records}'] and *[local-name()='FluentIcon' and @Icon='TextBulletList']]") -or
+    $null -eq $ui.SelectSingleNode("//*[local-name()='ScrollViewer' and @*[local-name()='Name']='SourceConnectionScroll' and @HorizontalScrollBarVisibility='Disabled']/*[local-name()='Grid' and @Margin='0,4,4,0']") -or
+    $null -eq $ui.SelectSingleNode("//*[local-name()='ScrollViewer' and @*[local-name()='Name']='MappingFieldScroll' and @VerticalScrollBarVisibility='Auto']")) {
+    throw 'UI check: adaptive source and mapping child scroll areas / splitter are missing.'
 }
 [xml]$aboutScrollUi = Get-Content -LiteralPath (Join-Path $sourceRoot 'AboutView.axaml') -Raw -Encoding UTF8
 if ($null -eq $aboutScrollUi.DocumentElement.SelectSingleNode("./*[local-name()='ScrollViewer' and @VerticalScrollBarVisibility='Auto']")) {
@@ -983,7 +1097,7 @@ if ($null -eq $aboutScrollUi.DocumentElement.SelectSingleNode("./*[local-name()=
 # cards as Appearance/Duplex. Verify control ownership and not only card count.
 $sourceTab = $ui.SelectSingleNode("//*[local-name()='TabItem' and *[local-name()='TabItem.Header']//*[local-name()='TextBlock' and @Text='{Binding TabSource}']]")
 if ($null -eq $sourceTab) { throw 'UI check: Source tab is missing.' }
-$sourceCards = @($sourceTab.SelectNodes("./*[local-name()='ScrollViewer' and @*[local-name()='Name']='SourceTabScroll']/*[local-name()='Grid']/*[local-name()='Border' and @Classes='settings-card']"))
+$sourceCards = @($sourceTab.SelectNodes("./*[local-name()='Grid' and @*[local-name()='Name']='SourcePage']/*[local-name()='Border' and @Classes='settings-card']"))
 if ($sourceCards.Count -ne 2 -or $sourceCards[0].GetAttribute('Grid.Row') -ne '0' -or
     $sourceCards[1].GetAttribute('Grid.Row') -ne '1') {
     throw 'UI check: Source must contain two rounded cards (connection and records).'
@@ -1001,8 +1115,8 @@ foreach ($handler in @('OnSelectAll', 'OnSelectNone')) {
 if ($null -eq $sourceCards[1].SelectSingleNode(".//*[local-name()='ItemsControl' and @ItemsSource='{Binding VaultRecords}']")) {
     throw 'UI check: records list must be inside its rounded card.'
 }
-$mappingCards = @($mappingTab.SelectNodes(".//*[local-name()='ScrollViewer' and @*[local-name()='Name']='MappingTabScroll']/*[local-name()='Grid']/*[local-name()='Border' and @Classes='settings-card']"))
-if ($mappingCards.Count -ne 2 -or $mappingCards[0].GetAttribute('Grid.Row') -ne '1' -or
+$mappingCards = @($mappingTab.SelectNodes(".//*[local-name()='Grid' and @*[local-name()='Name']='MappingPage']/*[local-name()='Border' and @Classes='settings-card']"))
+if ($mappingCards.Count -ne 2 -or $mappingCards[0].GetAttribute('Grid.Row') -ne '0' -or
     $mappingCards[1].GetAttribute('Grid.Row') -ne '2') {
     throw 'UI check: Mapping must contain its shared template toolbar plus field list and editor cards.'
 }

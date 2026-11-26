@@ -68,12 +68,23 @@
               <TextBlock Text="{Binding TabSource}" IsVisible="{Binding ShowMainTabCaptions}" VerticalAlignment="Center"/>
             </StackPanel>
           </TabItem.Header>
-          <ScrollViewer x:Name="SourceTabScroll" VerticalScrollBarVisibility="Auto"
-                        HorizontalScrollBarVisibility="Disabled" MinHeight="0" SizeChanged="OnEditorTabScrollSizeChanged">
-          <Grid Margin="9" RowDefinitions="Auto,*" RowSpacing="8" MinHeight="0">
+          <Grid x:Name="SourcePage" Margin="6" RowDefinitions="Auto,*" RowSpacing="8" MinHeight="0"
+                ClipToBounds="True" SizeChanged="OnSourcePageSizeChanged">
             <Border Grid.Row="0" Classes="settings-card" MinHeight="0">
-              <Grid RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto" RowSpacing="5" MinHeight="0">
-                <TextBlock Grid.Row="0" Classes="section-heading" Text="{Binding SourceTitle}" Margin="0,0,0,3"/>
+              <Grid RowDefinitions="Auto,Auto" MinHeight="0">
+                <ToggleButton x:Name="SourceConnectionToggle" IsChecked="True" Click="OnSourceConnectionToggle"
+                              HorizontalAlignment="Stretch" HorizontalContentAlignment="Left"
+                              AutomationProperties.Name="{Binding SourceTitle}">
+                  <StackPanel Orientation="Horizontal" Spacing="6">
+                    <fi:FluentIcon x:Name="SourceConnectionExpandedIcon" Icon="ChevronDown" IconVariant="Regular" IconSize="Size20" Width="14" Height="14" FontSize="14" VerticalAlignment="Center" Foreground="{DynamicResource KpTextBrush}"/>
+                    <fi:FluentIcon x:Name="SourceConnectionCollapsedIcon" Icon="ChevronRight" IconVariant="Regular" IconSize="Size20" Width="14" Height="14" FontSize="14" VerticalAlignment="Center" Foreground="{DynamicResource KpTextBrush}" IsVisible="False"/>
+                    <fi:FluentIcon Classes="section-heading-icon" Icon="Database" IconVariant="Regular" IconSize="Size20" Width="16" Height="16" FontSize="16" VerticalAlignment="Center" Foreground="{DynamicResource KpTextBrush}"/>
+                    <TextBlock Classes="section-heading" Text="{Binding SourceTitle}" VerticalAlignment="Center"/>
+                  </StackPanel>
+                </ToggleButton>
+                <ScrollViewer Grid.Row="1" x:Name="SourceConnectionScroll" VerticalScrollBarVisibility="Auto"
+                              HorizontalScrollBarVisibility="Disabled" HorizontalContentAlignment="Stretch" ClipToBounds="True" MaxHeight="240" MinHeight="0">
+              <Grid RowDefinitions="0,Auto,Auto,Auto,Auto,Auto" RowSpacing="5" MinHeight="0" Margin="0,4,4,0">
                 <StackPanel Grid.Row="1" Spacing="2">
                   <TextBlock Text="{Binding Database}"/>
                   <Grid ColumnDefinitions="*,30" ColumnSpacing="4">
@@ -114,12 +125,12 @@
                         <fi:FluentIcon Icon="ArrowSync" IconVariant="Regular" IconSize="Size20" Width="18" Height="18" FontSize="18" Foreground="{DynamicResource KpTextBrush}" HorizontalAlignment="Center" VerticalAlignment="Center"/>
                       </Button>
                     </Grid>
-                    <StackPanel Grid.Row="1" Orientation="Horizontal" Spacing="9" IsEnabled="{Binding UseYubiKey}" VerticalAlignment="Center">
+                    <WrapPanel Grid.Row="1" Orientation="Horizontal" ItemSpacing="9" LineSpacing="4" IsEnabled="{Binding UseYubiKey}" VerticalAlignment="Center">
                       <TextBlock Text="{Binding YubiSlotCaption}" VerticalAlignment="Center"/>
                       <RadioButton GroupName="YubiOtpSlot" Content="1" VerticalAlignment="Center" IsChecked="{Binding YubiSlotOne, Mode=TwoWay}"/>
                       <RadioButton GroupName="YubiOtpSlot" Content="2" VerticalAlignment="Center" IsChecked="{Binding YubiSlotTwo, Mode=TwoWay}"/>
                       <CheckBox Content="{Binding YubiShortCaption}" VerticalAlignment="Center" IsChecked="{Binding YubiShortChallenge, Mode=TwoWay}" ToolTip.Tip="{Binding YubiShortHelp}"/>
-                    </StackPanel>
+                    </WrapPanel>
                   </Grid>
                 </Border>
                 <!-- Keep the demo action at the far right; wrap regular actions on small panes. -->
@@ -148,10 +159,15 @@
                 </Button>
                 </Grid>
               </Grid>
+                </ScrollViewer>
+              </Grid>
             </Border>
-            <Border Grid.Row="1" Classes="settings-card" MinHeight="0">
+            <Border Grid.Row="1" Classes="settings-card" MinHeight="0" ClipToBounds="True">
               <Grid RowDefinitions="Auto,Auto,27,*,Auto" RowSpacing="5" MinHeight="0">
-                <TextBlock Grid.Row="0" Classes="section-heading" Text="{Binding Records}" Margin="0,3,0,0"/>
+                <Grid Grid.Row="0" ColumnDefinitions="16,*" ColumnSpacing="6" MinHeight="24">
+                  <fi:FluentIcon Classes="section-heading-icon" Icon="TextBulletList" IconVariant="Regular" IconSize="Size20" Width="16" Height="16" FontSize="16" VerticalAlignment="Center" Foreground="{DynamicResource KpTextBrush}"/>
+                  <TextBlock Grid.Column="1" Classes="section-heading" Text="{Binding Records}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
+                </Grid>
                 <!-- Quick presets: exactly one toggle at a time; text search is an AND filter. -->
                 <Grid Grid.Row="1" ColumnDefinitions="*,Auto,Auto,Auto,8,Auto,Auto" ColumnSpacing="4">
                   <TextBox Grid.Column="0" PlaceholderText="{Binding Filter}" Text="{Binding FilterText, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
@@ -180,8 +196,8 @@
                     <TextBlock Grid.Column="3" VerticalAlignment="Center" Text="{Binding Print}"/>
                   </Grid>
                 </Border>
-                <Border Grid.Row="3" BorderThickness="1,0,1,1" BorderBrush="{DynamicResource KpBorderBrush}" Background="{DynamicResource KpSurfaceBrush}" MinHeight="65">
-                  <ScrollViewer VerticalScrollBarVisibility="Auto">
+                <Border Grid.Row="3" BorderThickness="1,0,1,1" BorderBrush="{DynamicResource KpBorderBrush}" Background="{DynamicResource KpSurfaceBrush}" MinHeight="0" ClipToBounds="True">
+                  <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
                     <ItemsControl ItemsSource="{Binding VaultRecords}">
                       <ItemsControl.ItemTemplate>
                         <DataTemplate x:DataType="models:VaultRecord">
@@ -237,7 +253,6 @@
               </Grid>
             </Border>
           </Grid>
-          </ScrollViewer>
         </TabItem>
 
         <TabItem ClipToBounds="True" ToolTip.Tip="{Binding TabTemplate}">
@@ -248,12 +263,15 @@
               <TextBlock Text="{Binding TabTemplate}" IsVisible="{Binding ShowMainTabCaptions}" VerticalAlignment="Center"/>
             </StackPanel>
           </TabItem.Header>
-          <Grid Margin="9" RowDefinitions="Auto,*" RowSpacing="8" MinHeight="0">
+          <Grid Margin="6" RowDefinitions="Auto,*" RowSpacing="8" MinHeight="0">
             <Border Grid.Row="0" Classes="template-toolbar" Padding="9,6" Background="{DynamicResource KpSurfaceBrush}" BorderBrush="{DynamicResource KpBorderBrush}" BorderThickness="1" CornerRadius="4">
               <Grid RowDefinitions="Auto,Auto" RowSpacing="4">
                 <ScrollViewer Grid.Row="0" HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Disabled" HorizontalContentAlignment="Stretch">
                   <Grid ColumnDefinitions="Auto,Auto,Auto,Auto,Auto,*,Auto" ColumnSpacing="7">
-                    <TextBlock VerticalAlignment="Center" Classes="section-heading" Text="{Binding UiTemplate}"/>
+                    <Grid Classes="section-heading-row" ColumnDefinitions="16,*">
+                      <fi:FluentIcon Classes="section-heading-icon" Icon="DocumentSettings" IconVariant="Regular" IconSize="Size20" Width="16" Height="16" FontSize="16" VerticalAlignment="Center" Foreground="{DynamicResource KpTextBrush}"/>
+                      <TextBlock Grid.Column="1" VerticalAlignment="Center" Classes="section-heading" Text="{Binding UiTemplate}"/>
+                    </Grid>
                     <ComboBox Grid.Column="1" MinWidth="90" MaxWidth="200" HorizontalAlignment="Left" ItemsSource="{Binding TemplateNames}" SelectedItem="{Binding SelectedTemplate,Mode=TwoWay}" SelectionChanged="OnCardTemplateSelectionChanged" ToolTip.Tip="Выбор сразу загружает шаблон"/>
                     <Button Grid.Column="2" Click="OnSaveCardTemplate" ToolTip.Tip="Создать полную копию шаблона с маппингом и оформлением обеих сторон">
                       <StackPanel Orientation="Horizontal" Spacing="5">
@@ -287,8 +305,9 @@
                 </Grid>
               </Grid>
             </Border>
-            <Grid Grid.Row="1" ColumnDefinitions="174,*" RowDefinitions="*,Auto" ColumnSpacing="8" MinHeight="0">
-              <ListBox x:Name="TemplateSectionList" Grid.RowSpan="2" ItemsSource="{Binding TemplateEditorSections}"
+            <Grid Grid.Row="1" x:Name="TemplateEditorViewport" ColumnDefinitions="174,*" RowDefinitions="*,Auto,Auto" ColumnSpacing="8" MinHeight="0"
+                  ClipToBounds="True" SizeChanged="OnTemplateViewportSizeChanged">
+              <ListBox x:Name="TemplateSectionList" Grid.RowSpan="3" ItemsSource="{Binding TemplateEditorSections}"
                        SelectedItem="{Binding SelectedTemplateEditorSection,Mode=TwoWay}" SelectionMode="Single"
                        Background="{DynamicResource KpSurfaceBrush}" Foreground="{DynamicResource KpTextBrush}"
                        BorderBrush="{DynamicResource KpBorderBrush}"
@@ -327,14 +346,20 @@
                   </DataTemplate>
                 </ListBox.ItemTemplate>
               </ListBox>
-              <ScrollViewer Grid.Column="1" x:Name="MappingTabScroll" IsVisible="{Binding TemplateMappingVisible}"
-                            VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled"
-                            MinHeight="0" SizeChanged="OnEditorTabScrollSizeChanged">
-                <Grid RowDefinitions="0,*,Auto" RowSpacing="6" MinHeight="0">
-            <Border Grid.Row="1" Classes="settings-card" MinHeight="0">
+              <Grid Grid.Column="1" x:Name="MappingPage" IsVisible="{Binding TemplateMappingVisible}"
+                    MinHeight="0" ClipToBounds="True">
+                <Grid.RowDefinitions>
+                  <RowDefinition Height="45*" MinHeight="64"/>
+                  <RowDefinition Height="6"/>
+                  <RowDefinition Height="55*" MinHeight="64"/>
+                </Grid.RowDefinitions>
+            <Border Grid.Row="0" Classes="settings-card" MinHeight="0" ClipToBounds="True">
               <Grid RowDefinitions="Auto,Auto,*" RowSpacing="6" MinHeight="0">
                 <Grid Grid.Row="0" ColumnDefinitions="*,Auto" ColumnSpacing="8">
-                  <TextBlock VerticalAlignment="Center" Classes="section-heading" Text="{Binding MappingFieldsHeading}"/>
+                  <Grid Classes="section-heading-row" ColumnDefinitions="16,*">
+                    <fi:FluentIcon Classes="section-heading-icon" Icon="Table" IconVariant="Regular" IconSize="Size20" Width="16" Height="16" FontSize="16" VerticalAlignment="Center" Foreground="{DynamicResource KpTextBrush}"/>
+                    <TextBlock Grid.Column="1" VerticalAlignment="Center" Classes="section-heading" Text="{Binding MappingFieldsHeading}"/>
+                  </Grid>
                   <Button Grid.Column="1" Click="OnEditDomains" Padding="6,2">
                     <StackPanel Orientation="Horizontal" Spacing="5" VerticalAlignment="Center">
                       <fi:FluentIcon Icon="Settings" IconVariant="Regular" IconSize="Size20" Width="14" Height="14" FontSize="14" Foreground="{DynamicResource KpTextBrush}"/>
@@ -346,32 +371,31 @@
                   <CheckBox Content="{Binding Scope}" IsChecked="{Binding MappingScopeCurrent, Mode=TwoWay}" Margin="0,0,14,0"/>
                   <CheckBox Content="{Binding AllColumns}" IsChecked="{Binding MappingAllColumns, Mode=TwoWay}" Margin="0,0,14,0"/>
                 </WrapPanel>
-                <Grid Grid.Row="2" RowDefinitions="*" MinHeight="125">
+                <Grid Grid.Row="2" RowDefinitions="*" MinHeight="0" ClipToBounds="True">
                   <Border Grid.Row="0" BorderThickness="0" BorderBrush="{DynamicResource KpBorderBrush}" Background="Transparent" IsVisible="{Binding MappingCompactVisible}">
                     <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Disabled">
-                      <Grid MinWidth="818" RowDefinitions="27,*">
+                      <Grid MinWidth="759" RowDefinitions="27,*">
                         <Border Grid.Row="0" Classes="table-header" Padding="5,0">
-                          <Grid ColumnDefinitions="38,167,123,75,126,118,150">
+                          <Grid ColumnDefinitions="38,185,130,85,130,170">
                             <TextBlock VerticalAlignment="Center" Text="№"/>
                             <TextBlock Grid.Column="1" VerticalAlignment="Center" Text="{Binding Field}"/>
                             <TextBlock Grid.Column="2" VerticalAlignment="Center" Text="{Binding Section}"/>
                             <TextBlock Grid.Column="3" VerticalAlignment="Center" Text="{Binding Priority}"/>
-                            <TextBlock Grid.Column="4" VerticalAlignment="Center" Text="{Binding OutputGroup}"/>
-                            <TextBlock Grid.Column="5" VerticalAlignment="Center" Text="{Binding Visibility}"/>
-                            <TextBlock Grid.Column="6" VerticalAlignment="Center" Text="{Binding MappingLinkText}"/>
+                            <TextBlock Grid.Column="4" VerticalAlignment="Center" Text="{Binding Visibility}"/>
+                            <TextBlock Grid.Column="5" VerticalAlignment="Center" Text="{Binding MappingLinkText}"/>
                           </Grid>
                         </Border>
-                        <ListBox Grid.Row="1" Classes="mapping-list" ItemsSource="{Binding FieldRows}" SelectedItem="{Binding SelectedMappingRow, Mode=TwoWay}" BorderThickness="0" Background="{DynamicResource KpSurfaceBrush}">
+                        <ListBox Grid.Row="1" Classes="mapping-list" ItemsSource="{Binding FieldRows}" SelectedItem="{Binding SelectedMappingRow, Mode=TwoWay}" BorderThickness="0" Background="{DynamicResource KpSurfaceBrush}"
+                                 ScrollViewer.HorizontalScrollBarVisibility="Disabled" ScrollViewer.VerticalScrollBarVisibility="Auto">
                           <ListBox.ItemTemplate>
                             <DataTemplate x:DataType="vm:FieldMappingRow">
-                              <Grid ColumnDefinitions="38,167,123,75,126,118,150" Height="25" Margin="5,0">
+                              <Grid ColumnDefinitions="38,185,130,85,130,170" Height="25" Margin="5,0">
                                 <TextBlock VerticalAlignment="Center" Text="{Binding PositionText}" ToolTip.Tip="! — проверьте параметры поля"/>
                                 <TextBlock Grid.Column="1" VerticalAlignment="Center" Text="{Binding Field}" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding Field}"/>
                                 <TextBlock Grid.Column="2" VerticalAlignment="Center" Text="{Binding Section}" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding Section}"/>
                                 <TextBlock Grid.Column="3" VerticalAlignment="Center" Text="{Binding Order}"/>
-                                <TextBlock Grid.Column="4" VerticalAlignment="Center" Text="{Binding DisplayGroup}" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding DisplayGroup}"/>
-                                <TextBlock Grid.Column="5" VerticalAlignment="Center" Text="{Binding Visibility}" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding Visibility}"/>
-                                <Grid Grid.Column="6" ColumnDefinitions="18,*" ColumnSpacing="3" ToolTip.Tip="{Binding LinkHint}">
+                                <TextBlock Grid.Column="4" VerticalAlignment="Center" Text="{Binding Visibility}" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding Visibility}"/>
+                                <Grid Grid.Column="5" ColumnDefinitions="18,*" ColumnSpacing="3" ToolTip.Tip="{Binding LinkHint}">
                                   <fi:FluentIcon Icon="Link" IconVariant="Regular" IconSize="Size20" Width="14" Height="14" FontSize="14" Foreground="{DynamicResource KpTextBrush}" IsVisible="{Binding HasActiveLink}"/>
                                   <TextBlock Text="!" FontWeight="Bold" HorizontalAlignment="Center" VerticalAlignment="Center" IsVisible="{Binding LinkInactive}"/>
                                   <TextBlock Grid.Column="1" VerticalAlignment="Center" Text="{Binding LinkText}" TextTrimming="CharacterEllipsis"/>
@@ -385,39 +409,38 @@
                   </Border>
                   <Border Grid.Row="0" BorderThickness="0" BorderBrush="{DynamicResource KpBorderBrush}" Background="Transparent" IsVisible="{Binding MappingDetailedVisible}">
                     <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Disabled">
-                      <Grid MinWidth="1635" RowDefinitions="27,*">
+                      <Grid MinWidth="1519" RowDefinitions="27,*">
                         <Border Grid.Row="0" Classes="table-header" Padding="5,0">
-                          <Grid ColumnDefinitions="38,167,130,75,118,141,128,135,190,130,150,150">
+                          <Grid ColumnDefinitions="38,185,130,85,150,135,135,190,130,150,170">
                             <TextBlock VerticalAlignment="Center" Text="№"/>
                             <TextBlock Grid.Column="1" VerticalAlignment="Center" Text="{Binding Field}"/>
                             <TextBlock Grid.Column="2" VerticalAlignment="Center" Text="{Binding Section}"/>
                             <TextBlock Grid.Column="3" VerticalAlignment="Center" Text="{Binding Priority}"/>
-                            <TextBlock Grid.Column="4" VerticalAlignment="Center" Text="{Binding OutputGroup}"/>
-                            <TextBlock Grid.Column="5" VerticalAlignment="Center" Text="{Binding Format}"/>
-                            <TextBlock Grid.Column="6" VerticalAlignment="Center" Text="{Binding Visibility}"/>
-                            <TextBlock Grid.Column="7" VerticalAlignment="Center" Text="{Binding Label}"/>
-                            <TextBlock Grid.Column="8" VerticalAlignment="Center" Text="{Binding LongValue}"/>
-                            <TextBlock Grid.Column="9" VerticalAlignment="Center" Text="{Binding Grouping}"/>
-                            <TextBlock Grid.Column="10" VerticalAlignment="Center" Text="{Binding MappingPaginationText}" TextTrimming="CharacterEllipsis"/>
-                            <TextBlock Grid.Column="11" VerticalAlignment="Center" Text="{Binding MappingLinkText}"/>
+                            <TextBlock Grid.Column="4" VerticalAlignment="Center" Text="{Binding Format}"/>
+                            <TextBlock Grid.Column="5" VerticalAlignment="Center" Text="{Binding Visibility}"/>
+                            <TextBlock Grid.Column="6" VerticalAlignment="Center" Text="{Binding Label}"/>
+                            <TextBlock Grid.Column="7" VerticalAlignment="Center" Text="{Binding LongValue}"/>
+                            <TextBlock Grid.Column="8" VerticalAlignment="Center" Text="{Binding Grouping}"/>
+                            <TextBlock Grid.Column="9" VerticalAlignment="Center" Text="{Binding MappingPaginationText}" TextTrimming="CharacterEllipsis"/>
+                            <TextBlock Grid.Column="10" VerticalAlignment="Center" Text="{Binding MappingLinkText}"/>
                           </Grid>
                         </Border>
-                        <ListBox Grid.Row="1" Classes="mapping-list" ItemsSource="{Binding FieldRows}" SelectedItem="{Binding SelectedMappingRow, Mode=TwoWay}" BorderThickness="0" Background="{DynamicResource KpSurfaceBrush}">
+                        <ListBox Grid.Row="1" Classes="mapping-list" ItemsSource="{Binding FieldRows}" SelectedItem="{Binding SelectedMappingRow, Mode=TwoWay}" BorderThickness="0" Background="{DynamicResource KpSurfaceBrush}"
+                                 ScrollViewer.HorizontalScrollBarVisibility="Disabled" ScrollViewer.VerticalScrollBarVisibility="Auto">
                           <ListBox.ItemTemplate>
                             <DataTemplate x:DataType="vm:FieldMappingRow">
-                              <Grid ColumnDefinitions="38,167,130,75,118,141,128,135,190,130,150,150" Height="25" Margin="5,0">
+                              <Grid ColumnDefinitions="38,185,130,85,150,135,135,190,130,150,170" Height="25" Margin="5,0">
                                 <TextBlock VerticalAlignment="Center" Text="{Binding PositionText}" ToolTip.Tip="! — проверьте параметры поля"/>
                                 <TextBlock Grid.Column="1" VerticalAlignment="Center" Text="{Binding Field}" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding Field}"/>
                                 <TextBlock Grid.Column="2" VerticalAlignment="Center" Text="{Binding Section}" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding Section}"/>
                                 <TextBlock Grid.Column="3" VerticalAlignment="Center" Text="{Binding Order}"/>
-                                <TextBlock Grid.Column="4" VerticalAlignment="Center" Text="{Binding DisplayGroup}" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding DisplayGroup}"/>
-                                <TextBlock Grid.Column="5" VerticalAlignment="Center" Text="{Binding Role}" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding Role}"/>
-                                <TextBlock Grid.Column="6" VerticalAlignment="Center" Text="{Binding Visibility}" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding Visibility}"/>
-                                <TextBlock Grid.Column="7" VerticalAlignment="Center" Text="{Binding Heading}" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding Heading}"/>
-                                <TextBlock Grid.Column="8" VerticalAlignment="Center" Text="{Binding Fit}" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding Fit}"/>
-                                <TextBlock Grid.Column="9" VerticalAlignment="Center" Text="{Binding Grouping}" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding Grouping}"/>
-                                <TextBlock Grid.Column="10" VerticalAlignment="Center" Text="{Binding Pagination}" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding Pagination}"/>
-                                <Grid Grid.Column="11" ColumnDefinitions="18,*" ColumnSpacing="3" ToolTip.Tip="{Binding LinkHint}">
+                                <TextBlock Grid.Column="4" VerticalAlignment="Center" Text="{Binding Role}" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding Role}"/>
+                                <TextBlock Grid.Column="5" VerticalAlignment="Center" Text="{Binding Visibility}" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding Visibility}"/>
+                                <TextBlock Grid.Column="6" VerticalAlignment="Center" Text="{Binding Heading}" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding Heading}"/>
+                                <TextBlock Grid.Column="7" VerticalAlignment="Center" Text="{Binding Fit}" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding Fit}"/>
+                                <TextBlock Grid.Column="8" VerticalAlignment="Center" Text="{Binding Grouping}" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding Grouping}"/>
+                                <TextBlock Grid.Column="9" VerticalAlignment="Center" Text="{Binding Pagination}" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding Pagination}"/>
+                                <Grid Grid.Column="10" ColumnDefinitions="18,*" ColumnSpacing="3" ToolTip.Tip="{Binding LinkHint}">
                                   <fi:FluentIcon Icon="Link" IconVariant="Regular" IconSize="Size20" Width="14" Height="14" FontSize="14" Foreground="{DynamicResource KpTextBrush}" IsVisible="{Binding HasActiveLink}"/>
                                   <TextBlock Text="!" FontWeight="Bold" HorizontalAlignment="Center" VerticalAlignment="Center" IsVisible="{Binding LinkInactive}"/>
                                   <TextBlock Grid.Column="1" VerticalAlignment="Center" Text="{Binding LinkText}" TextTrimming="CharacterEllipsis"/>
@@ -432,10 +455,17 @@
                 </Grid>
               </Grid>
             </Border>
-            <Border Grid.Row="2" MaxHeight="305" MinHeight="0" Classes="settings-card">
+            <GridSplitter Grid.Row="1" x:Name="MappingSplitter" ResizeDirection="Rows" ResizeBehavior="PreviousAndNext"
+                          Background="{DynamicResource KpBorderBrush}" HorizontalAlignment="Stretch"
+                          VerticalAlignment="Stretch" DragCompleted="OnMappingSplitterDragCompleted"
+                          ToolTip.Tip="Перетаскивайте для изменения высоты панелей"/>
+            <Border Grid.Row="2" MinHeight="0" Classes="settings-card" ClipToBounds="True">
               <Grid RowDefinitions="Auto,Auto,*" RowSpacing="4">
                 <Grid Grid.Row="0" ColumnDefinitions="*,Auto" ColumnSpacing="10">
-                  <TextBlock Classes="section-heading" VerticalAlignment="Center" Text="{Binding MappingFieldHeading}" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding MappingFieldHeading}"/>
+                  <Grid Classes="section-heading-row" ColumnDefinitions="16,*">
+                    <fi:FluentIcon Classes="section-heading-icon" Icon="Settings" IconVariant="Regular" IconSize="Size20" Width="16" Height="16" FontSize="16" VerticalAlignment="Center" Foreground="{DynamicResource KpTextBrush}"/>
+                    <TextBlock Grid.Column="1" Classes="section-heading" VerticalAlignment="Center" Text="{Binding MappingFieldHeading}" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding MappingFieldHeading}"/>
+                  </Grid>
                   <Button Grid.Column="1"  IsEnabled="{Binding MappingCanEdit}" Click="OnResetMapping" Padding="8,3">
                     <StackPanel Orientation="Horizontal" Spacing="5" VerticalAlignment="Center">
                       <fi:FluentIcon Icon="ArrowSync" IconVariant="Regular" IconSize="Size20" Width="14" Height="14" FontSize="14" Foreground="{DynamicResource KpTextBrush}"/>
@@ -443,10 +473,10 @@
                     </StackPanel>
                   </Button>
                 </Grid>
-                <TextBlock Grid.Row="1" Classes="mapping-error" Text="{Binding MappingEditor.ValidationMessage}" IsVisible="{Binding MappingEditor.HasValidationError}" TextWrapping="Wrap"/>
-                <ScrollViewer Grid.Row="2" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" MinHeight="0">
+                <TextBlock Grid.Row="1" Classes="mapping-error" Text="{Binding MappingEditor.ValidationMessage}" IsVisible="{Binding MappingEditor.HasValidationError}" TextWrapping="Wrap" MaxHeight="40" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding MappingEditor.ValidationMessage}"/>
+                <ScrollViewer Grid.Row="2" x:Name="MappingFieldScroll" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto" MinHeight="0" SizeChanged="OnMappingFieldScrollSizeChanged">
                   <Border DataContext="{Binding MappingEditor}">
-                    <WrapPanel x:DataType="vm:MappingEditor" IsEnabled="{Binding Enabled}" Orientation="Horizontal" HorizontalAlignment="Stretch">
+                    <WrapPanel x:Name="MappingFieldControls" x:DataType="vm:MappingEditor" IsEnabled="{Binding Enabled}" Orientation="Horizontal" HorizontalAlignment="Left" Width="359">
                       <Grid Width="350" Margin="0,0,9,4" ColumnDefinitions="140,*" ColumnSpacing="6" MinHeight="27">
                         <TextBlock VerticalAlignment="Center" Text="{Binding DisplayTitle}" TextTrimming="CharacterEllipsis">
                           <ToolTip.Tip>
@@ -748,9 +778,17 @@
                 </ScrollViewer>
               </Grid>
             </Border>
-          </Grid>
-              </ScrollViewer>
-              <ScrollViewer Grid.Column="1" Grid.Row="{Binding TemplateAppearanceRow}" Grid.RowSpan="{Binding TemplateAppearanceRowSpan}" MaxHeight="{Binding TemplateAppearanceMaxHeight}" x:Name="TemplateAppearanceScroll"
+              </Grid>
+              <ToggleButton Grid.Column="1" Grid.Row="1" IsVisible="{Binding TemplateMappingVisible}"
+                            IsChecked="{Binding MappingRestrictionsExpanded,Mode=TwoWay}"
+                            HorizontalAlignment="Stretch" HorizontalContentAlignment="Left" Margin="0,6,0,0">
+                <StackPanel Orientation="Horizontal" Spacing="6">
+                  <fi:FluentIcon Icon="ChevronDown" IconVariant="Regular" IconSize="Size20" Width="14" Height="14" FontSize="14"/>
+                  <fi:FluentIcon Classes="section-heading-icon" Icon="Shield" IconVariant="Regular" IconSize="Size20" Width="16" Height="16" FontSize="16" VerticalAlignment="Center" Foreground="{DynamicResource KpTextBrush}"/>
+                  <TextBlock Classes="section-heading" Text="{Binding MappingRestrictionsCaption}" VerticalAlignment="Center"/>
+                </StackPanel>
+              </ToggleButton>
+              <ScrollViewer Grid.Column="1" Grid.Row="{Binding TemplateAppearanceRow}" Grid.RowSpan="{Binding TemplateAppearanceRowSpan}" MaxHeight="{Binding TemplateAppearanceMaxHeight}" IsVisible="{Binding TemplateAppearanceVisible}" x:Name="TemplateAppearanceScroll"
                             VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" MinHeight="0">
                 <ItemsControl ItemsSource="{Binding TemplateEditorGroups}">
                   <ItemsControl.ItemTemplate>
@@ -758,7 +796,10 @@
                       <Border Classes="settings-card" Padding="9" Margin="0,0,0,6" IsVisible="{Binding IsVisible}">
                         <StackPanel Spacing="5">
                           <Grid ColumnDefinitions="*,Auto" ColumnSpacing="6">
-                            <TextBlock Classes="section-heading" Text="{Binding Label}" TextWrapping="Wrap" VerticalAlignment="Center"/>
+                            <Grid Classes="section-heading-row" ColumnDefinitions="16,*">
+                              <fi:FluentIcon Classes="section-heading-icon" Icon="{Binding Glyph}" IconVariant="Regular" IconSize="Size20" Width="16" Height="16" FontSize="16" VerticalAlignment="Center" Foreground="{DynamicResource KpTextBrush}"/>
+                              <TextBlock Grid.Column="1" Classes="section-heading" Text="{Binding Label}" TextWrapping="Wrap" VerticalAlignment="Center"/>
+                            </Grid>
                             <Button Grid.Column="1" IsVisible="{Binding IsPalette}" IsEnabled="{Binding CanEditPalette}" Click="OnTemplatePalettePick" Padding="6,2">
                               <StackPanel Orientation="Horizontal" Spacing="5">
                                 <fi:FluentIcon Icon="Color" IconVariant="Regular" IconSize="Size20" Width="16" Height="16" FontSize="16" VerticalAlignment="Center"/>
@@ -766,7 +807,7 @@
                               </StackPanel>
                             </Button>
                           </Grid>
-                          <TextBlock Classes="hint" Text="{Binding Help}" TextWrapping="Wrap" IsVisible="{Binding IsPrintPermissionGroup}"/>
+                          <controls:UiProseTextBlock Classes="hint" SourceText="{Binding Help}" TextWrapping="Wrap" IsVisible="{Binding IsPrintPermissionGroup}"/>
                           <ItemsControl ItemsSource="{Binding Fields}">
                             <ItemsControl.ItemsPanel>
                               <ItemsPanelTemplate><WrapPanel Orientation="Horizontal"/></ItemsPanelTemplate>
@@ -776,7 +817,7 @@
                                 <Grid Width="{Binding TemplateFieldWidth}" RowDefinitions="Auto,26" RowSpacing="2" IsVisible="{Binding EditorVisible}" GotFocus="OnTemplateFieldFocused" Margin="0,0,8,5" VerticalAlignment="Bottom" ToolTip.Tip="{Binding Description}">
                                   <TextBlock Grid.Row="0" VerticalAlignment="Bottom" Text="{Binding EditorLabel}" TextWrapping="Wrap" LineHeight="15" MaxLines="2" TextTrimming="CharacterEllipsis">
                                     <ToolTip.Tip>
-                                      <TextBlock Text="{Binding Description}" TextWrapping="Wrap" MaxWidth="340"/>
+                                      <controls:UiProseTextBlock SourceText="{Binding Description}" TextWrapping="Wrap" MaxWidth="340"/>
                                     </ToolTip.Tip>
                                   </TextBlock>
                                   <StackPanel Grid.Row="1" Orientation="Horizontal" Spacing="6" Height="26" VerticalAlignment="Center" HorizontalAlignment="Left">
@@ -804,12 +845,12 @@
                                     </Grid>
                                   </Button>
                                   <CheckBox Grid.Row="1" VerticalAlignment="Center" HorizontalAlignment="Left" Height="26" MinHeight="0" Padding="0" IsChecked="{Binding Checked,Mode=TwoWay}" IsVisible="{Binding IsBool}" IsEnabled="{Binding IsEditable}" AutomationProperties.Name="{Binding EditorLabel}">
-                                    <ToolTip.Tip><TextBlock Text="{Binding Description}" TextWrapping="Wrap" MaxWidth="340"/></ToolTip.Tip>
+                                    <ToolTip.Tip><controls:UiProseTextBlock SourceText="{Binding Description}" TextWrapping="Wrap" MaxWidth="340"/></ToolTip.Tip>
                                   </CheckBox>
                                   <ComboBox Grid.Row="1" ItemsSource="{Binding Choices}" SelectedItem="{Binding SelectedChoice,Mode=TwoWay}" IsVisible="{Binding IsChoice}" IsEnabled="{Binding IsEditable}"
                                             HorizontalAlignment="Stretch" VerticalAlignment="Center" Height="26" MinHeight="0">
                                     <ToolTip.Tip>
-                                      <TextBlock Text="{Binding Description}" TextWrapping="Wrap" MaxWidth="340"/>
+                                      <controls:UiProseTextBlock SourceText="{Binding Description}" TextWrapping="Wrap" MaxWidth="340"/>
                                     </ToolTip.Tip>
                                     <ComboBox.ItemTemplate>
                                       <DataTemplate x:DataType="svc:DesignChoice">
@@ -859,7 +900,8 @@
       <GridSplitter Grid.Column="1" Background="{DynamicResource KpBorderBrush}" ResizeDirection="Columns" ResizeBehavior="PreviousAndNext" ToolTip.Tip="Перетаскивайте для изменения ширины панелей"/>
 
       <!-- A single movable, icon-first toolbar; preview geometry is independent of toolbar docking. -->
-      <Grid Grid.Column="2" RowDefinitions="Auto,Auto,*" RowSpacing="4" Margin="9,0,0,0" MinWidth="420" MinHeight="0">
+      <Grid Grid.Column="2" x:Name="PreviewPane" RowDefinitions="Auto,Auto,*" RowSpacing="4" Margin="9,0,0,0" MinWidth="0" MinHeight="0"
+            ClipToBounds="True" SizeChanged="OnPreviewPaneSizeChanged">
         <Grid Grid.Row="0" ColumnDefinitions="Auto,*,Auto,Auto,Auto" ColumnSpacing="7" MinHeight="24">
           <TextBlock Classes="section-heading" Text="{Binding UiPreview}" VerticalAlignment="Center"/>
           <ComboBox Grid.Column="1" ItemsSource="{Binding TemplatePreviewModes}" SelectedItem="{Binding TemplatePreviewMode,Mode=TwoWay}"
@@ -871,7 +913,7 @@
           <TextBlock Grid.Column="2" Text="{Binding PreviewCardCount}" VerticalAlignment="Center"
                      ToolTip.Tip="Номер текущей карточки или листа и общее количество"/>
           <TextBlock Grid.Column="3" Text="{Binding PreviewFaceLabel}" FontSize="11" VerticalAlignment="Center"
-                     Foreground="{DynamicResource KpSubtleBrush}"/>
+                     Foreground="{DynamicResource KpSubtleBrush}" MaxWidth="95" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding PreviewFaceLabel}"/>
           <TextBlock Grid.Column="4" x:Name="PreviewZoomLabel" Text="{Binding PreviewZoomCaption}"
                      FontSize="11" FontWeight="SemiBold" MinWidth="43" TextAlignment="Right"
                      VerticalAlignment="Center" HorizontalAlignment="Right"
@@ -999,7 +1041,7 @@
           <Grid>
             <!-- Stable viewport: zoom alters only a Skia/Avalonia visual transform,
                  never the page's layout or a ScrollViewer's clamped offset. -->
-            <Grid ColumnDefinitions="*,14" RowDefinitions="*,14" MinHeight="0">
+            <Grid ColumnDefinitions="*,7" RowDefinitions="*,7" MinHeight="0">
               <Canvas x:Name="PreviewViewport" Grid.Row="0" Grid.Column="0" Background="Transparent"
                       ClipToBounds="True" UseLayoutRounding="False" SizeChanged="OnPreviewViewportSizeChanged">
                 <Grid x:Name="PreviewPageHost" Background="Transparent" Cursor="Hand" UseLayoutRounding="False"

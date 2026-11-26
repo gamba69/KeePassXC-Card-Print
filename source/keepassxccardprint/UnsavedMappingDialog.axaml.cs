@@ -15,6 +15,7 @@ public partial class UnsavedMappingDialog : Window
     {
         AvaloniaXamlLoader.Load(this);
         PrintWindowIcons.Attach(this);
+        Services.AdaptiveViewport.LimitDialog(this);
         var lang=Localizer.ResolveLanguage(language);
         this.FindControl<TextBlock>("DialogHeading")!.Text=lang switch
         {

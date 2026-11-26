@@ -47,6 +47,7 @@ public sealed class UiSettings
     // Adjustable wheel sensitivity, percent per wheel notch; no rendering cost.
     public int PreviewWheelStepPercent { get; set; } = 8;
     public string PreviewToolbarDock { get; set; } = "top";
+    public double MappingListFraction { get; set; } = .45;
     public bool PreviewShowSheets { get; set; }
     public string PaperFormat { get; set; } = "A4";
     public int PrintStartSlot { get; set; } = 1;
@@ -121,6 +122,7 @@ public sealed class UiSettingsStore
     {
         data.SchemaVersion = 1;
         data.PreviewToolbarDock = data.PreviewToolbarDock is "top" or "side" ? data.PreviewToolbarDock : "top";
+        data.MappingListFraction = AdaptiveViewport.MappingFraction(data.MappingListFraction);
         data.PreviewAnimationDurationMs = Math.Clamp(data.PreviewAnimationDurationMs,50,500);
         data.PreviewZoomPercent = Math.Clamp(data.PreviewZoomPercent,5,600);
         data.PreviewWheelStepPercent = Math.Clamp(data.PreviewWheelStepPercent,2,30);

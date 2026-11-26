@@ -58,9 +58,13 @@ public sealed class AboutViewModel : INotifyPropertyChanged
     public string UpdateLanguage => _settings.Language;
     public const string RepositoryAddress = "https://github.com/gamba69/KeePassXC-Card-Print";
     public string AppTitle => "KeePassXC Card Print";
-    public string AppVersion => $"{AppBuildInfo.Version} · {PlatformServices.Current.PlatformLabel} · {RuntimeInformation.ProcessArchitecture} · " +
-        (System.Runtime.CompilerServices.RuntimeFeature.IsDynamicCodeSupported ? "JIT" : "Native AOT") +
-        " · © 2026 Igor К. Dulevich · Developed with AI assistance (OpenAI Codex) · ";
+    public string VersionNumber => AppBuildInfo.Version;
+    public string VersionHost => PlatformServices.Current.PlatformLabel;
+    public string VersionArchitecture => RuntimeInformation.ProcessArchitecture.ToString();
+    public string VersionRuntime => System.Runtime.CompilerServices.RuntimeFeature.IsDynamicCodeSupported ? "JIT" : "Native AOT";
+    public string VersionCopyright => "© 2026 Igor К. Dulevich";
+    public string VersionAssistance => "Developed with AI assistance (OpenAI Codex)";
+    public string AppVersion => string.Join(" · ", VersionNumber, VersionHost, VersionArchitecture, VersionRuntime, VersionCopyright, VersionAssistance);
     public string RepositoryUrl => RepositoryAddress;
     public string RepositoryStatus => _repositoryStatus;
     public bool HasRepositoryStatus => !string.IsNullOrEmpty(_repositoryStatus);

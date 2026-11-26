@@ -15,6 +15,7 @@
         <Button x:Name="CancelButton" Click="OnCancel" Height="26" MinWidth="0" Padding="8,2"><StackPanel Orientation="Horizontal" Spacing="6"><fi:FluentIcon Icon="DismissCircle" IconVariant="Regular" IconSize="Size20" Width="16" Height="16" FontSize="16" Foreground="{DynamicResource KpTextBrush}"/><TextBlock x:Name="CancelText" VerticalAlignment="Center"/></StackPanel></Button>
       </StackPanel>
     </Border>
+    <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" MinHeight="0">
     <Border Classes="settings-card" Margin="12" Padding="12">
       <StackPanel Spacing="10">
         <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
@@ -26,5 +27,6 @@
         <TextBlock x:Name="DialogQuestion" TextWrapping="Wrap" FontSize="13"/>
       </StackPanel>
     </Border>
+    </ScrollViewer>
   </DockPanel>
 </Window>

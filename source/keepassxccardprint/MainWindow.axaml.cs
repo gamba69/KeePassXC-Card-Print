@@ -179,6 +179,8 @@ public partial class MainWindow : Window
             _aboutRefreshTimer.Stop();
         };
         ApplyPreviewToolbarDock();
+        RestoreAdaptiveEditorLayout();
+        DataContextChanged += (_, _) => RestoreAdaptiveEditorLayout();
         _preferencesSaveTimer.Tick += (_,_) => { _preferencesSaveTimer.Stop(); Persist(); };
         Closed += (_,_) => _preferencesSaveTimer.Stop();
         // A fixed-size canvas owns the viewport coordinates. No ScrollViewer
@@ -293,30 +295,90 @@ public partial class MainWindow : Window
         _vm.ShowMainTabCaptions = e.NewSize.Width >= 650;
     }
 
-    // The outer viewport owns vertical overflow for the four editor tabs.
-    // Keep their star-sized grids bounded: otherwise a Grid measured with infinite
-    // height by ScrollViewer expands its tables/editors and loses inner scrolling.
-    private void OnEditorTabScrollSizeChanged(object? sender, SizeChangedEventArgs e)
-    {
-        if (sender is not ScrollViewer scroll || scroll.Content is not Grid page ||
-            e.NewSize.Height <= 0) return;
+    private bool _sourceWasLoaded;
 
-        // Minimums leave usable space for both top controls and bottom content.
-        // On larger windows the page fills the viewport without spare blank space.
-        double minimum = scroll.Name switch
+    private void RestoreAdaptiveEditorLayout()
+    {
+        if (DataContext is not ShellViewModel) return;
+        SetMappingSplit(_settings.MappingListFraction);
+        _sourceWasLoaded = _vm.HasRecords;
+        SetSourceConnectionExpanded(!_sourceWasLoaded);
+        if (this.FindControl<Grid>("TemplateEditorViewport") is { } viewport)
+            _vm.SetTemplateViewportHeight(viewport.Bounds.Height);
+    }
+
+    private void OnSourceConnectionToggle(object? sender, RoutedEventArgs e)
+    {
+        if (sender is ToggleButton toggle) SetSourceConnectionExpanded(toggle.IsChecked == true);
+    }
+
+    private void SetSourceConnectionExpanded(bool expanded)
+    {
+        if (this.FindControl<ToggleButton>("SourceConnectionToggle") is { } toggle)
+            toggle.IsChecked = expanded;
+        if (this.FindControl<ScrollViewer>("SourceConnectionScroll") is { } scroll)
+            scroll.IsVisible = expanded;
+        if (this.FindControl<Control>("SourceConnectionExpandedIcon") is { } up)
+            up.IsVisible = expanded;
+        if (this.FindControl<Control>("SourceConnectionCollapsedIcon") is { } down)
+            down.IsVisible = !expanded;
+    }
+
+    private void OnSourcePageSizeChanged(object? sender, SizeChangedEventArgs e)
+    {
+        if (e.NewSize.Height > 0 && this.FindControl<ScrollViewer>("SourceConnectionScroll") is { } scroll)
+            scroll.MaxHeight = AdaptiveViewport.SourceConnectionHeight(e.NewSize.Height);
+    }
+
+    private void OnTemplateViewportSizeChanged(object? sender, SizeChangedEventArgs e)
+    {
+        if (DataContext is ShellViewModel vm) vm.SetTemplateViewportHeight(e.NewSize.Height);
+    }
+
+    private void OnMappingFieldScrollSizeChanged(object? sender, SizeChangedEventArgs e)
+    {
+        // Horizontal scrolling must not measure the WrapPanel at infinite width.
+        if (e.NewSize.Width > 0 && this.FindControl<WrapPanel>("MappingFieldControls") is { } controls)
+            controls.Width = Math.Max(359, e.NewSize.Width-20);
+    }
+
+    private void SetMappingSplit(double fraction)
+    {
+        if (this.FindControl<Grid>("MappingPage") is not { } grid) return;
+        fraction = AdaptiveViewport.MappingFraction(fraction);
+        grid.RowDefinitions[0].Height = new GridLength(fraction, GridUnitType.Star);
+        grid.RowDefinitions[2].Height = new GridLength(1-fraction, GridUnitType.Star);
+    }
+
+    private void OnMappingSplitterDragCompleted(object? sender, RoutedEventArgs e)
+    {
+        Dispatcher.UIThread.Post(() =>
         {
-            "SourceTabScroll" => 560,
-            "MappingTabScroll" => 550,
-            _ => 0
-        };
-        double available = Math.Max(0, e.NewSize.Height - page.Margin.Top - page.Margin.Bottom);
-        double height = Math.Max(available, minimum);
-        if (double.IsNaN(page.Height) || Math.Abs(page.Height - height) >= 0.5)
-            page.Height = height;
+            if (this.FindControl<Grid>("MappingPage") is not { } grid || !grid.IsVisible) return;
+            double list = grid.RowDefinitions[0].ActualHeight, editor = grid.RowDefinitions[2].ActualHeight;
+            if (list+editor <= 0) return;
+            _settings.MappingListFraction = AdaptiveViewport.MappingFraction(list/(list+editor));
+            SetMappingSplit(_settings.MappingListFraction);
+            _preferencesSaveTimer.Stop();
+            _preferencesSaveTimer.Start();
+        }, DispatcherPriority.Loaded);
+    }
+
+    private void OnPreviewPaneSizeChanged(object? sender, SizeChangedEventArgs e)
+    {
+        if (DataContext is ShellViewModel && e.NewSize.Width > 0) ApplyPreviewToolbarDock();
     }
 
     private void OnShellPropertyChanged(object? sender, PropertyChangedEventArgs e)
     {
+        if (ReferenceEquals(sender, _vm) && e.PropertyName == nameof(ShellViewModel.HasRecords) && !_vm.Busy)
+        {
+            bool loaded = _vm.HasRecords;
+            if (loaded != _sourceWasLoaded) SetSourceConnectionExpanded(!loaded);
+            _sourceWasLoaded = loaded;
+        }
+        if (ReferenceEquals(sender, _vm) && e.PropertyName == nameof(ShellViewModel.PreviewDuplexAvailable))
+            Dispatcher.UIThread.Post(ApplyPreviewToolbarDock, DispatcherPriority.Loaded);
         if (e.PropertyName == nameof(ShellViewModel.ActiveTab))
         {
             UpdateAboutRefresh();
@@ -1506,7 +1568,8 @@ public partial class MainWindow : Window
         var side = this.FindControl<ScrollViewer>("PreviewToolbarSideHost");
         var toolbar = this.FindControl<StackPanel>("PreviewToolbar");
         if (top is null || side is null || toolbar is null) return;
-        bool dockedSide = _settings.PreviewToolbarDock == "side";
+        double width = this.FindControl<Grid>("PreviewPane")?.Bounds.Width ?? 0;
+        bool dockedSide = AdaptiveViewport.UseSideToolbar(_settings.PreviewToolbarDock, width, _vm.PreviewDuplexAvailable);
         if (dockedSide && !ReferenceEquals(side.Content, toolbar))
         {
             top.Child = null;
@@ -1528,7 +1591,9 @@ public partial class MainWindow : Window
         side.IsVisible = dockedSide;
         var dockButton = this.FindControl<Button>("PreviewToolbarDockButton");
         if (dockButton is not null)
-            ToolTip.SetTip(dockButton, dockedSide ? "Разместить панель сверху" : "Разместить панель вертикально слева");
+            ToolTip.SetTip(dockButton, UiText.Tr(_settings.PreviewToolbarDock == "side"
+                ? "Размещать панель сверху при достаточной ширине"
+                : "Закрепить панель вертикально слева"));
     }
 
     private void OnPreviewPrevious(object? sender, RoutedEventArgs e) => _vm.PreviewPrevious();

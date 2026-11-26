@@ -1,45 +1,59 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:vm="using:KeePassXCCardPrint.ViewModels"
+             xmlns:controls="using:KeePassXCCardPrint.Controls"
              xmlns:fi="using:FluentIcons.Avalonia"
              x:Class="KeePassXCCardPrint.AboutView" x:DataType="vm:AboutViewModel"
-             Background="{DynamicResource KpSurfaceBrush}"
+             Background="{DynamicResource KpTabWindowBrush}"
              SizeChanged="OnPageSizeChanged">
   <!-- A single scrolling surface; no reserved empty footer. -->
   <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" MinHeight="0">
-    <StackPanel Margin="11,10,11,2" Spacing="9">
-        <!-- Compact identity and purpose; no full-width card for a single descriptive sentence. -->
-        <!-- Brandmark aligns to the title/version only; description wraps separately below.
-             No background tile in either theme. -->
+    <StackPanel Margin="6" Spacing="8">
+      <!-- Identity and purpose share the standard card surface. -->
+      <Border x:Name="AboutIdentityCard" Classes="settings-card" Padding="10,9">
         <Grid ColumnDefinitions="32,*" ColumnSpacing="11" RowDefinitions="Auto,Auto" RowSpacing="3">
           <Image Grid.Row="0" x:Name="AboutAppIcon" Width="32" Height="32" Stretch="Fill"
                  HorizontalAlignment="Center" VerticalAlignment="Center"
                  Source="avares://KeePassXCCardPrint/assets/CardPrint_black_32.png"/>
           <StackPanel Grid.Column="1" Grid.Row="0" Spacing="2" VerticalAlignment="Center">
             <TextBlock Text="{Binding AppTitle}" FontWeight="SemiBold" FontSize="18" Foreground="{DynamicResource KpTextBrush}"/>
-            <WrapPanel Orientation="Horizontal">
-              <TextBlock Text="{Binding AppVersion}" FontSize="11" Foreground="{DynamicResource KpSubtleBrush}" VerticalAlignment="Center"/>
+            <controls:MetadataWrapPanel ClipToBounds="True">
+              <TextBlock Text="{Binding VersionNumber}" FontSize="11" Foreground="{DynamicResource KpSubtleBrush}" TextWrapping="Wrap"/>
+              <TextBlock Text="·" Margin="4,0" FontSize="11" Foreground="{DynamicResource KpSubtleBrush}" IsHitTestVisible="False"/>
+              <TextBlock Text="{Binding VersionHost}" FontSize="11" Foreground="{DynamicResource KpSubtleBrush}" TextWrapping="Wrap"/>
+              <TextBlock Text="·" Margin="4,0" FontSize="11" Foreground="{DynamicResource KpSubtleBrush}" IsHitTestVisible="False"/>
+              <TextBlock Text="{Binding VersionArchitecture}" FontSize="11" Foreground="{DynamicResource KpSubtleBrush}" TextWrapping="Wrap"/>
+              <TextBlock Text="·" Margin="4,0" FontSize="11" Foreground="{DynamicResource KpSubtleBrush}" IsHitTestVisible="False"/>
+              <TextBlock Text="{Binding VersionRuntime}" FontSize="11" Foreground="{DynamicResource KpSubtleBrush}" TextWrapping="Wrap"/>
+              <TextBlock Text="·" Margin="4,0" FontSize="11" Foreground="{DynamicResource KpSubtleBrush}" IsHitTestVisible="False"/>
+              <TextBlock Text="{Binding VersionCopyright}" FontSize="11" Foreground="{DynamicResource KpSubtleBrush}" TextWrapping="Wrap"/>
+              <TextBlock Text="·" Margin="4,0" FontSize="11" Foreground="{DynamicResource KpSubtleBrush}" IsHitTestVisible="False"/>
+              <TextBlock Text="{Binding VersionAssistance}" FontSize="11" Foreground="{DynamicResource KpSubtleBrush}" TextWrapping="Wrap"/>
+              <TextBlock Text="·" Margin="4,0" FontSize="11" Foreground="{DynamicResource KpSubtleBrush}" IsHitTestVisible="False"/>
               <TextBlock x:Name="AboutRepositoryLink" Text="{Binding RepositoryUrl}" FontSize="11"
-                         Foreground="{DynamicResource KpSubtleBrush}" TextWrapping="NoWrap"
-                         VerticalAlignment="Center" Cursor="Hand" Focusable="True"
-                         ToolTip.Tip="{Binding RepositoryUrl}"
+                         Foreground="{DynamicResource KpSubtleBrush}" TextWrapping="Wrap"
+                         Cursor="Hand" Focusable="True" ToolTip.Tip="{Binding RepositoryUrl}"
                          PointerPressed="OnRepositoryPointerPressed" KeyDown="OnRepositoryKeyDown"/>
-            </WrapPanel>
+            </controls:MetadataWrapPanel>
             <TextBlock Text="{Binding RepositoryStatus}" FontSize="10" TextWrapping="Wrap"
                        IsVisible="{Binding HasRepositoryStatus}"
                        Foreground="{DynamicResource KpSubtleBrush}"/>
           </StackPanel>
-          <TextBlock Grid.Column="1" Grid.Row="1" Text="{Binding Purpose}" TextWrapping="Wrap" FontSize="11"
+          <controls:UiProseTextBlock Grid.Column="1" Grid.Row="1" SourceText="{Binding Purpose}" ProseLanguage="{Binding UpdateLanguage}" TextWrapping="Wrap" FontSize="11"
                      Foreground="{DynamicResource KpSubtleBrush}" Margin="0,1,0,0"/>
         </Grid>
+      </Border>
 
         <!-- Reordered visually: updates first, performance second, existing details below. -->
-        <Grid RowDefinitions="Auto,Auto" RowSpacing="9">
+        <Grid RowDefinitions="Auto,Auto" RowSpacing="8">
         <!-- Side-by-side at normal widths. Reflows to one column below 850 px. -->
-        <Grid x:Name="DetailsGrid" Grid.Row="1" ColumnDefinitions="1.15*,*" RowDefinitions="Auto" ColumnSpacing="9" RowSpacing="9">
+        <Grid x:Name="DetailsGrid" Grid.Row="1" ColumnDefinitions="1.15*,*" RowDefinitions="Auto" ColumnSpacing="8" RowSpacing="8">
           <Border Grid.Column="0" Grid.Row="0" Classes="settings-card" Padding="10,9">
             <StackPanel Spacing="6">
-              <TextBlock Classes="section-heading" Text="{Binding ComponentsTitle}"/>
+              <Grid Classes="section-heading-row" ColumnDefinitions="16,*">
+                <fi:FluentIcon Classes="section-heading-icon" Icon="Apps" IconVariant="Regular" IconSize="Size20" Width="16" Height="16" FontSize="16" VerticalAlignment="Center" Foreground="{DynamicResource KpTextBrush}"/>
+                <TextBlock Grid.Column="1" Classes="section-heading" Text="{Binding ComponentsTitle}" VerticalAlignment="Center"/>
+              </Grid>
               <!-- Separate columns with independent name/version alignment, not 15 full-width rows. -->
               <Grid ColumnDefinitions="*,*" ColumnSpacing="13">
                 <ItemsControl Grid.Column="0" Classes="about-zebra-list" ItemsSource="{Binding LibrariesLeft}">
@@ -86,10 +100,13 @@
             </StackPanel>
           </Border>
 
-          <StackPanel x:Name="TechColumn" Grid.Column="1" Grid.Row="0" Spacing="9">
+          <StackPanel x:Name="TechColumn" Grid.Column="1" Grid.Row="0" Spacing="8">
             <Border Classes="settings-card" Padding="10,9">
               <StackPanel Spacing="7">
-                <TextBlock Classes="section-heading" Text="{Binding GraphicsTitle}"/>
+                <Grid Classes="section-heading-row" ColumnDefinitions="16,*">
+                  <fi:FluentIcon Classes="section-heading-icon" Icon="Desktop" IconVariant="Regular" IconSize="Size20" Width="16" Height="16" FontSize="16" VerticalAlignment="Center" Foreground="{DynamicResource KpTextBrush}"/>
+                  <TextBlock Grid.Column="1" Classes="section-heading" Text="{Binding GraphicsTitle}" VerticalAlignment="Center"/>
+                </Grid>
                 <StackPanel Spacing="4">
                   <Border Background="{DynamicResource KpStripeBrush}" CornerRadius="4" Padding="7,5">
                     <Grid ColumnDefinitions="*,*" ColumnSpacing="10">
@@ -145,7 +162,10 @@
 
             <Border Classes="settings-card" Padding="10,9">
               <StackPanel Spacing="6">
-                <TextBlock Classes="section-heading" Text="{Binding PrintingTitle}"/>
+                <Grid Classes="section-heading-row" ColumnDefinitions="16,*">
+                  <fi:FluentIcon Classes="section-heading-icon" Icon="Print" IconVariant="Regular" IconSize="Size20" Width="16" Height="16" FontSize="16" VerticalAlignment="Center" Foreground="{DynamicResource KpTextBrush}"/>
+                  <TextBlock Grid.Column="1" Classes="section-heading" Text="{Binding PrintingTitle}" VerticalAlignment="Center"/>
+                </Grid>
                 <StackPanel Spacing="4">
                   <Border Background="{DynamicResource KpStripeBrush}" CornerRadius="4" Padding="7,5">
                     <Grid ColumnDefinitions="*,*" ColumnSpacing="10">
@@ -172,13 +192,15 @@
         </Grid>
 
         <!-- Both strips span the available width; the existing details follow below. -->
-        <Grid x:Name="BottomCardsGrid" Grid.Row="0" RowDefinitions="Auto,Auto" RowSpacing="9">
+        <Grid x:Name="BottomCardsGrid" Grid.Row="0" RowDefinitions="Auto,Auto" RowSpacing="8">
           <!-- First strip: title + status on the left, update actions on the right. -->
           <Border x:Name="UpdatesCard" Grid.Row="0" Classes="settings-card" Padding="10,8">
             <Grid x:Name="UpdateLayoutGrid" ColumnDefinitions="*,Auto" RowDefinitions="Auto,Auto"
                   ColumnSpacing="12" RowSpacing="3">
-              <TextBlock x:Name="UpdateHeader" Grid.Column="0" Grid.Row="0"
-                         Classes="section-heading" Text="Обновления приложения"/>
+              <Grid Grid.Column="0" Grid.Row="0" Classes="section-heading-row" ColumnDefinitions="16,*">
+                <fi:FluentIcon Classes="section-heading-icon" Icon="ArrowDownload" IconVariant="Regular" IconSize="Size20" Width="16" Height="16" FontSize="16" VerticalAlignment="Center" Foreground="{DynamicResource KpTextBrush}"/>
+                <TextBlock Grid.Column="1" x:Name="UpdateHeader" Classes="section-heading" Text="Обновления приложения" VerticalAlignment="Center"/>
+              </Grid>
               <TextBlock x:Name="UpdateStatus" Grid.Column="0" Grid.Row="1"
                          FontSize="11" TextWrapping="Wrap" VerticalAlignment="Center"
                          Foreground="{DynamicResource KpSubtleBrush}"/>
@@ -213,8 +235,10 @@
               <Grid x:Name="PerformanceHeaderGrid" Grid.Row="0"
                     ColumnDefinitions="Auto,*,Auto" RowDefinitions="Auto"
                     ColumnSpacing="10" RowSpacing="4">
-                <TextBlock Grid.Column="0" Grid.Row="0" Classes="section-heading"
-                           VerticalAlignment="Center" Text="{Binding PerformanceTitle}"/>
+                <Grid Grid.Column="0" Grid.Row="0" Classes="section-heading-row" ColumnDefinitions="16,*">
+                  <fi:FluentIcon Classes="section-heading-icon" Icon="Gauge" IconVariant="Regular" IconSize="Size20" Width="16" Height="16" FontSize="16" VerticalAlignment="Center" Foreground="{DynamicResource KpTextBrush}"/>
+                  <TextBlock Grid.Column="1" Classes="section-heading" VerticalAlignment="Center" Text="{Binding PerformanceTitle}"/>
+                </Grid>
                 <StackPanel x:Name="PerformanceActions" Grid.Column="2" Grid.Row="0"
                             Orientation="Horizontal" Spacing="9" HorizontalAlignment="Right"
                             VerticalAlignment="Center">

@@ -8,6 +8,28 @@
     <Setter Property="Background" Value="{DynamicResource KpWindowBrush}" />
     <Setter Property="Foreground" Value="{DynamicResource KpTextBrush}" />
   </Style>
+  <!-- Splitters keep their existing 6-DIP grid cell as a transparent drag target.
+       Only their painted line is narrowed; the Thumb retains drag and keyboard handling. -->
+  <Style Selector="GridSplitter[ResizeDirection=Columns]">
+    <Setter Property="Template">
+      <ControlTemplate>
+        <Border Background="Transparent">
+          <Border x:Name="SplitterLine" Width="2" HorizontalAlignment="Center" VerticalAlignment="Stretch"
+                  Background="{DynamicResource KpBorderBrush}" IsHitTestVisible="False"/>
+        </Border>
+      </ControlTemplate>
+    </Setter>
+  </Style>
+  <Style Selector="GridSplitter[ResizeDirection=Rows]">
+    <Setter Property="Template">
+      <ControlTemplate>
+        <Border Background="Transparent">
+          <Border x:Name="SplitterLine" Height="2" HorizontalAlignment="Stretch" VerticalAlignment="Center"
+                  Background="{DynamicResource KpBorderBrush}" IsHitTestVisible="False"/>
+        </Border>
+      </ControlTemplate>
+    </Setter>
+  </Style>
   <!-- Shared rounded panels on Source and Mapping, matching Appearance / Duplex.
        Dynamic brushes ensure theme switching does not leave light surfaces. -->
   <!-- Seamless, full-width app chrome; content owns its margin, not the footer. -->
@@ -354,6 +376,11 @@
     <Setter Property="FontFamily" Value="Segoe UI" />
     <Setter Property="FontSize" Value="14" />
     <Setter Property="FontWeight" Value="SemiBold" />
+  </Style>
+  <!-- Shared title layout; no new reserved height or changes to card padding. -->
+  <Style Selector="Grid.section-heading-row">
+    <Setter Property="ColumnSpacing" Value="6" />
+    <Setter Property="VerticalAlignment" Value="Center" />
   </Style>
   <Style Selector="TextBlock.hint">
     <Setter Property="FontSize" Value="11" />
