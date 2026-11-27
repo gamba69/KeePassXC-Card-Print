@@ -740,13 +740,13 @@ if ($chromeXaml -match 'x:CompileBindings\s*=\s*"False"' -or
     $chromeXaml -match 'ReflectionBinding') {
     throw 'Native AOT check: reflection bindings are forbidden in MainWindow.axaml.'
 }
-foreach ($captionProperty in @('TabSource', 'TabTemplate', 'TabSettings', 'TabAbout')) {
+foreach ($captionProperty in @('TabSource', 'TabTemplate', 'TabScanner', 'TabSettings', 'TabAbout')) {
     $tabHeader = $ui.SelectSingleNode("//*[local-name()='TabItem.Header']//*[local-name()='TextBlock' and @Text='{Binding $captionProperty}']")
     if ($null -eq $tabHeader) {
         throw "Native AOT check: missing compiled tab header binding: $captionProperty"
     }
 }
-Write-Host '[PASS] all four tab headers use compiled ShellViewModel bindings (Native AOT).' -ForegroundColor Green
+Write-Host '[PASS] all five tab headers use compiled ShellViewModel bindings (Native AOT).' -ForegroundColor Green
 # All three selectors must show identical 14-DIP text in the caption, selection box
 # and expanded popup; never revert to the 12-DIP Fluent ComboBoxItem default.
 $headerControls = @($ui.SelectNodes("//*[local-name()='Border' and @Classes='app-header']//*[local-name()='ComboBox' and @Classes='header-select']"))
@@ -1482,6 +1482,39 @@ if ($updateSmoke.ExitCode -ne 0 -or -not (Test-Path -LiteralPath $updateTestLog)
 }
 Remove-Item -LiteralPath $updateTestLog -Force
 Write-Host '[PASS] Native AOT updater self-tests passed.' -ForegroundColor Green
+# Small Windows-only Media Foundation bridge, built with the same MSVC/SDK as XPS.
+$videoDll = Join-Path $nativeBuildDir 'KpcVideoBridge.dll'
+$videoSource = Join-Path $sourceRoot 'platforms\windows\native\KpcVideoBridge.cpp'
+$videoCmd = Join-Path $nativeBuildDir 'compile-video.cmd'
+$env:KPC_VIDEO_VCVARS = $vcvars
+$env:KPC_VIDEO_SOURCE = $videoSource
+$env:KPC_VIDEO_DLL = $videoDll
+@'
+@echo off
+call "%KPC_VIDEO_VCVARS%" >NUL
+if errorlevel 1 exit /b 1
+cl /nologo /std:c++17 /EHsc /O2 /MT /LD /Fe:"%KPC_VIDEO_DLL%" "%KPC_VIDEO_SOURCE%" /link ole32.lib mfplat.lib mf.lib mfuuid.lib uuid.lib d3d11.lib dxgi.lib
+exit /b %errorlevel%
+'@ | Set-Content -LiteralPath $videoCmd -Encoding Ascii
+Push-Location $nativeBuildDir
+try {
+    & cmd.exe /d /c $videoCmd
+    if ($LASTEXITCODE -ne 0 -or -not (Test-Path -LiteralPath $videoDll)) { throw 'Native Media Foundation video bridge compilation failed.' }
+} finally { Pop-Location }
+Copy-Item -LiteralPath $videoDll -Destination (Join-Path $publish 'KpcVideoBridge.dll') -Force
+& (Join-Path $PSScriptRoot 'build-libde265.ps1') -BuildDirectory $nativeBuildDir -PublishDirectory $publish -VsInstall $vsInstall
+& (Join-Path $PSScriptRoot 'build-vendor-video.ps1') -BuildDirectory $nativeBuildDir -PublishDirectory $publish -VsInstall $vsInstall -VcVars $vcvars -SourceRoot $sourceRoot
+Write-Host '[PASS] Native Media Foundation video bridge compiled; FFmpeg is optional.' -ForegroundColor Green
+Write-Host 'Running Native AOT scanner / PDF self-tests ...'
+$scannerTestLog = Join-Path $publish 'scanner-selftest.txt'
+$scannerArgs = '--self-test-scanner "' + $scannerTestLog + '"'
+$scannerSmoke = Start-Process -FilePath $exe -ArgumentList $scannerArgs -PassThru -Wait
+if (Test-Path -LiteralPath $scannerTestLog) { Write-Host (Get-Content -LiteralPath $scannerTestLog -Raw -Encoding UTF8) }
+if ($scannerSmoke.ExitCode -ne 0 -or -not (Test-Path -LiteralPath $scannerTestLog)) {
+    throw "Native AOT scanner self-tests failed (exit $($scannerSmoke.ExitCode))."
+}
+Remove-Item -LiteralPath $scannerTestLog -Force
+Write-Host '[PASS] Native AOT scanner self-tests passed.' -ForegroundColor Green
 
 
 # Validate the actual Windows XPS OM COM parser in the published Native AOT
@@ -1517,7 +1550,7 @@ $files = @(Get-ChildItem -LiteralPath $publish -File -Recurse -Force |
     Where-Object {
         $_.Extension -notin $privateExtensions -and
         $_.Name -notin $privateNames -and
-        $_.Name -notmatch '^(?:layout|vault|mapping|xps|updates)-selftest[.]txt$' -and
+        $_.Name -notmatch '^(?:layout|vault|mapping|xps|updates|scanner)-selftest[.]txt$' -and
         $_.FullName -notmatch '[\\/]data[\\/]|[\\/]print-tracking[\\/]|[\\/]templates[\\/]|[\\/]backups[\\/]'
     } | Sort-Object FullName)
 if ($files.Count -eq 0) { throw 'Portable payload is empty.' }

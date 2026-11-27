@@ -16,7 +16,10 @@ internal static class ConfigurationMaintenance
     [
         "storage-mode.txt", "cloud-connection.json", "cloud-verified.json",
         "cloud-sync-journal.json",
-        "cloud-sync-errors.log"
+        "cloud-sync-errors.log",
+        // Scanner credentials, selection and decoder probes are machine-local.
+        // Keep them in AppData regardless of the selected configuration mode.
+        "scanner-network.dpapi", "scanner-network-selection.txt", "scanner-decoders.json"
     ];
     internal const int RetainedBackups = 3;
 
@@ -69,7 +72,8 @@ internal static class ConfigurationMaintenance
                 // All permanent snapshots live in the separate unified backup root.
                 // Legacy per-storage backups are partial and must not survive.
                 if (name == "backups") { Remove(entry); continue; }
-                if (system && (name is "cloud-cache" or "updates")) continue;
+                // Optional FFmpeg installation is local, not part of cloud settings.
+                if (system && (name is "cloud-cache" or "updates" or "components")) continue;
             }
             else
             {

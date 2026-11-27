@@ -63,7 +63,7 @@ public static class PasskeyExport
         return json;
     }
 
-    private static void ValidateBase64Url(string text, string field)
+    internal static void ValidateBase64Url(string text, string field)
     {
         if (text.Length > 4096 || text.Length == 0 || text.Any(c =>
             !(char.IsAsciiLetterOrDigit(c) || c == '-' || c == '_' || c == '+' || c == '/' || c == '=')))
@@ -80,7 +80,7 @@ public static class PasskeyExport
         catch (FormatException) { throw new InvalidOperationException($"Passkey: некорректный {field}."); }
     }
 
-    private static void ValidatePem(string pem)
+    internal static void ValidatePem(string pem)
     {
         // Keep the standard PKCS#8 delimiters without triggering the source privacy scanner.
         // C# concatenates these constants at compile time; validation is unchanged.

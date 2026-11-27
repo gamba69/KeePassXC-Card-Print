@@ -382,12 +382,20 @@ public partial class MainWindow : Window
         if (e.PropertyName == nameof(ShellViewModel.ActiveTab))
         {
             UpdateAboutRefresh();
-            Dispatcher.UIThread.Post(() => UiText.Apply(this, translateText: false), DispatcherPriority.Loaded);
+            if (_vm.ActiveTab != ShellViewModel.ScannerTabIndex)
+                _ = this.FindControl<ScannerView>("ApplicationScannerView")?.DeactivateAsync();
+            Dispatcher.UIThread.Post(async () =>
+            {
+                UiText.Apply(this, translateText: false);
+                if (_vm.ActiveTab == ShellViewModel.ScannerTabIndex && this.FindControl<ScannerView>("ApplicationScannerView") is { } scanner)
+                    await scanner.ActivateAsync(_settings, () => PreferencesChanged(this, EventArgs.Empty));
+            }, DispatcherPriority.Loaded);
         }
         if (e.PropertyName == nameof(ShellViewModel.SelectedLanguage))
         {
             UiText.Language = _settings.Language;
             UiText.Apply(this, translateText: false);
+            this.FindControl<ScannerView>("ApplicationScannerView")?.Localize();
         }
     }
 
@@ -418,7 +426,7 @@ public partial class MainWindow : Window
     private void UpdateAboutRefresh()
     {
         _aboutRefreshTimer.Stop();
-        if (_vm.ActiveTab != 3 || !IsVisible) return;
+        if (_vm.ActiveTab != ShellViewModel.AboutTabIndex || !IsVisible) return;
         _vm.About.RefreshDiagnostics(RenderScaling);
         _aboutRefreshTimer.Start();
     }
@@ -526,7 +534,7 @@ public partial class MainWindow : Window
                     message,
                     lang switch { "uk" => "До налаштувань", "en" => "Open Settings", _ => "В настройки" },
                     cancelText: lang switch { "uk" => "Скасувати", "en" => "Cancel", _ => "Отмена" }))
-                    _vm.ActiveTab = 2;
+                    _vm.ActiveTab = ShellViewModel.SettingsTabIndex;
                 return;
             }
             if (target == ConfigurationStorage.Cloud && !CloudConnectionStore.IsCurrentVerified())
@@ -539,7 +547,7 @@ public partial class MainWindow : Window
                     _ => "Облачное подключение не настроено или не проверено. Настройте и проверьте его на вкладке «Настройки»."
                 };
                 _vm.VaultStatus = "[CLOUD] " + message;
-                _vm.ActiveTab = 2;
+                _vm.ActiveTab = ShellViewModel.SettingsTabIndex;
                 await AppConfirmations.AskAsync(this,
                     lang switch { "uk" => "Хмарне зберігання", "en" => "Cloud storage", _ => "Облачное хранение" },
                     message, lang switch { "uk" => "Зрозуміло", "en" => "OK", _ => "Понятно" },
@@ -979,6 +987,9 @@ public partial class MainWindow : Window
             return;
         }
         _passwordLayout.Leave();
+        if (this.FindControl<ScannerView>("ApplicationScannerView") is { } scanner)
+            _ = scanner.DeactivateAsync();
+        ScannerResultDialog.ClearOwnedClipboard();
         _vaultGeneration++;
         _printExportCancellation?.Cancel();
         _preferencesSaveTimer.Stop();
@@ -1255,9 +1266,15 @@ public partial class MainWindow : Window
     private void OnPreviewZoom100(object? sender,RoutedEventArgs e) => StartPreviewPresetZoom(false);
     private void OnPreviewZoomFit(object? sender,RoutedEventArgs e) => StartPreviewPresetZoom(true);
 
-    private void OnPreviewShortcutKeyDown(object? sender,KeyEventArgs e)
+    private async void OnPreviewShortcutKeyDown(object? sender,KeyEventArgs e)
     {
         if(e.Handled || e.KeyModifiers!=KeyModifiers.Control)return;
+        if (_vm.ActiveTab == ShellViewModel.ScannerTabIndex)
+        {
+            if (e.Key == Key.V && this.FindControl<ScannerView>("ApplicationScannerView") is { } scanner)
+            { e.Handled = true; await scanner.PasteAsync(); }
+            return;
+        }
         if(e.Key is Key.D1 or Key.NumPad1)
         {
             StartPreviewPresetZoom(false);

@@ -46,6 +46,7 @@ internal static class WindowsSettingsResetHost
             var clearTracking = args[3] == "clear-history";
             var result = ConfigurationMaintenance.ResetAllAsync(clearTracking).GetAwaiter().GetResult();
             WindowsCloudSecrets.DeleteApplicationCredentials();
+            NetworkCameraProfiles.DeleteAll();
             SettingsResetService.StoreOutcome(true, result.BackupDirectory);
         }
         catch (Exception ex)

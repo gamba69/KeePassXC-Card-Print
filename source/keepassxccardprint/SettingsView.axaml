@@ -140,6 +140,23 @@
         </StackPanel>
       </Border>
       <Border Classes="settings-card" Padding="11">
+        <StackPanel Spacing="6">
+          <Grid Classes="section-heading-row" ColumnDefinitions="16,*">
+            <fi:FluentIcon Classes="section-heading-icon" Icon="ArrowDownload" IconVariant="Regular" IconSize="Size20" Width="16" Height="16" FontSize="16" VerticalAlignment="Center" Foreground="{DynamicResource KpTextBrush}"/>
+            <TextBlock Grid.Column="1" x:Name="FfmpegCaption" Classes="section-heading" Text="FFmpeg" VerticalAlignment="Center"/>
+          </Grid>
+          <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
+            <TextBlock x:Name="FfmpegState" VerticalAlignment="Center" TextWrapping="Wrap"/>
+            <Button Grid.Column="1" Click="OnManageFfmpeg" HorizontalAlignment="Right">
+              <StackPanel Orientation="Horizontal" Spacing="6"><fi:FluentIcon Icon="Settings" IconVariant="Regular" IconSize="Size20" Width="18" Height="18" FontSize="18" VerticalAlignment="Center"/><TextBlock x:Name="FfmpegManageLabel" VerticalAlignment="Center"/></StackPanel>
+            </Button>
+          </Grid>
+          <Button Click="OnVideoDecoderDiagnostics" HorizontalAlignment="Right">
+            <StackPanel Orientation="Horizontal" Spacing="6"><fi:FluentIcon Icon="Settings" IconVariant="Regular" IconSize="Size20" Width="18" Height="18" FontSize="18" VerticalAlignment="Center"/><TextBlock x:Name="VideoDecoderDiagnosticsLabel" VerticalAlignment="Center"/></StackPanel>
+          </Button>
+        </StackPanel>
+      </Border>
+      <Border Classes="settings-card" Padding="11">
         <StackPanel Spacing="8">
           <Grid Classes="section-heading-row" ColumnDefinitions="16,*">
             <fi:FluentIcon Classes="section-heading-icon" Icon="Wrench" IconVariant="Regular" IconSize="Size20" Width="16" Height="16" FontSize="16" VerticalAlignment="Center" Foreground="{DynamicResource KpTextBrush}"/>

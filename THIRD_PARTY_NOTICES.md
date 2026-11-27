@@ -8,11 +8,35 @@ redistributors must review all applicable upstream licenses and notices.
 
 The project currently declares Avalonia, Avalonia Desktop/Win32/Skia/HarfBuzz,
 Avalonia Fluent theme, SkiaSharp, HarfBuzzSharp, FluentIcons.Avalonia,
-DgNet.Keepass, Yubico.YubiKey SDK and QRCoder. The exact NuGet package
-versions are generated into the About tab from the project references.
+DgNet.Keepass, Yubico.YubiKey SDK, QRCoder, ZXing.Net (Apache-2.0), FlashCap
+and bblanchon.PDFium.Win32 (PDFium and bundled third-party components).
+The exact NuGet package versions are generated into the About tab from the project references.
 Find upstream package license information and redistribution requirements in
 the corresponding official NuGet packages and repositories. This file does
 not purport to relicense any dependency.
+
+Network cameras use SharpRTSPClient 0.8.1 (MIT, https://github.com/jimm98y/SharpRealTimeStreaming)
+and its SharpRTSP, SharpRTCP and SharpSRTP dependencies. Consult their NuGet
+packages and upstream license texts for redistribution. The Windows Media
+Foundation bridge is Card Print code linked against the system SDK.
+The HEVC software fallback is libde265 1.1.3 (LGPL-3.0-or-later), dynamically
+linked as a replaceable libde265.dll. The distribution contains the exact
+corresponding upstream source archive, COPYING and build recipe in
+licenses/libde265/; users may replace the DLL with a compatible modified build.
+https://github.com/strukturag/libde265/releases/tag/v1.1.3
+Optional FFmpeg is a separately executed, unmodified LGPL shared distribution,
+not bundled in the portable ZIP. Explicit installation downloads the pinned
+archive in NetworkFfmpegManager.cs, verifies its SHA-256 and retains upstream
+notices and source references in the local component directory.
+System.Security.Cryptography.ProtectedData is used for Windows DPAPI profile
+storage (MIT, .NET runtime).
+
+Direct hardware video uses the MIT-licensed nv-codec-headers (n12.2.72.0),
+Intel oneVPL dispatcher (v2023.3.1, MIT) and AMD AMF headers (v1.4.35, MIT).
+The SDK Git commits are pinned in tools/build-vendor-video.ps1; license notices
+are shipped in licenses/vendor-video/. NVIDIA and AMD driver runtimes are not
+redistributed; they are loaded from the installed Windows drivers. The Intel
+dispatcher is bundled, but the hardware runtime is supplied by the Intel driver.
 
 ## Downloaded specialist fonts
 

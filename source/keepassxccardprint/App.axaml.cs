@@ -14,6 +14,7 @@ public partial class App : Application
     {
         if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
         {
+            DialogScreenPolicy.Install(desktop);
             // Both window types derive from Avalonia.Controls.Window. Explicitly
             // use the common type rather than an untyped conditional expression.
             Avalonia.Controls.Window mainWindow;

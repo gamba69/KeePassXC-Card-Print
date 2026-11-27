@@ -245,6 +245,7 @@ public partial class SettingsView : UserControl
             SyncCloudButtonLabel.Text = L("Синхронизировать сейчас", "Синхронізувати зараз", "Sync now");
             UpdatesCaption.Text = L("Обновления программы", "Оновлення програми", "Application updates");
             RefreshHyphenationSettings();
+            RefreshFfmpegSettings();
             MaintenanceCaption.Text = L("Обслуживание", "Обслуговування", "Maintenance");
             ResetSettingsButtonLabel.Text = L("Сбросить настройки…", "Скинути налаштування…", "Reset settings…");
             ResetHelp.Text = L(

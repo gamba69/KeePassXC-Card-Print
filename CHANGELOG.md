@@ -1,5 +1,134 @@
 # Changelog
 
+## [11.3.8] - 2026-11-27
+
+- Align the decoder selector and diagnostics icon, expose recognition and local camera controls in compact wrapping rows, remove duplicate resolution from measurement statistics, center the fixed-initial-size decoder diagnostics window on the screen, and use consistent single-word search mode names.
+
+## [11.3.7] - 2026-11-27
+
+- Replace the scanner transport warning line with a compact amber Fluent warning icon beside the stream format; keep protection details in localized tooltips.
+
+## [11.3.6] - 2026-11-27
+
+- Compact the scanner connection summary and move decoder diagnostics beside the selector. Show only applicable measurements (including zero values), retain history, and use independent responsive table groups. Show camera video options directly in a screen-bounded scrolling form with a fixed footer.
+
+## [11.3.5] - 2026-11-27
+
+- Use the shared table palette for camera management and compact video decoder diagnostics, placing results before the summary in a scrolling body. Save decoder choices immediately and restart active connections only after a successful change. Display useful connection details inline instead of a redundant collapsible section. Use compact icon-only image and camera-management toolbars with localized tooltips and accessible labels.
+
+## [11.3.4] - 2026-11-27
+
+- Preserve device-local scanner profiles, selected camera, decoder probe cache and optional components during startup housekeeping. Keep explicit full reset destructive and add isolated persistence regressions, including DPAPI save/load on Windows.
+
+## [11.3.3] - 2026-11-27
+
+- Filter video decoder choices by probe results and stream codec; keep the saved choice unchanged until explicitly applied. Reflow the connection card and measurements into responsive columns and report whole-frame detail without a misleading focus grade. Preserve consent for unchanged network endpoints, theme the camera editor sections, and constrain secondary windows to the monitor working area with scrolling for simple forms.
+
+## [11.3.2] - 2026-11-27
+
+- Compact the scanner sidebar, use theme-consistent full-width collapsible sections, label connection abort explicitly, show seven live quality cards and measurements without opening an expander, and reflow the statistics into two tables only when the sidebar is wide enough.
+
+## [11.3.1] - 2026-11-27
+
+- Separate Camera, File and Clipboard input modes. Show only the actions for the selected mode, move camera management beside the device selector, and keep Clear with the static image tools. Successful drop/paste selects the corresponding input; cancelled or failed imports preserve the current source.
+
+## [11.3.0] - 2026-11-27
+
+- Rebuild the scanner workspace around one camera selector and explicit Start/Stop/Cancel/Retry actions. Separate camera management, profile editing and tests; provide source-specific settings, live decoder selection, compact status and optional diagnostics. Preserve the current source when imports are cancelled or unreadable, and test the unified workspace state model.
+
+## [11.2.5] - 2026-11-27
+
+- Remove intermediate PNG encoding and decoding from network video, live preview, burst analysis and freeze. Share owned BGRA pixels across scanner workers; use uncompressed framed BGRA for FFmpeg and reuse the preview framebuffer. Rank automatic decoder selection by measured output speed and stability, without GPU preference. Make named decoder selection strict by default with explicit fallback, refresh probe results, and expose separate decoding timing.
+
+## [11.2.4] - 2026-11-27
+
+- Show incremental decoder-test progress, current GPU and codec, elapsed time, completed cells and cooperative cancellation. Distinguish missing runtime libraries from an unavailable GPU session. Add localized next-step guidance and official driver/HEVC links, plus a summary of verified working formats.
+
+## [11.2.3] - 2026-11-27
+
+- Restore diagnostic report clipboard copying by importing the Avalonia clipboard extensions. Replace deprecated network camera text-box Watermark properties with PlaceholderText.
+
+## [11.2.2] - 2026-11-27
+
+- Add independent NVIDIA NVDEC, Intel oneVPL / legacy Media SDK and AMD AMF hardware decoding adapters, dynamically loaded and tested per compatible DXGI GPU. Keep transport, TLS and software fallback independent.
+- Package the pinned native bridge and oneVPL dispatcher with upstream notices; show direct SDK status separately from Media Foundation and retain raw driver diagnostics in report.
+
+## [11.2.1] - 2026-11-27
+
+- Query D3D11 driver decode profiles and 1080p configurations independently of MFT registration, and try D3D11-aware system transforms when adapter-specific hardware MFTs are absent. Require decoder-bound GPU surfaces for hardware selection.
+- Distinguish unsupported profiles, missing codec components, initialization failures, unverified GPU output and decoding failures; compact diagnostic table with tooltips, selected-cell detail and report copying. Direct vendor SDKs remain out of scope.
+
+## [11.2.0] - 2026-11-27
+
+- Normalize SharpRTSP Annex B NALs exactly once, retain in-band parameter sets and restart on random-access pictures after damaged HEVC input. Feed complete NALs to libde265 with native error descriptions.
+- Add per-DXGI-adapter Media Foundation hardware selection, separate software mode, verified decoder probes, local capability cache and profile-level manual/fallback policy. Direct vendor SDK adapters are not included.
+- Add decoder diagnostics to network cameras and settings; keep the optional FFmpeg engine and all TLS restrictions unchanged.
+
+## [11.1.5] - 2026-11-27
+
+- Bundle a replaceable libde265 1.1.3 software HEVC decoder with pinned source, LGPL notices and deterministic build recipe. Fall back on a random-access frame without changing RTSP/TLS.
+- Negotiate Main/Main10 and NV12/P010, try event-driven system transforms and D3D11 surface readback, report decoder inventory and stage-specific HRESULT.
+- Add synthetic HEVC Main/Main10 decoder tests; FFmpeg remains optional.
+
+## [11.1.4] - 2026-11-27
+
+- Request low-latency Media Foundation decoding, mark initial discontinuity and random-access pictures, honor output alignment, and check streaming setup.
+- Replace recycled synthetic H.264 pictures with a complete predictive test stream; verify live output dimensions, changing image content and report native HRESULT and frame counts on failure.
+
+## [11.1.3] - 2026-11-27
+
+- Align ProtectedData with the minimum required by SharpRTSP dependencies to resolve NuGet downgrade error NU1605 without suppressing dependency validation.
+
+## [11.1.2] - 2026-11-27
+
+- Isolate Media Foundation native decoder imports in the Windows scanning host layer; retain the platform boundary guard.
+
+## [11.1.1] - 2026-11-27
+
+- Construct the synthetic credential-bearing camera URL at runtime to preserve the repository privacy check.
+
+## [11.1.0] - 2026-11-27
+
+- Add network camera profiles and HTTP(S) JPEG/MJPEG and RTSP(S) TCP frame sources.
+- Use Windows DPAPI for device-local profiles; require explicit plaintext permission and validate TLS.
+- Add connection testing, reconnection, certificate controls and rolling network telemetry.
+- Default to SharpRTSPClient and native Windows Media Foundation for RTSP video; choose a decoder per profile.
+- Download, update, reinstall or remove the pinned optional FFmpeg component on demand; no bundled FFmpeg.
+
+## [11.0.5] - 2026-11-27
+
+- Reorganize scanner into a clean source viewport and resizable settings/diagnostics sidebar.
+- Add live quality cards, fixed-scale trends, a striped current/P05/P95 measurement table and bounded numeric telemetry.
+- Estimate QR geometry and region quality in original pixels; add interactive search regions and finer overlapping crops.
+- Extend synthetic scanner tests with percentile expiry, manual ROI, geometry and clean/blurred density sweep.
+
+## [11.0.4] - 2026-11-26
+
+- Add live relative sharpness, exposure/lighting, contrast and inter-frame change diagnostics with actionable hints.
+- Select the best recent camera frame from bounded bursts, freeze and run maximum-sensitivity recognition, and resume without stale results.
+- Add optional Windows KS focus/exposure capability probing and explicit auto/manual controls when supported; retain digital preview zoom.
+- Extend scanner self-tests with synthetic quality measurements.
+
+## [11.0.3] - 2026-11-26
+
+- Add bounded, adaptive multi-pass QR recognition with contrast, sharpening, local/global thresholds, inversion, overlapping regions and resampling.
+- Prefer 1080p camera capture, separate preview and recognition workers, and report real recognition stages and measured image diagnostics below the viewport.
+- Add three sensitivity levels, static-source retry, higher-resolution PDF retry and synthetic recognition regression tests.
+
+## [11.0.2] - 2026-11-26
+
+- Resolve the conflict between System.FormatException and ZXing.FormatException in scanner validation.
+- Use the current Avalonia PNG encoder and SkiaSharp bitmap sampling APIs.
+
+## [11.0.1] - 2026-11-26
+
+- Add a full-width QR Scanner workspace with camera, image, PDF, clipboard and file drop sources.
+- Detect eligible TOTP and Passkey payloads and optionally other QR types; show dedicated result dialogs.
+- Retain clickable QR annotations on static images and PDF pages, including during zoom and rotation.
+- Pause live recognition during result dialogs and suppress duplicate automatic openings.
+- Keep scanned data in memory only; provide confirmed file export and timed clipboard clearing.
+- Add scanner dependency version reporting and a Native AOT scanner/PDF self-test.
+
 ## [10.6.1] - 2026-11-26
 
 - Use an identifier symbol for UUID and a single-document icon for the front background, paired with the existing double-document back icon.

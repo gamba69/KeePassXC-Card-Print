@@ -38,6 +38,51 @@ internal static class SettingsResetSelfTests
             ConfigurationMaintenance.CleanRoot(local, fullReset: true, clearTracking: true);
             Assert(!Directory.Exists(Path.Combine(local, "print-tracking")),
                 "explicit tracking deletion removes the entire directory");
+            // Simulate a second launch after the user saved a camera. Use the
+            // actual DPAPI/JSON store on Windows, never the production AppData.
+            var scannerFiles = new[] { "scanner-network.dpapi", "scanner-network-selection.txt", "scanner-decoders.json" };
+            var camera = new NetworkCameraProfile
+            {
+                Name = "Synthetic camera", Address = "rtsp://127.0.0.1:8554/demo",
+                User = "synthetic", Password = Guid.NewGuid().ToString("N"), AllowPlaintext = true,
+                Engine = "sharp", Decoder = "libde265", Fps = 7, TimeoutSeconds = 15, Reconnect = false
+            };
+            var cameraFile = Path.Combine(system, scannerFiles[0]);
+            if (OperatingSystem.IsWindows()) NetworkCameraProfiles.SaveTo(cameraFile, [camera]);
+            else File.WriteAllBytes(cameraFile, [1, 2, 3]);
+            File.WriteAllText(Path.Combine(system, scannerFiles[1]), camera.Id);
+            File.WriteAllText(Path.Combine(system, scannerFiles[2]), "{}");
+            var ffmpeg = Path.Combine(system, "components", "ffmpeg");
+            Directory.CreateDirectory(ffmpeg);
+            File.WriteAllText(Path.Combine(ffmpeg, "test-marker.txt"), "installed");
+            File.WriteAllText(Path.Combine(system, "scanner-network.dpapi.stale.tmp"), "interrupted write");
+            var originals = scannerFiles.Select(name => File.ReadAllBytes(Path.Combine(system, name))).ToArray();
+            for (int launch = 0; launch < 2; launch++)
+            {
+                ConfigurationMaintenance.CleanRoot(system, fullReset: false, clearTracking: false, system: true);
+                Assert(scannerFiles.Select((name, i) => File.ReadAllBytes(Path.Combine(system, name)).SequenceEqual(originals[i])).All(ok => ok),
+                    "startup preserves device-local scanner files byte for byte");
+                Assert(File.Exists(Path.Combine(ffmpeg, "test-marker.txt")) &&
+                    !File.Exists(Path.Combine(system, "scanner-network.dpapi.stale.tmp")),
+                    "startup preserves installed components but removes stale temporary files");
+                if (OperatingSystem.IsWindows())
+                {
+                    var saved = NetworkCameraProfiles.LoadFrom(cameraFile).Single();
+                    Assert(saved.Id == camera.Id && saved.Name == camera.Name && saved.Address == camera.Address &&
+                        saved.User == camera.User && saved.Password == camera.Password && saved.AllowPlaintext &&
+                        saved.Engine == camera.Engine && saved.Decoder == camera.Decoder && saved.Fps == camera.Fps &&
+                        saved.TimeoutSeconds == camera.TimeoutSeconds && saved.Reconnect == camera.Reconnect,
+                        "saved camera survives cleanup with credentials and settings intact");
+                }
+            }
+            // The scanner files must not become portable/cloud configuration.
+            foreach (var name in scannerFiles) File.WriteAllText(Path.Combine(local, name), "misplaced");
+            ConfigurationMaintenance.CleanRoot(local, fullReset: false, clearTracking: false);
+            Assert(scannerFiles.All(name => !File.Exists(Path.Combine(local, name))),
+                "non-system roots do not retain device-local scanner files");
+            ConfigurationMaintenance.CleanRoot(system, fullReset: true, clearTracking: false, system: true);
+            Assert(scannerFiles.All(name => !File.Exists(Path.Combine(system, name))) && !Directory.Exists(Path.Combine(system, "components")),
+                "explicit full reset still removes scanner settings and optional components");
             var retention = Path.Combine(workspace, "retention");
             Directory.CreateDirectory(retention);
             for (var i = 0; i < 5; i++)

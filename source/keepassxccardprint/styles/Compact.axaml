@@ -451,6 +451,20 @@
   <Style Selector="ListBox.mapping-list ListBoxItem:selected:pointerover">
     <Setter Property="Background" Value="{DynamicResource KpRowMarkedHoverBrush}" />
   </Style>
+  <!-- Camera inventory uses the mapping table palette, including the Fluent
+       presenter states which otherwise override ListBoxItem.Background. -->
+  <Style Selector="ListBox.camera-list ListBoxItem:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+    <Setter Property="Background" Value="{DynamicResource KpRowHoverBrush}" />
+    <Setter Property="Foreground" Value="{DynamicResource KpTextBrush}" />
+  </Style>
+  <Style Selector="ListBox.camera-list ListBoxItem:selected /template/ ContentPresenter#PART_ContentPresenter">
+    <Setter Property="Background" Value="{DynamicResource KpRowMarkedBrush}" />
+    <Setter Property="Foreground" Value="{DynamicResource KpTextBrush}" />
+  </Style>
+  <Style Selector="ListBox.camera-list ListBoxItem:selected:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+    <Setter Property="Background" Value="{DynamicResource KpRowMarkedHoverBrush}" />
+    <Setter Property="Foreground" Value="{DynamicResource KpTextBrush}" />
+  </Style>
   <Style Selector="Border.hyphenation-row">
     <Setter Property="Background" Value="{DynamicResource KpSurfaceBrush}" />
   </Style>

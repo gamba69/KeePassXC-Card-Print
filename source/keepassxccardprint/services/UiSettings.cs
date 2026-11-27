@@ -31,6 +31,14 @@ public sealed class UiSettings
     public bool Maximized { get; set; }
     public double LeftPaneWidth { get; set; } = 950;
     public int ActiveTab { get; set; }
+    // Scanner preferences only. Never persist any scanned data or source paths.
+    public string ScannerCameraName { get; set; } = "";
+    public string ScannerResolution { get; set; } = "";
+    public int ScannerSensitivity { get; set; } = 1;
+    public bool ScannerAllCodes { get; set; }
+    public bool ScannerSound { get; set; } = true;
+    public bool ScannerHideSecrets { get; set; } = true;
+    public int ScannerClipboardSeconds { get; set; } = 30;
     public string PreviewZoom { get; set; } = "fit";
     public bool MappingScopeCurrent { get; set; } = true;
     public bool MappingAllColumns { get; set; }
@@ -141,7 +149,11 @@ public sealed class UiSettingsStore
         if (data.WindowY is < -40000 or > 40000) data.WindowY = null;
         if (!double.IsFinite(data.LeftPaneWidth) || data.LeftPaneWidth < 490 || data.LeftPaneWidth > 10000)
             data.LeftPaneWidth = 950;
-        data.ActiveTab = Math.Clamp(data.ActiveTab, 0, 5);
+        data.ActiveTab = Math.Clamp(data.ActiveTab, 0, 4);
+        if (data.ScannerCameraName is null || data.ScannerCameraName.Length > 512) data.ScannerCameraName = "";
+        if (data.ScannerResolution is null || data.ScannerResolution.Length > 512) data.ScannerResolution = "";
+        data.ScannerSensitivity = Math.Clamp(data.ScannerSensitivity, 0, 2);
+        data.ScannerClipboardSeconds = Math.Clamp(data.ScannerClipboardSeconds, 5, 300);
         if (data.PreviewZoom is not ("fit" or "width" or "100" or "card")) data.PreviewZoom = "fit";
         return data;
     }

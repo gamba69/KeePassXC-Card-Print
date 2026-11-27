@@ -77,7 +77,7 @@ public sealed partial class ShellViewModel : INotifyPropertyChanged
              SettingsLocation.Mode == ConfigurationStorage.Cloud ? "cloud" : "appdata"));
         _selectedTheme = ThemeOptions.First(o => o.Code == settings.Theme);
         _selectedLanguage = LanguageOptions.First(o => o.Code == settings.Language);
-        _activeTab = Math.Clamp(settings.ActiveTab,0,3);
+        _activeTab = Math.Clamp(settings.ActiveTab,0,4);
         InitializeVault();
         InitializeCardPreview();
     }
@@ -135,15 +135,22 @@ public sealed partial class ShellViewModel : INotifyPropertyChanged
         }
     }
 
+    public const int ScannerTabIndex = 2;
+    public const int SettingsTabIndex = 3;
+    public const int AboutTabIndex = 4;
+    public bool PrintPreviewActive => ActiveTab != ScannerTabIndex;
+    public int ScannerColumnSpan => PrintPreviewActive ? 1 : 3;
     public int ActiveTab
     {
         get => _activeTab;
         set
         {
-            if (value == _activeTab || value is < 0 or > 3) return;
+            if (value == _activeTab || value is < 0 or > AboutTabIndex) return;
             _activeTab = value;
             _settings.ActiveTab = value;
             Changed();
+            Changed(nameof(PrintPreviewActive));
+            Changed(nameof(ScannerColumnSpan));
             OnTemplateEditorTabChanged();
             PreferencesChanged?.Invoke(this, EventArgs.Empty);
         }
@@ -177,6 +184,7 @@ public sealed partial class ShellViewModel : INotifyPropertyChanged
         nameof(YubiShortHelp),
         nameof(TabSource),
         nameof(TabTemplate),
+        nameof(TabScanner),
         nameof(TabSettings),
         nameof(TabAbout),
         nameof(SourceTitle),
@@ -331,6 +339,7 @@ public sealed partial class ShellViewModel : INotifyPropertyChanged
     public string Storage => Localizer.Text(_settings.Language, "Storage");
     public string TabSource => Localizer.Text(_settings.Language, "TabSource");
     public string TabTemplate => Localizer.Text(_settings.Language, "TabTemplate");
+    public string TabScanner => Localizer.Text(_settings.Language, "TabScanner");
     public string TabSettings => Localizer.Text(_settings.Language, "TabSettings");
     public string TabAbout => Localizer.Text(_settings.Language, "TabAbout");
     public string SourceTitle => Localizer.Text(_settings.Language, "SourceTitle");

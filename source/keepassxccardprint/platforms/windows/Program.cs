@@ -83,6 +83,15 @@ internal static class Program
         if(WindowsUpdateService.LaunchInterruptedRecovery(args))return;
         UpdaterHost.ReinstallRequested=args.Contains("--reinstall",StringComparer.Ordinal);
         WindowsHost.Configure();
+        if (args.Contains("--self-test-scanner", StringComparer.Ordinal))
+        {
+            int status = ScannerSelfTests.Run();
+            int index = Array.IndexOf(args, "--self-test-scanner");
+            if (index >= 0 && index + 1 < args.Length && !args[index + 1].StartsWith("--", StringComparison.Ordinal))
+                File.WriteAllText(args[index + 1], ScannerSelfTests.Report);
+            Environment.ExitCode = status;
+            return;
+        }
         if(args.Contains("--self-test-updates",StringComparer.Ordinal))
         {
             int status=UpdateSelfTests.Run();

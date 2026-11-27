@@ -41,7 +41,10 @@ public sealed class AboutViewModel : INotifyPropertyChanged
             new("FluentIcons.Avalonia", AboutDependencyVersions.FluentIcons),
             new("DgNet.Keepass", AboutDependencyVersions.KeePass),
             new("Yubico.YubiKey", AboutDependencyVersions.YubiKey),
-            new("QRCoder", AboutDependencyVersions.QRCoder)
+            new("QRCoder", AboutDependencyVersions.QRCoder),
+            new("ZXing.Net", ScannerDependencyVersions.ZXing),
+            new("FlashCap", ScannerDependencyVersions.FlashCap),
+            new("PDFium", ScannerDependencyVersions.Pdfium)
         };
         foreach (var dependency in PlatformServices.Current.PlatformDependencies)
             Libraries.Add(new AboutLibraryVersion(dependency.Name, dependency.Version));

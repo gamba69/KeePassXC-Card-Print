@@ -31,7 +31,11 @@ try {
         try {
             $names = @($archive.Entries | ForEach-Object { $_.FullName })
             foreach ($required in @('KeePassXCCardPrint.exe', 'KpcXpsBridge.dll',
-                'LICENSE', 'THIRD_PARTY_NOTICES.md', 'README.md')) {
+                'LICENSE', 'THIRD_PARTY_NOTICES.md', 'README.md', 'KpcVideoBridge.dll', 'libde265.dll',
+                'KpcVendorVideo.dll', 'libvpl.dll', 'licenses/vendor-video/oneVPL-LICENSE.txt',
+                'licenses/vendor-video/oneVPL-third-party-programs.txt', 'licenses/vendor-video/AMF-LICENSE.txt',
+                'licenses/vendor-video/NVIDIA-dynlink_cuda.h.txt', 'licenses/vendor-video/NVIDIA-dynlink_cuviddec.h.txt', 'licenses/vendor-video/NVIDIA-dynlink_nvcuvid.h.txt',
+                'licenses/libde265/COPYING.txt', 'licenses/libde265/libde265-1.1.3.tar.gz', 'licenses/libde265/build-libde265.ps1')) {
                 if ($names -cnotcontains $required) { throw "Missing packaged file: $required" }
             }
             $fontEntries = @($names | Where-Object { $_ -match '^fonts/[^/]+[.]ttf$' })
