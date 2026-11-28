@@ -716,37 +716,41 @@ public sealed class ScannerView : UserControl
             try
             {
                 await NetworkCameraSource.Run(profile,(bytes,sample)=>OnNetworkFrame(bytes,sample,generation),
-                    (state,retries)=>Dispatcher.UIThread.Post(()=>NetworkStateChanged(generation,state,retries)),cancel.Token,diagnostic:detail=>Dispatcher.UIThread.Post(()=>{if(generation==_generation){_networkDetail=detail;ShowNetworkState();}}),
+                    (state,retries)=>Dispatcher.UIThread.Post(()=>NetworkStateChanged(generation,state,retries)),cancel.Token,diagnostic:detail=>Dispatcher.UIThread.Post(()=>{if(generation==_generation&&NetworkLive)_networkDetail=detail;}),
                     streamCodec:codec=>Dispatcher.UIThread.Post(()=>{if(generation==_generation&&NetworkLive&&(_streamCodec!=codec||_codecProfileKey!=CodecKey(profile))){_streamCodec=codec;_codecProfileKey=CodecKey(profile);PopulateDecoder();UpdateControls();}}));
             }
-            catch{Dispatcher.UIThread.Post(()=>NetworkStateChanged(generation,NetworkCameraState.Error,0));}
+            catch{Dispatcher.UIThread.Post(()=>NetworkStateChanged(generation,NetworkCameraState.Error,_networkRetries));}
             finally
             {
                 Dispatcher.UIThread.Post(()=>
                 {
-                    if(generation!=_generation||!NetworkLive)return;
-                    _networkEnded=true;
-                    if(_networkState is NetworkCameraState.Receiving or NetworkCameraState.Connecting or NetworkCameraState.Retrying)
-                        NetworkStateChanged(generation,NetworkCameraState.Error,_networkRetries);
-                    UpdateControls();
+                    if(generation!=_generation||!NetworkLive||_networkEnded)return;
+                    NetworkStateChanged(generation,NetworkCameraState.Error,_networkRetries);
                 });
             }
         });
     }
     private void NetworkStateChanged(int generation,NetworkCameraState state,int retries)
     {
-        if(!_active||generation!=_generation||!NetworkLive)return;
+        if(!_active||generation!=_generation||!NetworkLive||_networkEnded)return;
+        var previous=_networkState;
+        bool wasWaiting=previous is NetworkCameraState.Connecting or NetworkCameraState.Retrying;
+        bool waiting=state is NetworkCameraState.Connecting or NetworkCameraState.Retrying;
         _networkState=state;_networkRetries=retries;
-        if(state!=NetworkCameraState.Receiving)
+        _networkEnded=!waiting&&state!=NetworkCameraState.Receiving;
+        // Invalidate outstanding frames and clear diagnostics only on actual stream loss.
+        if(previous==NetworkCameraState.Receiving&&state!=NetworkCameraState.Receiving)
         {
             _networkTls=false;_networkFps=_networkDecodeMs=null;_networkWidth=_networkHeight=0;_networkFormat="";
-            if(state!=NetworkCameraState.Connecting&& !_frozen)
+            if(!_frozen)
             {
                 Interlocked.Increment(ref _freezeEpoch);ResetSamples();DropImage();_quality=_analyzedQuality=null;_selectedBurstCount=0;
-                _dashboard.Clear();_lastSeen.Clear();_suppressed.Clear();RenderSurface();UpdateStatus();UpdateControls();
+                _dashboard.Clear();_lastSeen.Clear();_suppressed.Clear();RenderSurface();UpdateStatus();
             }
         }
-        ShowNetworkState();UpdateControls();
+        ShowNetworkState();
+        // A retry-counter change does not change the workspace or its camera command.
+        if(previous!=state&&!(wasWaiting&&waiting))UpdateControls();
     }
     private void ShowNetworkState()
     {
@@ -765,10 +769,12 @@ public sealed class ScannerView : UserControl
         _networkProtection.IsVisible=plain||unverified;
         ToolTip.SetTip(_networkProtection,_networkProtection.IsVisible?protection:null);
         Avalonia.Automation.AutomationProperties.SetName(_networkProtection,protection);
-        ToolTip.SetTip(_networkStatus,protection+(_networkDecodeMs is { } ms?"\n"+T("Декодирование и BGRA","Декодування та BGRA","Decoding and BGRA")+$": {ms:F1} ms":""));
-        // Status is already above the format. Show only useful extra information.
-        _networkTechnical.Text=(_networkRetries>0?T("Переподключений","Перепідключень","Reconnects")+$": {_networkRetries}":"")+
-            (_networkDetail.Length==0?"":(_networkRetries>0?"\n":"")+_networkDetail);
+        bool retrying=_networkState is NetworkCameraState.Connecting or NetworkCameraState.Retrying;
+        ToolTip.SetTip(_networkStatus,protection+(_networkDecodeMs is { } ms?"\n"+T("Декодирование и BGRA","Декодування та BGRA","Decoding and BGRA")+$": {ms:F1} ms":"")+
+            (retrying&&_networkDetail.Length>0?"\n"+_networkDetail:""));
+        // Reserve the counter row from the start. Retry details must not resize the panel.
+        _networkTechnical.Text=T("Переподключений","Перепідключень","Reconnects")+$": {_networkRetries}"+
+            (!retrying&&_networkDetail.Length>0?"\n"+_networkDetail:"");
         _networkTechnical.IsVisible=_networkTechnical.Text.Length>0;
         UpdateSourceSummary();
     }

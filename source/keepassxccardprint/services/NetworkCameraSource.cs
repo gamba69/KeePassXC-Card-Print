@@ -26,9 +26,11 @@ internal static class NetworkCameraSource
         bool rtsp = uri.Scheme is "rtsp" or "rtsps";
         bool tls = uri.Scheme is "https" or "rtsps";
         int reconnects = 0;
+        if (ct.IsCancellationRequested) return;
+        diagnostic?.Invoke("");status(NetworkCameraState.Connecting,reconnects);
+        // Retrying covers both the backoff and subsequent connection attempts.
         while (!ct.IsCancellationRequested)
         {
-            diagnostic?.Invoke("");status(NetworkCameraState.Connecting,reconnects);
             long previous = 0;
             bool received = false;
             var watch = Stopwatch.StartNew();
@@ -46,7 +48,7 @@ internal static class NetworkCameraSource
                         double? fps = interval is double ms ? 1000/ms : null;
                         double? kbps = !rtsp && interval is double dt ? payloadBytes*8.0/dt : null;
                         previous = now;
-                        if(!received)status(NetworkCameraState.Receiving,reconnects);
+                        if(!received){diagnostic?.Invoke("");status(NetworkCameraState.Receiving,reconnects);}
                         received = true;
                         frame(bitmap,new(payloadBytes,elapsed,interval,fps,kbps,reconnects,format,tls && !(rtsp && profile.Engine=="ffmpeg"),w,h,decodeMs));
                         handedOff = true;
@@ -70,9 +72,15 @@ internal static class NetworkCameraSource
                     HttpRequestException { HttpRequestError: HttpRequestError.SecureConnectionError } => NetworkCameraState.Certificate,
                     _ => NetworkCameraState.Error
                 };
-                diagnostic?.Invoke(ex is NetworkCameraException error?error.Detail:"");status(state,reconnects);
-                if (once) throw ex is NetworkCameraException known?known:new NetworkCameraException(state);
-                if (!profile.Reconnect || state is NetworkCameraState.Authentication or NetworkCameraState.Certificate or NetworkCameraState.DecoderMissing or NetworkCameraState.SystemCodecMissing or NetworkCameraState.VideoInitializationFailed or NetworkCameraState.VideoDecodeFailed or NetworkCameraState.Unsupported) return;
+                if (ct.IsCancellationRequested) return;
+                diagnostic?.Invoke(ex is NetworkCameraException error?error.Detail:"");
+                // Publish only the final outcome, never an intermediate error followed by Retrying.
+                if (once || !ShouldReconnect(profile.Reconnect,state))
+                {
+                    status(state,reconnects);
+                    if (once) throw ex is NetworkCameraException known?known:new NetworkCameraException(state);
+                    return;
+                }
             }
             if (ct.IsCancellationRequested) return;
             status(NetworkCameraState.Retrying,++reconnects);
@@ -80,6 +88,9 @@ internal static class NetworkCameraSource
             catch (OperationCanceledException) { return; }
         }
     }
+
+    internal static bool ShouldReconnect(bool enabled,NetworkCameraState state)=>
+        enabled&&state is not (NetworkCameraState.Authentication or NetworkCameraState.Certificate or NetworkCameraState.DecoderMissing or NetworkCameraState.SystemCodecMissing or NetworkCameraState.VideoInitializationFailed or NetworkCameraState.VideoDecodeFailed or NetworkCameraState.Unsupported);
 
     internal static SKBitmap DecodeJpeg(byte[] bytes)
     {

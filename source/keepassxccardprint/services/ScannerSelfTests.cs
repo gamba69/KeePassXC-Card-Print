@@ -34,6 +34,11 @@ internal static class ScannerSelfTests
             Require(ScannerWorkspace.InputActions(ScannerInputKind.Camera)==(true,false,false),"Camera-only input actions");
             Require(ScannerWorkspace.InputActions(ScannerInputKind.File)==(false,true,false),"File-only input actions");
             Require(ScannerWorkspace.InputActions(ScannerInputKind.Clipboard)==(false,false,true),"Clipboard-only input actions");
+            // Transient failures stay in the retry lifecycle; permanent failures end it.
+            foreach(var state in new[]{NetworkCameraState.Timeout,NetworkCameraState.Error})
+                Require(NetworkCameraSource.ShouldReconnect(true,state)&&!NetworkCameraSource.ShouldReconnect(false,state),"Network retry policy: "+state);
+            foreach(var state in new[]{NetworkCameraState.Authentication,NetworkCameraState.Certificate,NetworkCameraState.DecoderMissing,NetworkCameraState.SystemCodecMissing,NetworkCameraState.VideoInitializationFailed,NetworkCameraState.VideoDecodeFailed,NetworkCameraState.Unsupported})
+                Require(!NetworkCameraSource.ShouldReconnect(true,state),"Terminal network failure: "+state);
             // RFC 6238, Appendix B: public test vectors, never a user's secret.
             string prefix = "otpauth:" + "//totp/Test?";
             using var totp = ScannerPayload.Parse(prefix + "secret=" + "GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ" + "&digits=8");

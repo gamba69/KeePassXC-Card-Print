@@ -1,5 +1,9 @@
 # Changelog
 
+## [11.3.9] - 2026-11-27
+
+- Keep the scanner connection indicator and layout stable during automatic network camera retries; avoid transient error states and repeated diagnostic resets while preserving terminal errors and retry counts.
+
 ## [11.3.8] - 2026-11-27
 
 - Align the decoder selector and diagnostics icon, expose recognition and local camera controls in compact wrapping rows, remove duplicate resolution from measurement statistics, center the fixed-initial-size decoder diagnostics window on the screen, and use consistent single-word search mode names.
