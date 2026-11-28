@@ -19,7 +19,7 @@ internal static class CameraManagerDialog
         var win=new Window{Title=T("Управление камерами","Керування камерами","Manage cameras"),Width=650,Height=350,MinWidth=460,MinHeight=270,WindowStartupLocation=WindowStartupLocation.CenterOwner,ShowInTaskbar=false};
         PrintWindowIcons.Attach(win);
         var root=new Grid{Margin=new Thickness(12),RowDefinitions=new RowDefinitions("Auto,Auto,*,Auto,Auto"),RowSpacing=6};win.Content=root;
-        var help=new TextBlock{Text=T("Локальные камеры обнаруживаются автоматически. Сетевые камеры добавляются вручную. Выбор камеры не запускает её.","Локальні камери виявляються автоматично. Мережеві камери додаються вручну. Вибір камери не запускає її.","Local cameras are detected automatically. Add network cameras manually. Choosing a camera does not start it."),TextWrapping=TextWrapping.Wrap};root.Children.Add(help);
+        var help=new TextBlock{Text=T("Локальные камеры обнаруживаются автоматически. Сетевые камеры: ONVIF или прямой адрес. Выбор камеры не запускает её.","Локальні камери виявляються автоматично. Мережеві камери: ONVIF або пряма адреса. Вибір камери не запускає її.","Local cameras are detected automatically. Network cameras: ONVIF or direct URL. Choosing a camera does not start it."),TextWrapping=TextWrapping.Wrap};root.Children.Add(help);
         var actions=new WrapPanel();Grid.SetRow(actions,1);root.Children.Add(actions);
         Button Button(string title,Icon icon,Panel panel){var b=PrintDialogButtons.Create(title,ActionIconVectors.Create(icon));b.Margin=new Thickness(0,0,5,2);panel.Children.Add(b);return b;}
         Button Tool(string title,Icon icon)
@@ -28,6 +28,7 @@ internal static class CameraManagerDialog
             button.Classes.Add("preview-tool");ToolTip.SetTip(button,title);Avalonia.Automation.AutomationProperties.SetName(button,title);actions.Children.Add(button);return button;
         }
         var add=Tool(T("Добавить сетевую камеру","Додати мережеву камеру","Add network camera"),Icon.Add);
+        var addOnvif=Tool(T("Поиск и добавление ONVIF","Пошук і додавання ONVIF","Discover and add ONVIF"),Icon.Link);
         var edit=Tool(T("Изменить камеру","Змінити камеру","Edit camera"),Icon.Rename);
         var delete=Tool(T("Удалить камеру","Видалити камеру","Delete camera"),Icon.Delete);
         var refresh=Tool(T("Обновить список локальных камер","Оновити список локальних камер","Refresh local cameras"),Icon.ArrowSync);
@@ -44,7 +45,7 @@ internal static class CameraManagerDialog
         var changed=new HashSet<string>();string? chosen=null;List<NetworkCameraProfile> profiles=[];List<Item> items=[];bool storeOk=true,busy=false;
         try{profiles=NetworkCameraProfiles.Load();}catch{storeOk=false;feedback.Text=T("Не удалось открыть хранилище сетевых камер. Существующие данные не изменены.","Не вдалося відкрити сховище мережевих камер. Наявні дані не змінено.","Could not open network camera storage. Existing data has not been changed.");}
         Item? Current()=>list.SelectedIndex>=0&&list.SelectedIndex<items.Count?items[list.SelectedIndex]:null;
-        void Controls(){refresh.IsEnabled=refreshLocal is not null&&!busy;add.IsEnabled=storeOk&&!busy;edit.IsEnabled=delete.IsEnabled=storeOk&&!busy&&Current()?.Profile is not null;choose.IsEnabled=!busy&&Current() is not null;list.IsEnabled=!busy;close.IsEnabled=!busy;}
+        void Controls(){refresh.IsEnabled=refreshLocal is not null&&!busy;add.IsEnabled=addOnvif.IsEnabled=storeOk&&!busy;edit.IsEnabled=delete.IsEnabled=storeOk&&!busy&&Current()?.Profile is not null;choose.IsEnabled=!busy&&Current() is not null;list.IsEnabled=!busy;close.IsEnabled=!busy;}
         void Reload(string? key)
         {
             items=local.Select(name=>new Item(name,name,T("Локальная","Локальна","Local"),T("Обнаружена","Виявлена","Detected"),null))
@@ -64,13 +65,13 @@ internal static class CameraManagerDialog
             try{NetworkCameraProfiles.Save(next);profiles=next;return true;}
             catch{feedback.Text=T("Не удалось сохранить список камер. Изменения не применены.","Не вдалося зберегти список камер. Зміни не застосовано.","Could not save the camera list. Changes were not applied.");return false;}
         }
-        async Task Edit(NetworkCameraProfile? old)
+        async Task Edit(NetworkCameraProfile? old,bool startOnvif=false)
         {
             if(busy||!storeOk)return;busy=true;Controls();
             try
             {
-                var p=await NetworkCameraDialog.Edit(win,old,profiles,updated=>Save(profiles.Where(x=>x.Id!=updated.Id).Append(updated).OrderBy(x=>x.Name,StringComparer.CurrentCultureIgnoreCase).ToList()));if(p is null)return;
-                changed.Add(p.Id);feedback.Text=T("Камера сохранена. Для запуска выберите её в списке сканера.","Камеру збережено. Для запуску оберіть її у списку сканера.","Camera saved. Select it in the scanner to start.");Reload("network:"+p.Id);
+                var p=await NetworkCameraDialog.Edit(win,old,profiles,updated=>Save(profiles.Where(x=>x.Id!=updated.Id).Append(updated).OrderBy(x=>x.Name,StringComparer.CurrentCultureIgnoreCase).ToList()),startOnvif);if(p is null)return;
+                changed.Add(p.Id);feedback.Text=T("Камера сохранена. Для запуска выберите её на вкладке «Сканирование».","Камеру збережено. Для запуску оберіть її на вкладці «Сканування».","Camera saved. Select it on the Scan tab to start.");Reload("network:"+p.Id);
             }
             finally{busy=false;Controls();}
         }
@@ -82,6 +83,7 @@ internal static class CameraManagerDialog
             finally{busy=false;Controls();}
         };
         add.Click+=async (_,_)=>await Edit(null);edit.Click+=async (_,_)=>{if(Current()?.Profile is { } p)await Edit(p);};
+        addOnvif.Click+=async (_,_)=>await Edit(null,true);
         delete.Click+=async (_,_)=>
         {
             if(busy||!storeOk||Current()?.Profile is not { } p)return;

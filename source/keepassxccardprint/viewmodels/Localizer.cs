@@ -31,7 +31,7 @@ public static class Localizer
         ["AboutCopied"] = ("Сводка скопирована", "Зведення скопійовано", "Summary copied"),
         ["AboutCopyFailed"] = ("Буфер обмена недоступен", "Буфер обміну недоступний", "Clipboard unavailable"),
         ["AboutRepositoryOpenFailed"] = ("Не удалось открыть ссылку — адрес можно скопировать", "Не вдалося відкрити посилання — адресу можна скопіювати", "Could not open the link — you can copy its address"),
-        ["TabScanner"] = ("Сканер", "Сканер", "Scanner"),
+        ["TabScanner"] = ("Сканирование", "Сканування", "Scan"),
         ["TabSettings"] = ("Настройки", "Налаштування", "Settings"),
         ["TabAbout"] = ("О программе", "Про програму", "About"),
         ["AboutPurposeTitle"] = ("О приложении", "Про застосунок", "About the application"),

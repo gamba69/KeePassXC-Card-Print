@@ -22,6 +22,20 @@ internal sealed class NetworkCameraProfile
     public string Decoder { get; set; } = "auto";
     public bool DecoderFallback { get; set; } = false;
     public bool RtspUdp { get; set; } // plaintext RTSP only; never available for RTSPS
+    // ONVIF is an optional, independently authenticated device-control channel.
+    public string OnvifAddress { get; set; } = "";
+    public string OnvifUser { get; set; } = "";
+    public string OnvifPassword { get; set; } = "";
+    public bool OnvifAllowHttp { get; set; }
+    public string OnvifProfileToken { get; set; } = "";
+    public string OnvifMediaService { get; set; } = "";
+    public string OnvifIdentity { get; set; } = "";
+    internal bool HasOnvif=>OnvifAddress.Length>0&&OnvifProfileToken.Length>0;
+    internal void CopyOnvif(NetworkCameraProfile other)
+    {
+        OnvifAddress=other.OnvifAddress;OnvifUser=other.OnvifUser;OnvifPassword=other.OnvifPassword;OnvifAllowHttp=other.OnvifAllowHttp;
+        OnvifProfileToken=other.OnvifProfileToken;OnvifMediaService=other.OnvifMediaService;OnvifIdentity=other.OnvifIdentity;
+    }
 
     internal NetworkCameraProfile WithDecoder(string decoder,bool fallback)
     {

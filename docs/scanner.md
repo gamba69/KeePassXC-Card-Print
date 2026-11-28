@@ -1,4 +1,12 @@
-# QR Scanner (11.0)
+# Scan — QR recognition
+
+## ONVIF (11.4.0)
+
+In camera management, use the ONVIF action or Link ONVIF in the network camera editor. Discover IPv4 cameras on local interfaces or enter the device-service URL. Connect using the ONVIF account, choose a media profile, then review the stream URL and transport consent in the ordinary network camera editor. ONVIF and stream credentials can differ. Existing direct URLs remain supported.
+
+The Scan tab exposes ONVIF controls for a linked camera. Available imaging and encoder fields come from the device's reported options and current configuration. Changes to persistent camera settings and presets require explicit confirmation. Restore returns the settings read when the section was opened. The video reader is independent and continues using SharpRTSP or FFmpeg. Control calls use HTTP Digest and/or WS-Security UsernameToken, verified HTTPS, explicit consent for HTTP, bounded responses, and cancellable timeouts. Credentials and endpoints stay in the device-local DPAPI store. Discovery does not send credentials. Devices reporting a different host for a service or stream must be configured using their actual same-host service endpoint; redirects are not followed.
+
+Windows validation: discover cameras on multiple interfaces; test manual endpoints, invalid credentials and untrusted TLS; select both Media and Media2 profiles; test imaging and encoder readback, PTZ and presets; disconnect ONVIF during streaming and verify the independent video path; check cancellation and unchanged legacy profiles. Hardware support and writable fields depend on advertised capabilities. No ONVIF certification is claimed.
 
 The scanner is an independent full-width workspace. It does not require an open
 KDBX and does not modify a vault. Open an image/PDF, paste text or an image, drop

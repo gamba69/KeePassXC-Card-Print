@@ -41,7 +41,7 @@ internal sealed class ScannerDashboard : StackPanel
         new(Metric.Dark,"Тёмные пиксели","Темні пікселі","Dark pixels","%",0),
         new(Metric.Bright,"Светлые пиксели","Світлі пікселі","Bright pixels","%",0),
         new(Metric.Attempts,"Попытки за поиск","Спроби за пошук","Attempts per scan","",0),
-        new(Metric.DecodeMs,"Время поиска","Час пошуку","Scan time","ms",0),
+        new(Metric.DecodeMs,"Время поиска","Час пошуку","Scan time","ms",500,null,true),
         new(Metric.Finders,"Кандидаты ориентиров","Кандидати орієнтирів","Finder candidates","",0),
         new(Metric.Located,"Локализация","Локалізація","Localization","%",0),
         new(Metric.Decoded,"Декодировано QR","Декодовано QR","Decoded QR","",0),
@@ -65,7 +65,7 @@ internal sealed class ScannerDashboard : StackPanel
         internal Definition Def=definition;
         internal ScannerMetricWindow Window=new();
         internal double? Value;
-        internal TextBlock Name=new(){TextWrapping=TextWrapping.Wrap,FontSize=11};
+        internal TextBlock Name=new(){TextWrapping=TextWrapping.NoWrap,TextTrimming=TextTrimming.CharacterEllipsis,FontSize=11};
         internal TextBlock Current=new(){FontSize=11,HorizontalAlignment=HorizontalAlignment.Right};
         internal TextBlock P05=new(){FontSize=11,HorizontalAlignment=HorizontalAlignment.Right};
         internal TextBlock P95=new(){FontSize=11,HorizontalAlignment=HorizontalAlignment.Right};
@@ -73,6 +73,7 @@ internal sealed class ScannerDashboard : StackPanel
         internal TextBlock Title=new(){FontSize=11,TextWrapping=TextWrapping.Wrap};
         internal TextBlock Rating=new(){FontSize=11,TextWrapping=TextWrapping.Wrap};
         internal Sparkline? Graph;
+        internal Border? Card;
     }
     private readonly Dictionary<Metric,Entry> _entries=Definitions.ToDictionary(d=>d.Id,d=>new Entry(d));
     private readonly TextBlock _heading=new(){FontSize=14,FontWeight=FontWeight.SemiBold};
@@ -80,6 +81,8 @@ internal sealed class ScannerDashboard : StackPanel
     private readonly TextBlock _windowLabel=new(){FontSize=11,TextWrapping=TextWrapping.Wrap};
     private readonly TextBlock _detailHeading=new(){FontSize=13,FontWeight=FontWeight.SemiBold};
     private readonly TextBlock _legend=new(){FontSize=11,TextWrapping=TextWrapping.Wrap};
+    private readonly Grid _detailHeader=new(){ColumnDefinitions=new ColumnDefinitions("*,Auto"),ColumnSpacing=6};
+    private readonly CheckBox _allMetrics=new(){FontSize=11,IsVisible=false};
     private readonly TextBlock[] _metricHeaders=Enumerable.Range(0,3).Select(_=>new TextBlock{FontSize=11}).ToArray(),
         _nowHeaders=Enumerable.Range(0,3).Select(_=>new TextBlock{FontSize=11,HorizontalAlignment=HorizontalAlignment.Right}).ToArray();
     private readonly Button _reset=new();
@@ -88,7 +91,8 @@ internal sealed class ScannerDashboard : StackPanel
     private int _cardColumns;
     private int _tableColumns;
     private Metric[] _shownMetrics=[];
-    private readonly List<Grid> _metricGroups=[];
+    // Fixed priorities prevent visible cards from jumping when QR detection fluctuates.
+    private static readonly Metric[] CardPriority=[Metric.Module,Metric.Detail,Metric.Contrast,Metric.Light,Metric.FrameContrast,Metric.Change,Metric.FrameDetail,Metric.DecodeMs];
     private ScanDiagnostics? _completed;
     private ScannerImageQuality? _frame;
     private long _lastRender;
@@ -114,88 +118,110 @@ internal sealed class ScannerDashboard : StackPanel
             var value=new WrapPanel();e.Large.Margin=new Thickness(0,0,5,0);e.Rating.VerticalAlignment=VerticalAlignment.Center;
             value.Children.Add(e.Large);value.Children.Add(e.Rating);content.Children.Add(value);
             e.Graph=new Sparkline{Height=14,Scale=e.Def.GraphMax};content.Children.Add(e.Graph);
-            var card=new Border{Padding=new Thickness(5),Child=content};card.Classes.Add("settings-card");_cards.Children.Add(card);
+            var card=new Border{Padding=new Thickness(5),Child=content};card.Classes.Add("settings-card");e.Card=card;_cards.Children.Add(card);
         }
-        Children.Add(_cards);Children.Add(_detailHeading);Children.Add(_windowLabel);Children.Add(_details);Children.Add(_legend);
+        _detailHeading.VerticalAlignment=VerticalAlignment.Center;
+        _detailHeader.Children.Add(_detailHeading);Grid.SetColumn(_allMetrics,1);_detailHeader.Children.Add(_allMetrics);
+        _allMetrics.IsCheckedChanged+=(_,_)=>ReflowMeasurements(Bounds.Width);
+        Children.Add(_cards);Children.Add(_detailHeader);Children.Add(_windowLabel);Children.Add(_details);Children.Add(_legend);
         Reflow(0);SizeChanged+=(_,e)=>Reflow(e.NewSize.Width);Localize();Refresh(true);
     }
+    // Keep complete rows at each width. The eighth useful card is scan time.
+    internal static (int Columns,int Count) CardLayout(double width)=>width>=720?(4,8):width>=475?(3,6):width>0&&width<240?(1,4):(2,6);
     private void Reflow(double width)
     {
-        // Change layout only when the actual sidebar width crosses a breakpoint.
-        int columns=width>=720?4:width>=475?3:width>0&&width<240?1:2;
+        var layout=CardLayout(width);int columns=layout.Columns;
         if(columns!=_cardColumns)
         {
             _cardColumns=columns;
             _cards.ColumnDefinitions=new ColumnDefinitions(string.Join(",",Enumerable.Repeat("*",columns)));
             _cards.RowDefinitions.Clear();
-            for(int i=0;i<_cards.Children.Count;i++)
+            var visible=CardPriority.Take(layout.Count).ToHashSet();
+            for(int i=0;i<layout.Count/columns;i++)_cards.RowDefinitions.Add(new RowDefinition{Height=GridLength.Auto});
+            int index=0;
+            foreach(var e in _entries.Values)
             {
-                if(i%columns==0)_cards.RowDefinitions.Add(new RowDefinition{Height=GridLength.Auto});
-                Grid.SetRow(_cards.Children[i],i/columns);Grid.SetColumn(_cards.Children[i],i%columns);
+                if(e.Card is not { } card)continue;
+                card.IsVisible=visible.Contains(e.Def.Id);
+                if(!card.IsVisible)continue;
+                Grid.SetRow(card,index/columns);Grid.SetColumn(card,index%columns);index++;
             }
         }
         ReflowMeasurements(width);
     }
-    // Only currently applicable values are displayed. Zero is a real measurement;
-    // a missing value is not. Retain historical samples for metrics that reappear.
+    // Keep all measurements in memory. Only redundant/secondary rows are omitted
+    // when a multi-column display would otherwise have an incomplete last row.
+    private static int MeasurementPriority(Metric metric)=>metric switch
+    {
+        Metric.NetInterval=>4, // inverse of received FPS
+        Metric.DecoderDetail or Metric.DecoderContrast or Metric.RawModule=>3,
+        Metric.FrameEdge or Metric.QrEdge or Metric.AreaEdge or Metric.SelectedDetail=>2,
+        Metric.Burst or Metric.Side or Metric.Modules or Metric.NetBytes=>1,
+        _=>0
+    };
+    internal static (int Columns,int Count) MeasurementLayout(double width,int available,bool all)
+    {
+        int columns=Math.Min(TableColumns(width),Math.Max(1,available));
+        if(all)while(available%columns!=0)columns--;
+        return (columns,available-available%columns);
+    }
     private void ReflowMeasurements(double width)
     {
-        var ordered=_entries.Values.Where(e=>e.Value.HasValue&&e.Def.Id!=Metric.FrameLight).ToArray();
-        var metrics=ordered.Select(e=>e.Def.Id).ToArray();
-        int tables=Math.Min(TableColumns(width),Math.Max(1,ordered.Length));
-        _detailHeading.IsVisible=_windowLabel.IsVisible=_details.IsVisible=ordered.Length>0;
+        var available=_entries.Values.Where(e=>e.Value.HasValue&&e.Def.Id!=Metric.FrameLight).ToArray();
+        var compact=MeasurementLayout(width,available.Length,false);
+        bool all=_allMetrics.IsChecked==true;
+        _allMetrics.IsVisible=available.Length>compact.Count||all;
+        var layout=MeasurementLayout(width,available.Length,all);
+        // Preserve the established semantic order after selecting the highest priorities.
+        var selected=available.OrderBy(e=>MeasurementPriority(e.Def.Id)).Take(layout.Count).Select(e=>e.Def.Id).ToHashSet();
+        var ordered=available.Where(e=>selected.Contains(e.Def.Id)).ToArray();
+        var metrics=ordered.Select(e=>e.Def.Id).ToArray();int tables=layout.Columns;
+        _detailHeader.IsVisible=_windowLabel.IsVisible=_details.IsVisible=ordered.Length>0;
         if(_tableColumns==tables&&_shownMetrics.SequenceEqual(metrics))return;
         _tableColumns=tables;_shownMetrics=metrics;
-        // Remove each reusable text control from its previous group before reparenting.
-        foreach(var group in _metricGroups)group.Children.Clear();
-        _metricGroups.Clear();_details.Children.Clear();
-        _details.ColumnDefinitions=new ColumnDefinitions(string.Join(",",Enumerable.Repeat("*",tables)));
-        _details.ColumnSpacing=8;
-        int first=0;
-        for(int group=0;group<tables&&first<ordered.Length;group++)
+        _details.Children.Clear();_details.RowDefinitions.Clear();
+        // All column groups share the same physical rows. Long names use an
+        // ellipsis and a tooltip, never a second line or an unequal row height.
+        _details.ColumnDefinitions=new ColumnDefinitions(string.Join(",5,",Enumerable.Repeat("*,44,38,38",tables)));
+        int rows=ordered.Length/tables;
+        if(rows==0)return;
+        for(int row=0;row<=rows;row++)_details.RowDefinitions.Add(new RowDefinition{Height=GridLength.Auto});
+        for(int group=0;group<tables;group++)
         {
-            // Independent tables prevent wrapped labels on one side from adding
-            // empty vertical space to unrelated rows in another group.
-            var table=new Grid{ColumnDefinitions=new ColumnDefinitions("*,44,38,38"),ColumnSpacing=3,RowSpacing=0,VerticalAlignment=VerticalAlignment.Top};
-            _metricGroups.Add(table);Grid.SetColumn(table,group);_details.Children.Add(table);
-            table.RowDefinitions.Add(new RowDefinition{Height=GridLength.Auto});
-            Header(table,_metricHeaders[group],_nowHeaders[group]);
-            int rows=ordered.Length/tables+(group<ordered.Length%tables?1:0);
-            for(int i=0;i<rows;i++)
-            {
-                table.RowDefinitions.Add(new RowDefinition{Height=GridLength.Auto});
-                MetricRow(table,ordered[first+i],i+1);
-            }
-            first+=rows;
+            int column=group*5;
+            Header(_details,_metricHeaders[group],_nowHeaders[group],column);
+            for(int i=0;i<rows;i++)MetricRow(_details,ordered[group*rows+i],i+1,column);
         }
     }
     // Physical pixels are not DIPs. Keep the existing responsive breakpoints.
     internal static int TableColumns(double width)=>width>=720?3:width>=480?2:1;
-    private static void Header(Grid table,TextBlock name,TextBlock now)
+    private static void Header(Grid table,TextBlock name,TextBlock now,int column)
     {
-        Put(table,name,0,0);Put(table,now,0,1);
-        Put(table,new TextBlock{Text="P₀₅",HorizontalAlignment=HorizontalAlignment.Right,FontSize=11},0,2);
-        Put(table,new TextBlock{Text="P₉₅",HorizontalAlignment=HorizontalAlignment.Right,FontSize=11},0,3);
+        Put(table,name,0,column);Put(table,now,0,column+1);
+        Put(table,new TextBlock{Text="P₀₅",HorizontalAlignment=HorizontalAlignment.Right,FontSize=11},0,column+2);
+        Put(table,new TextBlock{Text="P₉₅",HorizontalAlignment=HorizontalAlignment.Right,FontSize=11},0,column+3);
     }
-    private static void MetricRow(Grid table,Entry e,int row)
+    private static void MetricRow(Grid table,Entry e,int row,int column)
     {
         if(row%2==0)
         {
             var stripe=new Border{IsHitTestVisible=false};
             stripe.Classes.Add("hyphenation-row");stripe.Classes.Add("stripe");
-            Grid.SetRow(stripe,row);Grid.SetColumnSpan(stripe,4);table.Children.Add(stripe);
+            Grid.SetRow(stripe,row);Grid.SetColumn(stripe,column);Grid.SetColumnSpan(stripe,4);table.Children.Add(stripe);
         }
-        Put(table,e.Name,row,0);Put(table,e.Current,row,1);Put(table,e.P05,row,2);Put(table,e.P95,row,3);
+        Put(table,e.Name,row,column);Put(table,e.Current,row,column+1);Put(table,e.P05,row,column+2);Put(table,e.P95,row,column+3);
     }
     private static void Put(Grid table,Control c,int row,int column){c.Margin=new Thickness(2,1);Grid.SetRow(c,row);Grid.SetColumn(c,column);table.Children.Add(c);}
     internal void Localize()
     {
         _heading.Text=T("Диагностика","Діагностика","Diagnostics");_detailHeading.Text=T("Текущие измерения","Поточні вимірювання","Current measurements");
+        _allMetrics.Content=T("Все показатели","Усі показники","All metrics");
+        ToolTip.SetTip(_allMetrics,T("Показать все доступные измерения без сокращения списка.","Показати всі доступні вимірювання без скорочення списку.","Show every available measurement without shortening the list."));
         foreach(var header in _metricHeaders)header.Text=T("Показатель","Показник","Metric");
         foreach(var header in _nowHeaders)header.Text=T("Сейчас","Зараз","Now");
         var resetContent=new StackPanel{Orientation=Orientation.Horizontal,Spacing=4};resetContent.Children.Add(ActionIconVectors.Create(Icon.ArrowSync));resetContent.Children.Add(new TextBlock{Text=T("Сброс","Скинути","Reset")});_reset.Content=resetContent;
         _legend.Text=T("Красный — плохо · жёлтый — погранично · зелёный — хорошо · серый — нет оценки. Пороги ориентировочные, не гарантия чтения.","Червоний — погано · жовтий — гранично · зелений — добре · сірий — немає оцінки. Пороги орієнтовні, не гарантія читання.","Red — poor · yellow — marginal · green — good · gray — unknown. Thresholds are indicative, not a decoding guarantee.");
-        foreach(var e in _entries.Values){string name=T(e.Def.Ru,e.Def.Uk,e.Def.En);e.Name.Text=name+(e.Def.Unit.Length==0?"":" · "+e.Def.Unit);e.Title.Text=name;if(e.Graph is { } graph)ToolTip.SetTip(graph,T("30 секунд, шкала","30 секунд, шкала","30 seconds, scale")+$": 0–{e.Def.GraphMax}");}
+        foreach(var e in _entries.Values){string name=T(e.Def.Ru,e.Def.Uk,e.Def.En);e.Name.Text=name+(e.Def.Unit.Length==0?"":" · "+e.Def.Unit);ToolTip.SetTip(e.Name,e.Name.Text);e.Title.Text=name;if(e.Graph is { } graph)ToolTip.SetTip(graph,T("30 секунд, шкала","30 секунд, шкала","30 seconds, scale")+$": 0–{e.Def.GraphMax}");}
         Refresh(true);
     }
     private void Set(Metric metric,double? value,long now,bool record)
@@ -255,6 +281,10 @@ internal sealed class ScannerDashboard : StackPanel
                     e.Large.ClearValue(TextBlock.ForegroundProperty);
                     e.Rating.Text=T("Зависит от сцены","Залежить від сцени","Scene-dependent");
                     ToolTip.SetTip(e.Title,T("Перепады яркости по всему кадру зависят от содержимого. Это не самостоятельная оценка фокуса или смаза.","Перепади яскравості всього кадру залежать від вмісту. Це не самостійна оцінка фокуса або розмиття.","Whole-frame intensity changes depend on scene content; this alone does not measure focus or blur."));
+                }
+                if(display.Def.Id==Metric.DecodeMs&&display.Value.HasValue)
+                {
+                    e.Large.ClearValue(TextBlock.ForegroundProperty);e.Rating.Text="";
                 }
                 graph.Set(display.Window.Points(),now,displayBrush,_live&&!_frozen);
             }

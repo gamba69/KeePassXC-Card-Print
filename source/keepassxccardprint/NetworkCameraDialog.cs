@@ -27,7 +27,7 @@ internal static class NetworkCameraDialog
         NetworkCameraState.Timeout=>T("Истекло время ожидания кадра","Минув час очікування кадру","Frame timeout"),
         _=>T("Не удалось получить кадр. Проверьте адрес, сеть и формат.","Не вдалося отримати кадр. Перевірте адресу, мережу та формат.","Could not receive a frame. Check address, network and format.")
     };
-    internal static async Task<NetworkCameraProfile?> Edit(Window owner,NetworkCameraProfile? initial,IReadOnlyList<NetworkCameraProfile> existing,Func<NetworkCameraProfile,bool> persist)
+    internal static async Task<NetworkCameraProfile?> Edit(Window owner,NetworkCameraProfile? initial,IReadOnlyList<NetworkCameraProfile> existing,Func<NetworkCameraProfile,bool> persist,bool startOnvif=false)
     {
         var win=new Window{Title=initial is null?T("Добавить сетевую камеру","Додати мережеву камеру","Add network camera"):T("Изменить сетевую камеру","Змінити мережеву камеру","Edit network camera"),Width=680,MinWidth=420,Height=700,MinHeight=260,MaxHeight=800,SizeToContent=SizeToContent.Manual,WindowStartupLocation=WindowStartupLocation.CenterOwner,WindowDecorations=WindowDecorations.Full,ShowInTaskbar=false};
         PrintWindowIcons.Attach(win);
@@ -83,6 +83,12 @@ internal static class NetworkCameraDialog
         stack.Children.Add(form);Section(T("Подключение","Підключення","Connection"),form);
         Field(T("Название","Назва","Name"),name,form);Field(T("Адрес потока","Адреса потоку","Stream URL"),address,form);
         Field(T("Пользователь","Користувач","Username"),user,form);Field(T("Пароль","Пароль","Password"),password,form);
+        var onvifRow=new WrapPanel();form.Children.Add(onvifRow);
+        var linkOnvif=Button(T("Подключить ONVIF…","Підключити ONVIF…","Link ONVIF…"),Icon.Link,onvifRow);
+        var unlinkOnvif=Button(T("Отключить ONVIF","Відключити ONVIF","Unlink ONVIF"),Icon.Dismiss,onvifRow);
+        var onvifInfo=new TextBlock{TextWrapping=TextWrapping.Wrap};form.Children.Add(onvifInfo);
+        var onvif=new NetworkCameraProfile();if(initial is not null)onvif.CopyOnvif(initial);
+        void OnvifInfo(){unlinkOnvif.IsVisible=onvif.HasOnvif;onvifInfo.Text=onvif.HasOnvif?T("ONVIF подключён","ONVIF підключено","ONVIF linked"):T("Не подключён ONVIF","ONVIF не підключено","ONVIF not linked");}
         var securityBox=new StackPanel{Spacing=5};Section(T("Безопасность","Безпека","Security"),securityBox);
         securityBox.Children.Add(allow);
         Field(T("Движок RTSP","Рушій RTSP","RTSP engine"),engine,engineBox);
@@ -137,6 +143,14 @@ internal static class NetworkCameraDialog
             var p=new NetworkCameraProfile{Id=id,Name=name.Text?.Trim()??"",Address=raw,User=user.Text??"",Password=password.Text??"",AllowPlaintext=allow.IsChecked==true,
                 Engine=engine.SelectedIndex==1?"ffmpeg":"sharp",Decoder=DecoderId(),DecoderFallback=decoder.SelectedIndex<0?initial?.DecoderFallback==true:decoderFallback.IsChecked==true,Pin=uri?.Scheme is "https" or "rtsps"?NetworkCameraProfile.NormalizePin(pin.Text??""):"",CaFile=uri?.Scheme=="rtsps"?ca.Text??"":"",Fps=(int)(fps.Value??5),TimeoutSeconds=(int)(timeout.Value??10),Reconnect=reconnect.IsChecked==true,RtspUdp=uri?.Scheme=="rtsp"&&udp.IsChecked==true};
             if(p.Name.Length==0)p.Name=uri?.Host??"Camera";
+            p.CopyOnvif(onvif);
+            if(p.HasOnvif)
+            {
+                if(!Uri.TryCreate(p.OnvifAddress,UriKind.Absolute,out var controlUri)||uri is null||!string.Equals(uri.IdnHost,controlUri.IdnHost,StringComparison.OrdinalIgnoreCase))
+                {feedback.Text=T("Адрес потока и ONVIF относятся к разным устройствам. Переподключите или отключите ONVIF.","Адреса потоку й ONVIF належать різним пристроям. Перепідключіть або відключіть ONVIF.","Stream and ONVIF addresses refer to different hosts. Relink or unlink ONVIF.");return null;}
+                if(existing.Any(x=>x.Id!=p.Id&&x.HasOnvif&&x.OnvifProfileToken==p.OnvifProfileToken&&(string.Equals(x.OnvifAddress,p.OnvifAddress,StringComparison.OrdinalIgnoreCase)||p.OnvifIdentity.Length>0&&x.OnvifIdentity==p.OnvifIdentity)))
+                {feedback.Text=T("Этот профиль ONVIF уже добавлен.","Цей профіль ONVIF вже додано.","This ONVIF profile already exists.");return null;}
+            }
             if(!p.Validate(out _)){feedback.Text=T("Проверьте адрес (без логина/пароля в URL), параметры TLS и разрешение небезопасного транспорта. FFmpeg RTSPS не поддерживает точный отпечаток; не удаляйте его ради подключения секретных карточек.","Перевірте адресу (без логіна/пароля в URL), параметри TLS і дозвіл небезпечного транспорту. FFmpeg RTSPS не підтримує точний відбиток; не видаляйте його заради секретних карток.","Check the URL (no embedded credentials), TLS settings and insecure transport permission. FFmpeg RTSPS does not support exact pins; do not remove a pin to scan secrets.");return null;}
             if(existing.Any(x=>x.Id!=p.Id&&string.Equals(x.Name,p.Name,StringComparison.OrdinalIgnoreCase))){feedback.Text=T("Камера с таким именем уже существует.","Камера з такою назвою вже існує.","A camera with this name already exists.");return null;}
             return p;
@@ -202,6 +216,21 @@ internal static class NetworkCameraDialog
         close.Click+=(_,_)=>{if(busy){cancel?.Cancel();feedback.Text=T("Остановка проверки…","Зупинка перевірки…","Stopping test…");}else win.Close();};
         win.Closing+=(_,e)=>{if(busy){cancel?.Cancel();e.Cancel=true;feedback.Text=T("Остановка проверки…","Зупинка перевірки…","Stopping test…");}};
         Fill(initial??new());
+        OnvifInfo();
+        async Task LinkOnvif()
+        {
+            if(busy)return;
+            var link=await OnvifDialog.Link(win,onvif,address.Text??"",user.Text??"",password.Text??"");if(link is null)return;
+            onvif.OnvifAddress=link.Endpoint;onvif.OnvifUser=link.User;onvif.OnvifPassword=link.Password;onvif.OnvifAllowHttp=link.AllowHttp;
+            onvif.OnvifProfileToken=link.ProfileToken;onvif.OnvifMediaService=link.Service;onvif.OnvifIdentity=link.Identity;
+            if(string.IsNullOrWhiteSpace(name.Text))name.Text=link.Name.Length>80?link.Name[..80]:link.Name;
+            address.Text=link.StreamUrl;
+            if(string.IsNullOrWhiteSpace(user.Text)&&string.IsNullOrEmpty(password.Text)){user.Text=link.User;password.Text=link.Password;}
+            OnvifInfo();
+        }
+        linkOnvif.Click+=async (_,_)=>await LinkOnvif();
+        unlinkOnvif.Click+=(_,_)=>{onvif=new NetworkCameraProfile();OnvifInfo();};
+        if(startOnvif)win.Opened+=async (_,_)=>await LinkOnvif();
         var inventoryPanel=new WrapPanel();var inspect=Button(T("Диагностика видеодекодеров…","Діагностика відеодекодерів…","Video decoder diagnostics…"),Icon.Settings,inventoryPanel);stack.Children.Add(inventoryPanel);
         inspect.Click+=async (_,_)=>{if(!busy)await VideoDecoderDialog.Show(win);};
         await win.ShowDialog(owner);password.Text="";return result;

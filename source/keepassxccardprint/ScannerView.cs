@@ -49,6 +49,7 @@ public sealed class ScannerView : UserControl
     private readonly ComboBox _decoderChoice=new();
     private readonly CheckBox _decoderFallback=new();
     private readonly Button _decoderDiagnostics=new();
+    private readonly Button _onvifControls=new(){IsVisible=false,HorizontalAlignment=HorizontalAlignment.Left};
     private readonly ProgressBar _sourceProgress=new(){IsIndeterminate=true,Height=3,IsVisible=false};
     private readonly ContentControl _sourceIcon=new(){VerticalAlignment=VerticalAlignment.Top};
     private sealed record CameraChoice(string Key,string Label,int LocalIndex,NetworkCameraProfile? Profile)
@@ -176,6 +177,7 @@ public sealed class ScannerView : UserControl
         _decoderSettings.Children.Add(Labeled(_decoderLabel,decoderControls));_decoderSettings.Children.Add(_decoderNotice);
         _decoderSettings.Children.Add(_decoderFallback);_networkSettings.Children.Add(_decoderSettings);
         _sourceOverview.Children.Add(_networkTechnical);_sourceOptions.Children.Add(_networkSettings);
+        _networkSettings.Children.Add(_onvifControls);
         _probeControls.Classes.Add("preview-tool");
         _hardware.Children.Add(_hardwareRows);_hardware.Children.Add(_controlStatus);_sourceOptions.Children.Add(_hardware);
         _sourceLayout.Children.Add(_sourceOverview);_sourceLayout.Children.Add(_sourceOptions);
@@ -237,6 +239,7 @@ public sealed class ScannerView : UserControl
         _camera.Click += async (_, _) => await Run(ToggleSelectedCamera);
         _network.Click += async (_, _) => await Run(ManageCameras,true);
         _decoderDiagnostics.Click+=async (_,_)=>await Run(async()=>{if(Owner is { } owner)await VideoDecoderDialog.Show(owner);PopulateDecoder();},true);
+        _onvifControls.Click+=async (_,_)=>await Run(async()=>{if(Owner is { } owner&&SelectedProfile is { HasOnvif:true } profile)await OnvifDialog.Control(owner,profile);},true);
         _decoderChoice.SelectionChanged+=async (_,_)=>await DecoderSelectionChanged(true);
         _decoderFallback.IsCheckedChanged+=async (_,_)=>await DecoderSelectionChanged(false);
         _file.Click += async (_, _) => await Run(PickFile,true);
@@ -338,6 +341,7 @@ public sealed class ScannerView : UserControl
         _decoderLabel.Text=T("Видеодекодер","Відеодекодер","Video decoder");
         _decoderFallback.Content=T("Резервирование при отказе","Резервування при відмові","Fallback on failure");
         ToolIcon(_decoderDiagnostics,Icon.Settings,T("Диагностика видеодекодеров…","Діагностика відеодекодерів…","Video decoder diagnostics…"));
+        Caption(_onvifControls,Icon.Settings,T("Управление ONVIF…","Керування ONVIF…","ONVIF controls…"));
         _sourceLabel.Text=T("Источник","Джерело","Source");
         _cameraSource.Content=T("Камера","Камера","Camera");_fileSource.Content=T("Файл","Файл","File");_clipboardSource.Content=T("Буфер обмена","Буфер обміну","Clipboard");
         _resolutionLabel.Text=T("Разрешение","Роздільність","Resolution");_sensitivityLabel.Text=T("Режим поиска","Режим пошуку","Search mode");_timeoutLabel.Text=T("Очистка буфера","Очищення буфера","Clipboard clear");
@@ -566,6 +570,7 @@ public sealed class ScannerView : UserControl
         _decoderSettings.IsVisible=UsesSharpRtsp;_decoderChoice.IsEnabled=ready&&_profileStoreOk&&_decoderChoices.Count>0;UpdateDecoderNotice();
         _decoderFallback.IsVisible=CurrentStreamCodec!="JPEG"&&_decoderChoice.SelectedIndex>=0&&ManualDecoder;_decoderFallback.IsEnabled=ready&&_profileStoreOk&&_decoderFallback.IsVisible;
         _decoderDiagnostics.IsEnabled=ready;
+        _onvifControls.IsVisible=actions.Camera&&SelectedProfile is { HasOnvif:true };_onvifControls.IsEnabled=ready&&_onvifControls.IsVisible;
         _networkTechnical.IsVisible=actions.Camera&&NetworkLive&&_networkTechnical.Text?.Length>0;
         _selectRegion.IsEnabled=ready&&hasImage;_clearRegion.IsEnabled=ready&&hasImage&&_searchRegion is not null;
         _freeze.IsVisible=_cameraLive&&!NetworkFailed;_freeze.IsEnabled=ready&&_cameraLive&&(_frozen||_quality is not null);

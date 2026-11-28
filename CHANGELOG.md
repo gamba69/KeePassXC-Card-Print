@@ -1,5 +1,23 @@
 # Changelog
 
+## [11.4.3] - 2026-11-28
+
+- Keep diagnostic card rows complete at responsive widths, add a scan-time card, and align measurement groups on a shared compact grid. Retain hidden secondary metrics and provide an all-metrics view.
+
+## [11.4.2] - 2026-11-28
+
+- Broaden ONVIF discovery with typed and untyped WS-Discovery probes in both dialects, explicit reply addressing and actionable no-response feedback.
+
+## [11.4.1] - 2026-11-28
+
+- Construct the synthetic ONVIF credential-bearing URL at runtime in the rejection self-test so repository privacy validation remains enabled.
+
+## [11.4.0] - 2026-11-28
+
+- Add ONVIF discovery, device authentication and media profile selection, independent of the existing RTSP/HTTP frame readers.
+- Add capability-driven ONVIF imaging, encoder settings, focus and PTZ controls; keep ONVIF credentials in the device-local DPAPI camera profile.
+- Rename the scanner tab to Scan / Сканирование / Сканування.
+
 ## [11.3.9] - 2026-11-27
 
 - Keep the scanner connection indicator and layout stable during automatic network camera retries; avoid transient error states and repeated diagnostic resets while preserving terminal errors and retry counts.

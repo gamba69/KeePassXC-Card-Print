@@ -39,6 +39,7 @@ internal static class ScannerSelfTests
                 Require(NetworkCameraSource.ShouldReconnect(true,state)&&!NetworkCameraSource.ShouldReconnect(false,state),"Network retry policy: "+state);
             foreach(var state in new[]{NetworkCameraState.Authentication,NetworkCameraState.Certificate,NetworkCameraState.DecoderMissing,NetworkCameraState.SystemCodecMissing,NetworkCameraState.VideoInitializationFailed,NetworkCameraState.VideoDecodeFailed,NetworkCameraState.Unsupported})
                 Require(!NetworkCameraSource.ShouldReconnect(true,state),"Terminal network failure: "+state);
+            OnvifSelfTests.Run();
             // RFC 6238, Appendix B: public test vectors, never a user's secret.
             string prefix = "otpauth:" + "//totp/Test?";
             using var totp = ScannerPayload.Parse(prefix + "secret=" + "GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ" + "&digits=8");
@@ -179,6 +180,14 @@ internal static class ScannerSelfTests
             Require(VideoDecoderManager.Available(candidates,unavailable,"H264").Length==2,"unprobed H264 choices remain");
             Require(VideoDecoderManager.Available(candidates,unavailable,"JPEG").Length==0,"JPEG does not need video decoder");
             Require(ScannerDashboard.TableColumns(479)==1&&ScannerDashboard.TableColumns(480)==2&&ScannerDashboard.TableColumns(720)==3,"responsive measurement columns");
+            Require(ScannerDashboard.CardLayout(239)==(1,4)&&ScannerDashboard.CardLayout(240)==(2,6)&&ScannerDashboard.CardLayout(475)==(3,6)&&ScannerDashboard.CardLayout(720)==(4,8),"complete responsive card rows");
+            foreach(int width in new[]{220,400,480,720,1000})foreach(int count in Enumerable.Range(0,39))
+            {
+                var compact=ScannerDashboard.MeasurementLayout(width,count,false);
+                var all=ScannerDashboard.MeasurementLayout(width,count,true);
+                Require(compact.Count%compact.Columns==0&&compact.Count<=count&&count-compact.Count<compact.Columns,"balanced compact measurement groups");
+                Require(all.Count==count&&all.Count%all.Columns==0,"all measurements without empty rows");
+            }
             var screenLimit=DialogScreenPolicy.ClientLimit(new Avalonia.PixelRect(-1920,0,1920,1040),1.25,new Avalonia.Size(16,40));
             Require(screenLimit.Width==1504&&screenLimit.Height==776,"dialog bounds in target-monitor DIPs");
             Require(!NetworkCameraProfile.ConsentScopeChanged("rtsp://127.0.0.1/demo","sharp","rtsp://127.0.0.1/demo","ffmpeg"),"same plaintext endpoint retains consent");
